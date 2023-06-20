@@ -25,8 +25,8 @@ return [
     'lti13' => [
         'signature_method' => env('LTI13_SIGNATURE_METHOD', 'RS256'),
         'key_id' => env('LTI13_KEY_ID', 'key-1'),
-        'rsa_public_key' => file_get_contents(storage_path('keys\public.pem')),
-        'rsa_private_key' => file_get_contents(storage_path('keys\private.pem')),
+        'rsa_public_key' => file_get_contents(storage_path('keys/public.pem')),
+        'rsa_private_key' => file_get_contents(storage_path('keys/private.pem')),
         'auto_register_deployment_id' => env('LTI13_AUTO_REGISTER_DEPLOYMENT_ID', false),
         'required_scopes' => [
             // sample scope URLs

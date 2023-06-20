@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::get('/', function () {
-    return view('welcome');
+    return "Instancia no válida: No se ha lanzado correctamente"/*view('welcome')*/;
 });
 
 
