@@ -15,6 +15,4 @@ COPY . /var/www/html
 RUN composer install --no-dev --no-interaction && \
     chown -R www-data:www-data /var/www/html/storage
 
-CMD ["php","artisan","serve", "--host=0.0.0.0"].
-
-EXPOSE 8000
+CMD ["php","artisan","serve","--host=0.0.0.0","--port=9000"].

@@ -5,12 +5,12 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: UNIAdaptiveLTI-Back
-    container_name: UNIAdaptiveLTI-Back
+    image: uniadpativelti-back
+    container_name: uniadpativelti-back
     restart: unless-stopped
     tty: true
     ports:
-      - 8000:8000
+      - 9000:9000
     environment:
       APP_NAME: UNIAdaptiveLTI-BackEnd
       ETC:
