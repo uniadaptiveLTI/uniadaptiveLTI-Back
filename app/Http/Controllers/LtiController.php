@@ -26,7 +26,7 @@ class LtiController extends Controller
 
     public function getJWKS()
     {
-        header('Access-Control-Allow-Origin: ' . env('URL_FRONT'));
+        header('Access-Control-Allow-Origin: ' . env('FRONT_URL'));
         $tool = LtiTool::getLtiTool();
         return $tool->getJWKS();
     }
@@ -84,7 +84,7 @@ class LtiController extends Controller
             default:
                 break;
         }
-        return redirect()->to(env('URL_FRONT'));
+        return redirect()->to(env('FRONT_URL'));
         // exit;
     }
     public function createSession($sakaiURL, $sakaiServerId)
@@ -99,7 +99,7 @@ class LtiController extends Controller
     // Función que devuelve los datos del usuario y del curso
     public function getSession()
     {
-        header('Access-Control-Allow-Origin: ' . env('URL_FRONT'));
+        header('Access-Control-Allow-Origin: ' . env('FRONT_URL'));
         $lastInserted = DB::table('lti_info')->latest()->first();
         // dd($lastInserted);
         $data = [];
@@ -282,7 +282,7 @@ class LtiController extends Controller
     // Función que devuelve la url de la imagen del usuario
     public function getImgUser($lms, $id)
     {
-        header('Access-Control-Allow-Origin: ' . env('URL_FRONT'));
+        header('Access-Control-Allow-Origin: ' . env('FRONT_URL'));
         $client = new Client([
             'base_uri' => $lms . '/webservice/rest/server.php',
             'timeout' => 2.0,
@@ -304,7 +304,7 @@ class LtiController extends Controller
     // Función que devuelve los grupos de un curso
     public function getGroups($lms, $id)
     {
-        header('Access-Control-Allow-Origin:' . env('URL_FRONT'));
+        header('Access-Control-Allow-Origin:' . env('FRONT_URL'));
         $client = new Client([
             'base_uri' => $lms . '/webservice/rest/server.php',
             'timeout' => 2.0,
@@ -331,7 +331,7 @@ class LtiController extends Controller
     // Función que devuelve las agrupaciones de grupos de un curso
     public function getGrupings($lms, $id)
     {
-        header('Access-Control-Allow-Origin: ' . env('URL_FRONT'));
+        header('Access-Control-Allow-Origin: ' . env('FRONT_URL'));
         $client = new Client([
             'base_uri' => $lms . '/webservice/rest/server.php',
             'timeout' => 2.0,
@@ -358,7 +358,7 @@ class LtiController extends Controller
     // Función que devuelve TODOS los modulos de un curso
     public function getModules(Request $request)
     {
-        header('Access-Control-Allow-Origin:' . env('URL_FRONT'));
+        header('Access-Control-Allow-Origin:' . env('FRONT_URL'));
         // dd($request);
         $instance = Instance::select('platform', 'url_lms')
             ->where('id', $request->instance)
@@ -439,7 +439,7 @@ class LtiController extends Controller
                                 'section' => $indexS,
                                 'indent' => $module->indent,
                                 'visible' => ($module->visible >= 1) ? 'show_unconditionally' : 'hidden_until_access'
-                                // 'section' => 
+                                // 'section' =>
                             ]);
                         }
                     }
@@ -462,7 +462,7 @@ class LtiController extends Controller
     // Función que devuelve los modulos con tipo en concreto de un curso
     public function getModulesByType(Request $request)
     {
-        header('Access-Control-Allow-Origin:' . env('URL_FRONT'));
+        header('Access-Control-Allow-Origin:' . env('FRONT_URL'));
         // dd(intVal($request->course), $request->type);
         switch ($request->platform) {
             case 'moodle':
@@ -538,7 +538,7 @@ class LtiController extends Controller
     // Función que devuelve TODAS las secciones de un curso
     public function getSections($lms, $id)
     {
-        header('Access-Control-Allow-Origin:' . env('URL_FRONT'));
+        header('Access-Control-Allow-Origin:' . env('FRONT_URL'));
         $client = new Client([
             'base_uri' => $lms . '/webservice/rest/server.php',
             'timeout' => 2.0,
@@ -582,7 +582,7 @@ class LtiController extends Controller
     }
     public function getGradereport($lms, $id)
     {
-        header('Access-Control-Allow-Origin:' . env('URL_FRONT'));
+        header('Access-Control-Allow-Origin:' . env('FRONT_URL'));
         $client = new Client([
             'base_uri' => $lms . '/webservice/rest/server.php',
             'timeout' => 2.0,
