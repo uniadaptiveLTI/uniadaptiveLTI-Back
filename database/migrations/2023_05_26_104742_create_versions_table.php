@@ -18,6 +18,7 @@ return new class extends Migration
             $table->unsignedBigInteger('map_id');
             $table->string('name');
             $table->boolean('default');
+            $table->json('blocks_data');
             $table->foreign('map_id')->references('id')->on('maps')->onDelete('cascade');
             $table->timestamps();
         });

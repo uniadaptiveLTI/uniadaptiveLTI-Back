@@ -11,6 +11,7 @@ class Map extends Model
 
     protected $fillable = [
         'name',
+        'created_id',
         'course_id',
         'lesson_id'
     ];

@@ -21,17 +21,14 @@ use Illuminate\Support\Facades\Route;
 
 
 
-Route::get('/xd', function () {
-    $moodleRest = new \MoodleRest(getenv('MOODLE_API_URL'), getenv('MOODLE_API_TOKEN'));
-});
+
+// Route::get('/verify', function (Illuminate\Http\Request $request) {
+//     $token = $request->input('token');
+//     if ($token === 'valor esperado') {
+//         return response('Token válido');
+//     } else {
+//         return response('Token inválido', 401);
+//     }
+// });
 
 Route::post('/lti/store_version', [LtiController::class, 'storeVersion']);
-
-Route::get('/verify', function (Illuminate\Http\Request $request) {
-    $token = $request->input('token');
-    if ($token === 'valor esperado') {
-        return response('Token válido');
-    } else {
-        return response('Token inválido', 401);
-    }
-});

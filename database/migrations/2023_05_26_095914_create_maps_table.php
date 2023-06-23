@@ -16,6 +16,7 @@ return new class extends Migration
     {
         Schema::create('maps', function (Blueprint $table) {
             $table->id();
+            $table->string('created_id');
             $table->unsignedBigInteger('course_id');
             $table->string('lesson_id')->nullable();
             $table->string('name');

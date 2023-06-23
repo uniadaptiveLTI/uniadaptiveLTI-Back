@@ -21,14 +21,8 @@ Route::get('/', function () {
 
 
 
-Route::group(['middleware' => ['web']], function () {
-    Route::post('/lti/launch', [LtiController::class, 'ltiMessage']);
-    Route::get('/lti/get_session', [LtiController::class, 'getSession']);
-    Route::get('/lti/get_modules', [LtiController::class, 'getModules']);
-    Route::get('/lti/get_modules_by_type', [LtiController::class, 'getModulesByType']);
-
-    // Route::get('/lti/get_lti_info', [LtiController::class, 'getLtiInfo']);
-    // Route::get('/lti/createToken', [LtiController::class, 'createToken']);
-    // Route::post('/lti', [LtiController::class, 'ltiMessage2']);
-    Route::get('/lti/jwks', [LtiController::class, 'getJWKS']);
-});
+Route::post('/lti/launch', [LtiController::class, 'ltiMessage']);
+Route::get('/lti/get_session', [LtiController::class, 'getSession']);
+Route::get('/lti/get_modules', [LtiController::class, 'getModules']);
+Route::get('/lti/get_modules_by_type', [LtiController::class, 'getModulesByType']);
+Route::get('/lti/jwks', [LtiController::class, 'getJWKS']);

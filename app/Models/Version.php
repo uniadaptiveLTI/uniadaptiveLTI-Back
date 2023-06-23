@@ -13,6 +13,7 @@ class Version extends Model
         'map_id',
         'name',
         'default',
+        'blocks_data'
     ];
 
     public function map()
@@ -20,8 +21,8 @@ class Version extends Model
         return $this->belongsTo('App\Models\Map');
     }
 
-    public function blocksDatas()
+    public function blocks()
     {
-        return $this->hasMany('App\Models\BlockData');
+        return $this->hasMany('App\Models\Block');
     }
 }
