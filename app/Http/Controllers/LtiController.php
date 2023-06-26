@@ -24,7 +24,7 @@ class LtiController extends Controller
         $tool->handleRequest();
         $fire = $tool->getMessageParameters();
         $fechaActual = date('Y-m-d H:i:s');
-        // dd($fire['user_id']);
+        // dd($fire);
         switch ($fire['tool_consumer_info_product_family_code']) {
             case 'moodle':
                 DB::table('lti_info')->insert([

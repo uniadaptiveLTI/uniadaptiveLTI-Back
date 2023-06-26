@@ -30,5 +30,4 @@ use Illuminate\Support\Facades\Route;
 //         return response('Token inválido', 401);
 //     }
 // });
-
 Route::post('/lti/store_version', [LtiController::class, 'storeVersion']);
