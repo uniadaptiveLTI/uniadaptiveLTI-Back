@@ -83,6 +83,7 @@ class SakaiController extends Controller
                 'course_id' => $lastInserted->context_id,
                 'session_id' => $lastInserted->session_id,
                 'platform' => $lastInserted->tool_consumer_info_product_family_code,
+                'lms_url' => $lastInserted->platform_id,
                 'return_url' => $lastInserted->launch_presentation_return_url,
             ],
             SakaiController::getCourse(
@@ -138,6 +139,7 @@ class SakaiController extends Controller
     // Función que devuelve los modulos con tipo en concreto de un curso
     public static function getModulesByType(Request $request)
     {
+        // dd($request);
         switch ($request->type) {
             case 'forum':
                 return SakaiController::getForums($request->lms, $request->course, $request->session);
@@ -215,11 +217,12 @@ class SakaiController extends Controller
     // Función que devuelve los recursos de un curso de Sakai dependiendo de su tipo
     public static function getResources($lms, $contextId, $sessionId, $type)
     {
+        // dd($sessionId);
         $client = new Client();
 
         $response = $client->request('GET', $lms . '/direct/content/resources/group/' . $contextId . '.json?depth=3', [
             'headers' => [
-                'Cookie' => 'JSESSIONID=' . $sessionId,
+                'Cookie' => 'SAKAI2SESSIONID=' . $sessionId,
             ],
         ]);
         $content = $response->getBody()->getContents();

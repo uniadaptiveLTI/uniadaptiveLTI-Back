@@ -9,9 +9,11 @@ use App\Models\Version;
 use GuzzleHttp\Client;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Mockery\Undefined;
 
 class MoodleController extends Controller
 {
+    // guarda la sesión del usuario en la base de datos y redirecciona al front
     public static function storeVersion(Request $request)
     {
         try {
@@ -33,6 +35,8 @@ class MoodleController extends Controller
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
+
+    // devuelve la sesión almacenada en la base de datos de un usuario que se ha conectado a la lti
     public static function getSession(Object $lastInserted)
     {
         // dd($lastInserted);
@@ -54,6 +58,7 @@ class MoodleController extends Controller
                 'groups' => MoodleController::getGroups($lastInserted->platform_id, $lastInserted->context_id),
                 'grupings' => MoodleController::getGrupings($lastInserted->platform_id, $lastInserted->context_id),
                 'badges' => MoodleController::getBadges($lastInserted->context_id),
+                'grades' => MoodleController::getIdCoursegrades($lastInserted->platform_id, $lastInserted->context_id)
             ],
             MoodleController::getCourse(
                 $lastInserted->context_id,
@@ -64,6 +69,7 @@ class MoodleController extends Controller
         return $data;
     }
 
+    // Devuelve la istáncia
     public static function getinstance($platform, $url_lms)
     {
         // dd($url_lms);
@@ -79,6 +85,7 @@ class MoodleController extends Controller
         return $dataInstance->id;
     }
 
+    // devuelve un array de los mapas de un curso con sus versiones y bloques
     public static function getCourse($course_id, $platform, $url_lms)
     {
         // dd($url_lms);
@@ -136,18 +143,18 @@ class MoodleController extends Controller
     }
 
     // Función que devuelve TODAS las secciones de un curso
-    public static function getSections($lms, $id)
+    public static function getSections($url_lms, $course_id)
     {
         header('Access-Control-Allow-Origin:' . env('FRONT_URL'));
         $client = new Client([
-            'base_uri' => $lms . '/webservice/rest/server.php',
+            'base_uri' => $url_lms . '/webservice/rest/server.php',
             'timeout' => 2.0,
         ]);
         $response = $client->request('GET', '', [
             'query' => [
                 'wstoken' => env('WSTOKEN'),
                 'wsfunction' => 'core_course_get_contents',
-                'courseid' => $id,
+                'courseid' => $course_id,
                 'options' => [
                     [
                         'name' => 'excludecontents',
@@ -184,7 +191,6 @@ class MoodleController extends Controller
     // Función que devuelve TODOS los modulos de un curso
     public static function getModules(Request $request, Object $instance)
     {
-        // dd($request);
         $client = new Client([
             'base_uri' => $instance->url_lms . '/webservice/rest/server.php',
             'timeout' => 2.0,
@@ -205,81 +211,32 @@ class MoodleController extends Controller
         ]);
         $content = $response->getBody()->getContents();
         $data = json_decode($content);
-        // dd($data);
-        // $this->getGradereport($instance->url_lms, $request->course);
         $modules = [];
-
-        // Obtener información sobre las calificaciones de los módulos del curso
-        $module_grades = DB::connection('moodle')
-            ->table('mdl_grade_grades')
-            ->join('mdl_grade_items', 'mdl_grade_items.id', '=', 'mdl_grade_grades.itemid')
-            ->join('mdl_course_modules', function ($join) {
-                $join->on('mdl_course_modules.instance', '=', 'mdl_grade_items.iteminstance')
-                    ->on('mdl_course_modules.course', '=', 'mdl_grade_items.courseid');
-            })
-            ->where('mdl_grade_items.courseid', $request->course)
-            ->whereNotNull('mdl_grade_grades.rawgrade')
-            ->get();
-
-
-        // dd($module_grades);
-
-        // Crear un array para almacenar información sobre qué módulos tienen calificaciones
-        $graded_modules = [];
-
-        // Procesar las calificaciones de los módulos
-        foreach ($module_grades as $grade) {
-            // Verificar si el elemento de calificación corresponde a un módulo
-            if ($grade->itemtype === 'mod') {
-                // Agregar el ID del módulo al array
-                $graded_modules[$grade->iteminstance] = true;
-            }
-        }
-
-
-        // Obtener información sobre las restricciones de acceso para los módulos del curso
-        $module_availability = DB::connection('moodle')
-            ->table('mdl_course_modules')
-            ->where('course', $request->course)
-            ->get();
-
-        // Crear un array para almacenar información sobre las restricciones de acceso para los módulos
-        $module_restrictions = [];
-
-        // Procesar las restricciones de acceso
-        foreach ($module_availability as $availability) {
-            // Agregar información sobre las restricciones de acceso al array
-            $module_restrictions[$availability->id] = json_decode($availability->availability);
-        }
+        $module_grades = MoodleController::getCoursegrades($request->course);
 
         foreach ($data as $indexS => $section) {
-            // dd($section);
+
             foreach ($section->modules as $indexM => $module) {
-                // Verificar si el módulo tiene calificaciones
-                $has_grades = isset($graded_modules[$module->id]);
-
-                // Verificar si el módulo tiene restricciones de acceso
-                $availability = isset($module_restrictions[$module->id]) ? $module_restrictions[$module->id] : null;
-
-                array_push($modules, [
-                    'name' => htmlspecialchars($module->name),
-                    'modname' => htmlspecialchars($module->modname),
-                    'id' => htmlspecialchars($module->id),
+                // dd();
+                $has_grades = isset($module_grades[$module->name]);
+                $module_data = [
+                    'name' => e($module->name),
+                    'modname' => e($module->modname),
+                    'id' => e($module->id),
                     'has_califications' => $has_grades,
-                    'availability' => $availability,
                     'order' => $indexM,
                     'section' => $indexS,
                     'indent' => $module->indent,
                     'visible' => ($module->visible >= 1) ? 'show_unconditionally' : 'hidden_until_access'
-                    // 'section' =>
-                ]);
+                ];
+                if ($module->availability != null) {
+                    $module_data['availability'] = json_decode($module->availability);
+                }
+                $modules[] = $module_data;
             }
         }
-        // dd($modules);
         return $modules;
     }
-
-
 
     // Función que devuelve los modulos con tipo en concreto de un curso
     public static function getModulesByType(Request $request)
@@ -308,14 +265,17 @@ class MoodleController extends Controller
         // dd($content);
         $data = json_decode($content);
         // dd($data);
+        $module_grades = MoodleController::getCoursegrades($request->course);
         $modules = [];
         foreach ($data as $indexM => $section) {
             // dd($section);
             foreach ($section->modules as $module) {
+                $has_grades = isset($module_grades[$module->name]);
                 array_push($modules, [
                     'id' => htmlspecialchars($module->id),
                     'name' => htmlspecialchars($module->name),
-                    'section' => htmlspecialchars($indexM)
+                    'section' => htmlspecialchars($indexM),
+                    'has_grades' => $has_grades
                 ]);
             }
         }
@@ -324,18 +284,18 @@ class MoodleController extends Controller
     }
 
     // Función que devuelve los grupos de un curso
-    public static function getGroups($lms, $id)
+    public static function getGroups($url_lms, $course_id)
     {
         header('Access-Control-Allow-Origin:' . env('FRONT_URL'));
         $client = new Client([
-            'base_uri' => $lms . '/webservice/rest/server.php',
+            'base_uri' => $url_lms . '/webservice/rest/server.php',
             'timeout' => 2.0,
         ]);
         $response = $client->request('GET', '', [
             'query' => [
                 'wstoken' => env('WSTOKEN'),
                 'wsfunction' => 'core_group_get_course_groups',
-                'courseid' => $id,
+                'courseid' => $course_id,
                 'moodlewsrestformat' => 'json'
             ]
         ]);
@@ -352,18 +312,18 @@ class MoodleController extends Controller
     }
 
     // Función que devuelve las agrupaciones de grupos de un curso
-    public static function getGrupings($lms, $id)
+    public static function getGrupings($url_lms, $course_id)
     {
         header('Access-Control-Allow-Origin: ' . env('FRONT_URL'));
         $client = new Client([
-            'base_uri' => $lms . '/webservice/rest/server.php',
+            'base_uri' => $url_lms . '/webservice/rest/server.php',
             'timeout' => 2.0,
         ]);
         $response = $client->request('GET', '', [
             'query' => [
                 'wstoken' => env('WSTOKEN'),
                 'wsfunction' => 'core_group_get_course_groupings',
-                'courseid' => $id,
+                'courseid' => $course_id,
                 'moodlewsrestformat' => 'json'
             ]
         ]);
@@ -380,12 +340,12 @@ class MoodleController extends Controller
     }
 
     // Función que devuelve las medallas de un curso
-    public static function getBadges($id)
+    public static function getBadges($course_id)
     {
         $dataBadges = DB::connection('moodle')
             ->table('mdl_badge')
             ->select('id', 'name')
-            ->where('courseid', $id)
+            ->where('courseid', $course_id)
             ->get();
         $badges = [];
         foreach ($dataBadges as $badge) {
@@ -427,11 +387,11 @@ class MoodleController extends Controller
     }
 
     // Función que devuelve la url de la imagen del usuario
-    public static function getImgUser($lms, $id)
+    public static function getImgUser($url_lms, $course_id)
     {
         header('Access-Control-Allow-Origin: ' . env('FRONT_URL'));
         $client = new Client([
-            'base_uri' => $lms . '/webservice/rest/server.php',
+            'base_uri' => $url_lms . '/webservice/rest/server.php',
             'timeout' => 2.0,
         ]);
         $response = $client->request('GET', '', [
@@ -439,7 +399,7 @@ class MoodleController extends Controller
                 'wstoken' => env('WSTOKEN'),
                 'wsfunction' => 'core_user_get_users_by_field',
                 'field' => 'id',
-                'values[0]' => $id,
+                'values[0]' => $course_id,
                 'moodlewsrestformat' => 'json'
             ]
         ]);
@@ -449,15 +409,54 @@ class MoodleController extends Controller
         return $data[0]->profileimageurl;
     }
 
-    public static function getGradereport($id)
+    // Devuelve un array con los nombres de todos los módulos del curso que tienen calificaciones 
+    public static function getCoursegrades($course_id)
     {
-        $dataGrade = DB::connection('moodle')
-            ->table('mdl_grade_grades')
-            ->select('id')
-            ->where('itemid', $id)
-            ->whereNotNull('rawgrade')
-            ->first();
+        $module_grades = DB::connection('moodle')
+            ->table('mdl_grade_items')
+            ->join('mdl_grade_grades', 'mdl_grade_grades.itemid', '=', 'mdl_grade_items.id')
+            ->where('mdl_grade_items.courseid', $course_id)
+            ->where('mdl_grade_items.itemtype', 'mod')
+            ->whereNotNull('mdl_grade_grades.rawgrade')
+            ->groupBy('mdl_grade_items.itemname')
+            ->select('mdl_grade_items.itemname')
+            ->get()
+            ->pluck('itemname')
+            ->flip()
+            ->all();
+        return $module_grades;
+    }
 
-        return !is_null($dataGrade);
+    // Devuelve un array con los IDs de los módulos del curso que tienen calificaciones
+    public static function getIdCoursegrades($url_lms, $course_id)
+    {
+        $client = new Client([
+            'base_uri' => $url_lms . '/webservice/rest/server.php',
+            'timeout' => 2.0,
+        ]);
+        $response = $client->request('GET', '', [
+            'query' => [
+                'wstoken' => env('WSTOKEN'),
+                'wsfunction' => 'core_course_get_contents',
+                'courseid' => $course_id,
+                'moodlewsrestformat' => 'json'
+            ]
+        ]);
+        $content = $response->getBody()->getContents();
+        $datas = json_decode($content);
+        // dd($data);
+        $grades = MoodleController::getCoursegrades($course_id);
+
+        $modulesCalificateds = [];
+        // dd($grades);
+        // error_log('Grades: ' . $grades);
+        foreach ($datas as $section) {
+            foreach ($section->modules as $module) {
+                if (isset($grades[$module->name])) {
+                    array_push($modulesCalificateds, $module->id);
+                }
+            }
+        }
+        return $modulesCalificateds;
     }
 }

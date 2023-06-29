@@ -88,7 +88,7 @@ class LtiController extends Controller
     // Función que devuelve TODOS los modulos de un curso
     public function getModules(Request $request)
     {
-        header('Access-Control-Allow-Origin:' . env('FRONT_URL'));
+        header('Access-Control-Allow-Origin: *'/* . env('FRONT_URL')*/);
         // dd($request);
         $instance = Instance::select('platform', 'url_lms')
             ->where('id', $request->instance)
@@ -114,7 +114,7 @@ class LtiController extends Controller
     // Función que devuelve los modulos con tipo en concreto de un curso
     public function getModulesByType(Request $request)
     {
-        header('Access-Control-Allow-Origin:' . env('FRONT_URL'));
+        header('Access-Control-Allow-Origin: *'/* . env('FRONT_URL')*/);
         // dd($request);
         // dd(intVal($request->course), $request->type);
         switch ($request->platform) {
