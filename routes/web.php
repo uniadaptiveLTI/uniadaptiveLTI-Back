@@ -21,7 +21,7 @@ Route::get('/', function () {
 
 
 
-Route::post('/lti/launch', [LtiController::class, 'ltiMessage']);
+Route::post('/lti/launch', [LtiController::class, 'getSaveSession']);
 Route::get('/lti/get_session', [LtiController::class, 'getSession']);
 Route::get('/lti/get_modules', [LtiController::class, 'getModules']);
 Route::get('/lti/get_modules_by_type', [LtiController::class, 'getModulesByType']);

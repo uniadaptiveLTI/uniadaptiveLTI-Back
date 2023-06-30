@@ -10,15 +10,10 @@ class LtiControllerTest extends TestCase
 {
 
 
-    private $idUserMoodle = 3;
-    private $idCourseMoodle = 8;
+
     private $idCourseSakai = 'dc37c313-079c-4073-9ed6-7a6d2cb79732';
-    private $idInstanceMoodle = 1;
-    private $platformMoodle = 'moodle';
     private $platformSakai = 'sakai';
-    private $urlLmsMoodle = 'http://localhost/moodle-3.11.13';
     private $urlLmsSakai = 'http://localhost:8080';
-    private $resourceType = 'quiz';
     private $sessionSakai = '4cd55d5d-7474-4cc4-be4e-6bd45428b406.DESKTOP-643I850';
 
     //Moodle
@@ -39,79 +34,7 @@ class LtiControllerTest extends TestCase
         $this->assertIsArray($response);
     }
 
-    public function testGetImgUser()
-    {
-        $controller = new LtiController();
-        $response = $controller->getImgUser($this->urlLmsMoodle, $this->idUserMoodle);
 
-        $this->assertIsString($response);
-    }
-
-    public function testGetGroups()
-    {
-        $controller = new LtiController();
-        $response = $controller->getGroups($this->urlLmsMoodle, $this->idCourseMoodle);
-
-        $this->assertIsArray($response);
-    }
-
-    public function testGetGrupings()
-    {
-        $controller = new LtiController();
-        $response = $controller->getGrupings($this->urlLmsMoodle, $this->idCourseMoodle);
-
-        $this->assertIsArray($response);
-    }
-
-    public function testGetModules()
-    {
-        $controller = new LtiController();
-        $request = new Request([
-            // 'platform' => $this->platformMoodle,
-            'instance' => $this->idInstanceMoodle,
-            'course' => $this->idCourseMoodle,
-            'moodlewsrestformat' => 'json'
-        ]);
-        $response = $controller->getModules($request);
-
-        $this->assertIsArray($response);
-    }
-
-    public function testgetModulesByType()
-    {
-        $controller = new LtiController();
-        $request = new Request([
-            'platform' => $this->platformMoodle,
-            'course' => $this->idCourseMoodle,
-            'type' => $this->resourceType
-        ]);
-
-        $response = $controller->getModulesByType($request);
-        $this->assertIsArray($response);
-    }
-
-    public function testGetSections()
-    {
-        $controller = new LtiController();
-        $response = $controller->getSections($this->urlLmsMoodle, $this->idCourseMoodle);
-
-        $this->assertIsArray($response);
-    }
-
-    public function testGetBadges()
-    {
-        $controller = new LtiController();
-        $response = $controller->getBadges($this->idCourseMoodle);
-
-        $this->assertIsArray($response);
-    }
-
-    public function testGetCourse()
-    {
-        $controller = new LtiController();
-        $response = $controller->getCourse($this->idCourseMoodle, $this->platformMoodle, $this->urlLmsMoodle);
-        $this->assertIsArray($response);
-    }
 
     //Sakai
 

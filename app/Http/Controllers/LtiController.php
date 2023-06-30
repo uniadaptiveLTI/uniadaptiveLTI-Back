@@ -18,7 +18,7 @@ class LtiController extends Controller
         return $tool->getJWKS();
     }
     // Función que obtiene datos del LMS, los almacena en la base de datos (TEMPORAL) y redirige al front
-    public function ltiMessage()
+    public function getSaveSession()
     {
         $tool = LtiTool::getLtiTool();
         $tool->handleRequest();
@@ -81,6 +81,7 @@ class LtiController extends Controller
                 return SakaiController::getSession($lastInserted);
                 break;
             default:
+                error_log('La plataforma que está usando no está soportada');
                 break;
         }
     }
@@ -98,7 +99,7 @@ class LtiController extends Controller
             // dd($request->course);
             switch ($instance->platform) {
                 case 'moodle':
-                    return MoodleController::getModules($request, $instance);
+                    return MoodleController::getModules($request);
                     break;
                 case 'sakai':
                     return SakaiController::getLessons($instance->url_lms, $request->course, $request->session);
@@ -125,7 +126,7 @@ class LtiController extends Controller
                 return SakaiController::getModulesByType($request);
                 break;
             default:
-                # code...
+                error_log('La plataforma que está usando no está soportada');
                 break;
         }
         // dd($request);

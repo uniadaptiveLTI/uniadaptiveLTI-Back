@@ -17,6 +17,7 @@ class MoodleController extends Controller
     public static function storeVersion(Request $request)
     {
         try {
+            error_log($request);
             $course = Course::where('instance_id', $request->saveData['instance_id'])
                 ->where('course_id', $request->saveData['course_id'])
                 ->first();
@@ -39,6 +40,7 @@ class MoodleController extends Controller
     // devuelve la sesión almacenada en la base de datos de un usuario que se ha conectado a la lti
     public static function getSession(Object $lastInserted)
     {
+
         // dd($lastInserted);
         $data = [
             [
@@ -145,7 +147,7 @@ class MoodleController extends Controller
     // Función que devuelve TODAS las secciones de un curso
     public static function getSections($url_lms, $course_id)
     {
-        header('Access-Control-Allow-Origin:' . env('FRONT_URL'));
+
         $client = new Client([
             'base_uri' => $url_lms . '/webservice/rest/server.php',
             'timeout' => 2.0,
@@ -189,10 +191,10 @@ class MoodleController extends Controller
     }
 
     // Función que devuelve TODOS los modulos de un curso
-    public static function getModules(Request $request, Object $instance)
+    public static function getModules(Request $request)
     {
         $client = new Client([
-            'base_uri' => $instance->url_lms . '/webservice/rest/server.php',
+            'base_uri' => $request->url_lms . '/webservice/rest/server.php',
             'timeout' => 2.0,
         ]);
         $response = $client->request('GET', '', [
@@ -243,7 +245,7 @@ class MoodleController extends Controller
     {
         // dd($request->lms);
         $client = new Client([
-            'base_uri' => $request->lms . '/webservice/rest/server.php',
+            'base_uri' => $request->url_lms . '/webservice/rest/server.php',
             'timeout' => 2.0,
         ]);
         $response = $client->request('GET', '', [
@@ -286,7 +288,6 @@ class MoodleController extends Controller
     // Función que devuelve los grupos de un curso
     public static function getGroups($url_lms, $course_id)
     {
-        header('Access-Control-Allow-Origin:' . env('FRONT_URL'));
         $client = new Client([
             'base_uri' => $url_lms . '/webservice/rest/server.php',
             'timeout' => 2.0,
@@ -314,7 +315,6 @@ class MoodleController extends Controller
     // Función que devuelve las agrupaciones de grupos de un curso
     public static function getGrupings($url_lms, $course_id)
     {
-        header('Access-Control-Allow-Origin: ' . env('FRONT_URL'));
         $client = new Client([
             'base_uri' => $url_lms . '/webservice/rest/server.php',
             'timeout' => 2.0,
@@ -383,13 +383,14 @@ class MoodleController extends Controller
                 'conditions' => $conditions,
             ]);
         }
+        // dd($badges);
         return $badges;
     }
 
     // Función que devuelve la url de la imagen del usuario
-    public static function getImgUser($url_lms, $course_id)
+    public static function getImgUser($url_lms, $user_id)
     {
-        header('Access-Control-Allow-Origin: ' . env('FRONT_URL'));
+        // header('Access-Control-Allow-Origin: *');
         $client = new Client([
             'base_uri' => $url_lms . '/webservice/rest/server.php',
             'timeout' => 2.0,
@@ -399,7 +400,7 @@ class MoodleController extends Controller
                 'wstoken' => env('WSTOKEN'),
                 'wsfunction' => 'core_user_get_users_by_field',
                 'field' => 'id',
-                'values[0]' => $course_id,
+                'values[0]' => $user_id,
                 'moodlewsrestformat' => 'json'
             ]
         ]);
