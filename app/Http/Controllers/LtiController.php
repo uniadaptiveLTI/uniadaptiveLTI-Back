@@ -18,7 +18,7 @@ class LtiController extends Controller
         return $tool->getJWKS();
     }
     // Función que obtiene datos del LMS, los almacena en la base de datos (TEMPORAL) y redirige al front
-    public function getSaveSession()
+    public function saveSession()
     {
         $tool = LtiTool::getLtiTool();
         $tool->handleRequest();
