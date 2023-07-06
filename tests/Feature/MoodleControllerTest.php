@@ -74,12 +74,7 @@ class MoodleControllerTest extends TestCase
     public function testGetModules()
     {
         $controller = new MoodleController();
-        $request = new Request([
-            'url_lms' => $this->urlLmsMoodle,
-            'course' => $this->idCourseMoodle,
-            'moodlewsrestformat' => 'json'
-        ]);
-        $response = $controller->getModules($request);
+        $response = $controller->getModules($this->urlLmsMoodle, $this->idCourseMoodle);
 
         $this->assertIsArray($response);
 

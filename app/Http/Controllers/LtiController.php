@@ -63,8 +63,16 @@ class LtiController extends Controller
             default:
                 break;
         }
-        return redirect()->to(env('FRONT_URL'));
-        // exit;
+        $headers = @get_headers(env('FRONT_URL'));
+        if ($headers && strpos($headers[0], '200')) {
+            // URL is available
+            // Generate redirect response
+            return redirect()->to(env('FRONT_URL'));
+        } else {
+            // URL is not available
+            // Handle error
+            return response('Error: La url no está disponible', 500);
+        }
     }
 
     // Función que devuelve los datos del usuario y del curso
@@ -91,6 +99,9 @@ class LtiController extends Controller
     {
         header('Access-Control-Allow-Origin: *'/* . env('FRONT_URL')*/);
         // dd($request);
+
+
+
         $instance = Instance::select('platform', 'url_lms')
             ->where('id', $request->instance)
             ->first();
@@ -99,7 +110,7 @@ class LtiController extends Controller
             // dd($request->course);
             switch ($instance->platform) {
                 case 'moodle':
-                    return MoodleController::getModules($request);
+                    return MoodleController::getModules($instance->url_lms, $request->course);
                     break;
                 case 'sakai':
                     return SakaiController::getLessons($instance->url_lms, $request->course, $request->session);
@@ -134,5 +145,10 @@ class LtiController extends Controller
     public function storeVersion(Request $request)
     {
         MoodleController::storeVersion($request);
+    }
+
+    public function exportVersion(Request $request)
+    {
+        MoodleController::exportVersion($request);
     }
 }

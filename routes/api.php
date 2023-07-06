@@ -31,3 +31,4 @@ use Illuminate\Support\Facades\Route;
 //     }
 // });
 Route::post('/lti/store_version', [LtiController::class, 'storeVersion']);
+Route::post('/lti/export_version', [LtiController::class, 'exportVersion']);

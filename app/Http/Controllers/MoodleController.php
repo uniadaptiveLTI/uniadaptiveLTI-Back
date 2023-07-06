@@ -10,6 +10,9 @@ use GuzzleHttp\Client;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Mockery\Undefined;
+use PhpParser\Node\Expr\Cast\Object_;
+
+use function PHPSTORM_META\type;
 
 class MoodleController extends Controller
 {
@@ -191,17 +194,20 @@ class MoodleController extends Controller
     }
 
     // Función que devuelve TODOS los modulos de un curso
-    public static function getModules(Request $request)
+    public static function getModules($url_lms, $course)
     {
+
+        MoodleController::editModule($url_lms);
+
         $client = new Client([
-            'base_uri' => $request->url_lms . '/webservice/rest/server.php',
+            'base_uri' => $url_lms . '/webservice/rest/server.php',
             'timeout' => 2.0,
         ]);
         $response = $client->request('GET', '', [
             'query' => [
                 'wstoken' => env('WSTOKEN'),
                 'wsfunction' => 'core_course_get_contents',
-                'courseid' => $request->course,
+                'courseid' => $course,
                 'options' => [
                     [
                         'name' => 'includestealthmodules',
@@ -214,7 +220,7 @@ class MoodleController extends Controller
         $content = $response->getBody()->getContents();
         $data = json_decode($content);
         $modules = [];
-        $module_grades = MoodleController::getCoursegrades($request->course);
+        $module_grades = MoodleController::getCoursegrades($course);
 
         foreach ($data as $indexS => $section) {
 
@@ -460,4 +466,139 @@ class MoodleController extends Controller
         }
         return $modulesCalificateds;
     }
+
+    public static function editModule($url_lms)
+    {
+        $client = new Client([
+            'base_uri' => $url_lms . '/webservice/rest/server.php',
+            'timeout' => 2.0,
+        ]);
+        $response = $client->request('POST', '', [
+            'query' => [
+                'wstoken' => env('WSTOKEN'),
+                'wsfunction' => 'core_course_edit_module',
+                'action' => 'show',
+                'id' => 57,
+                'moodlewsrestformat' => 'json'
+            ]
+        ]);
+        $response2 = $client->request('POST', '', [
+            'query' => [
+                'wstoken' => env('WSTOKEN'),
+                'wsfunction' => 'core_course_edit_module',
+                'action' => 'hide',
+                'id' => 57,
+                'moodlewsrestformat' => 'json'
+            ]
+        ]);
+    }
+
+    public static function exportVersion(Request $request)
+    {
+        // error_log($request);
+        $i = 0;
+        foreach ($request->nodes as $data) {
+            $node = json_encode($data);
+            $decodedNode = json_decode($node);
+            $json = [];
+            if(isset($decodedNode->conditions)){
+                
+                // foreach ($decodedNode->conditions as $condition) {
+                //     // error_log(json_encode($condition));
+                // }
+                error_log('Item '.$i.': ');
+                $conditions = MoodleController::recursiveConditionsChange($decodedNode->conditions);
+                error_log('Valor de $conditions fuera de la funcion: '. json_encode($conditions));
+            }
+            $i++;
+        }
+    } 
+
+    public static function recursiveConditionsChange($data, $json = [], $childCount = 0, $recActive = false){
+        error_log('Data: '.json_encode($data));
+        switch ($data) {
+            case isset($data->conditions):
+                error_log('Case 1: ');
+                $count = count($data->conditions);
+                error_log('Cantidad hijos: ' . $count);
+                $c = [];
+                foreach ($data->conditions as $condition) {
+                    error_log('HIJO: ' . json_encode($condition));
+                    $newCondition = MoodleController::recursiveConditionsChange($condition, $json, 0, true);
+                    array_push($c, $newCondition);
+                    if (isset($newCondition['childCount'])) {
+                        $childCount += $newCondition['childCount'];
+                    }
+                }
+                
+                $json['op'] = $data->op;
+                $json['c'] = $c;
+                break;
+            case isset($data->type):
+                error_log('Case Conditions: ');
+                switch ($data->type) {
+                    case 'completion':
+                        error_log('completion');
+                        $e = '';
+                        if ($data->query == 'completed'){
+                            $e = '1';
+                        }elseif ($data->query == 'notCompleted'){
+                            $e = '0';
+                        }elseif ($data->query == 'completedApproved'){
+                            $e = '2';
+                        }elseif ($data->query == 'completedFailed') {
+                            $e = '3';
+                        }
+                        $dates = [
+                            'type' => $data->type,
+                            'cm' => $data->op,
+                            'e' => $e
+                        ];
+                        return $dates;
+                        break;
+                    case 'date':
+                        error_log('date');
+                        $query = '';
+                        if ($data->query == 'dateFrom'){
+                            $query = '>=';
+                        }elseif ($data->query == 'dateTo') {
+                            $query = '<';
+                        }
+                        $dates = [
+                            'type' => $data->type,
+                            'd' => $query,
+                            't' => strtotime($data->op)
+                        ];
+                        return $dates;
+                        break;
+                    case 'qualification':
+                        error_log('grade');
+                        $dates = [
+                            'type' => 'grade'  
+                        ];
+                        if (isset($data->objective)) {
+                            $dates['min'] = $data->objective;
+                        }
+                        if (isset($data->objective2)) {
+                            $dates['max'] = $data->objective2;
+                        }
+                        return $dates;
+                        break;
+                    default:
+                        break;
+                }
+                break;
+            default:
+                error_log('Case 3: ');
+                $json = $data;
+                break;
+        }
+        error_log('Result: '.json_encode($json));
+        if($recActive){
+            return $json;
+        }else{
+            $json['childCount'] = $childCount;
+            return $json;
+        }
+    } 
 }
