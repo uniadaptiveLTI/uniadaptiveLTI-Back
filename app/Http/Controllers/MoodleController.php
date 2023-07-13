@@ -9,10 +9,8 @@ use App\Models\Version;
 use GuzzleHttp\Client;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Mockery\Undefined;
-use PhpParser\Node\Expr\Cast\Object_;
 
-use function PHPSTORM_META\type;
+use function GuzzleHttp\json_decode;
 
 class MoodleController extends Controller
 {
@@ -20,23 +18,27 @@ class MoodleController extends Controller
     public static function storeVersion(Request $request)
     {
         try {
-            error_log($request);
             $course = Course::where('instance_id', $request->saveData['instance_id'])
                 ->where('course_id', $request->saveData['course_id'])
+                ->select('id')
                 ->first();
             $mapData = $request->saveData['map'];
+            
             $map = Map::updateOrCreate(
-                ['created_id' => $mapData['id'],  'course_id' =>  $course->id],
+                ['created_id' => $mapData['id'],  'course_id' =>  $course->id, 'user_id' => intval($request->saveData['user_id'])],
                 ['name' => $mapData['name'], 'lesson_id' => $request->saveData['instance_id']]
             );
+            
             $versionData = $mapData['versions'];
             $version = Version::updateOrCreate(
                 ['map_id' => $map->id, 'name' => $versionData['name']],
                 ['default' => boolval($versionData['default']), 'blocks_data' => json_encode($versionData['blocksData'])]
             );
-            return 0;
+            return response()->json(['ok' => true]);
         } catch (\Exception $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
+            
+            abort(500, $e->getMessage());
+            return response()->json(['ok' => false]);
         }
     }
 
@@ -179,7 +181,7 @@ class MoodleController extends Controller
         ]);
         $content = $response->getBody()->getContents();
         $data = json_decode($content);
-
+        // dd($data);
         $sections = [];
         foreach ($data as $section) {
             // dd($section);
@@ -196,8 +198,6 @@ class MoodleController extends Controller
     // Función que devuelve TODOS los modulos de un curso
     public static function getModules($url_lms, $course)
     {
-
-        MoodleController::editModule($url_lms);
 
         $client = new Client([
             'base_uri' => $url_lms . '/webservice/rest/server.php',
@@ -495,75 +495,110 @@ class MoodleController extends Controller
 
     public static function exportVersion(Request $request)
     {
-        // error_log($request);
-        $i = 0;
-        foreach ($request->nodes as $data) {
+        $sections = MoodleController::getModulesListBySectionsCourse($request->course);
+        error_log('Sectiones antes del cambio: '.json_encode($sections));
+        $position = [];
+
+        $nodes = $request->nodes;
+
+        usort($nodes, function ($a, $b) {
+            if ($a['section'] === $b['section']) {
+                return $a['order'] - $b['order'];
+            }
+            return $a['section'] - $b['section'];
+        });
+        
+        foreach ($nodes as $index => $data) {
             $node = json_encode($data);
             $decodedNode = json_decode($node);
-            $json = [];
-            if(isset($decodedNode->conditions)){
-                
-                // foreach ($decodedNode->conditions as $condition) {
-                //     // error_log(json_encode($condition));
-                // }
-                error_log('Item '.$i.': ');
-                $conditions = MoodleController::recursiveConditionsChange($decodedNode->conditions);
-                error_log('Valor de $conditions fuera de la funcion: '. json_encode($conditions));
+            if($request->course == '8'){
+                // error_log('NodeSection: '.$nodes[$index]['section']);
+                switch ($data['section']) {
+                    case 0:
+                        $nodes[$index]['section'] = 25;
+                        break;
+                    case 1:
+                        $nodes[$index]['section'] = 26;
+                        break;
+                    case 2:
+                        $nodes[$index]['section'] = 27;
+                        break;
+                    case 3:
+                        $nodes[$index]['section'] = 28;
+                        break;
+                    default:
+                        break;
+                }
             }
-            $i++;
+            foreach ($sections as $section) {
+                $key = array_search($data['id'], $section->sequence);
+                if($key !== false){
+                    // error_log('BOCATA1: '.json_encode($section->sequence));
+                    unset($section->sequence[$key]);
+                    $section->sequence = array_values($section->sequence);
+                    // error_log('BOCATA2: '.json_encode($section->sequence));
+                }
+            }
+            if(isset($decodedNode->conditions)){
+                // error_log('Condicion sin pasear: '.json_encode($nodes[$index]['conditions']));
+                $nodes[$index]['conditions'] = MoodleController::recursiveConditionsChange($request->instance, $request->course, $decodedNode->conditions);
+                // error_log('Condicion cambiada: '. json_encode($nodes[$index]['conditions']));
+            }
         }
+        foreach ($nodes as $data) {
+            foreach ($sections as $index => $section) {
+                if($section->id == $data['section']){
+                    array_splice($sections[$index]->sequence, $data['order'], 0, $data['id']);
+                }
+               
+            }
+        }
+        error_log('Secciones después del cambio: '.json_encode($sections));
+        // $status = MoodleController::setModulesListBySections($sections, $nodes);
+        
+
+        // if($status){
+        //     error_log('OK');
+        // }else{
+        //     error_log('FAILURE');
+        // }
+
+        MoodleController::editModule(MoodleController::getUrlLms($request->instance));
     } 
 
-    public static function recursiveConditionsChange($data, $json = [], $childCount = 0, $recActive = false){
-        error_log('Data: '.json_encode($data));
+    public static function recursiveConditionsChange($instance_id, $course_id, $data, $json = [], $recActive = false){
         switch ($data) {
             case isset($data->conditions):
-                error_log('Case 1: ');
-                $count = count($data->conditions);
-                error_log('Cantidad hijos: ' . $count);
                 $c = [];
                 foreach ($data->conditions as $condition) {
-                    error_log('HIJO: ' . json_encode($condition));
-                    $newCondition = MoodleController::recursiveConditionsChange($condition, $json, 0, true);
-                    array_push($c, $newCondition);
-                    if (isset($newCondition['childCount'])) {
-                        $childCount += $newCondition['childCount'];
-                    }
+                    array_push($c, MoodleController::recursiveConditionsChange($instance_id, $course_id, $condition, $json, true));
                 }
-                
                 $json['op'] = $data->op;
                 $json['c'] = $c;
                 break;
             case isset($data->type):
-                error_log('Case Conditions: ');
                 switch ($data->type) {
                     case 'completion':
-                        error_log('completion');
-                        $e = '';
-                        if ($data->query == 'completed'){
-                            $e = '1';
-                        }elseif ($data->query == 'notCompleted'){
-                            $e = '0';
-                        }elseif ($data->query == 'completedApproved'){
-                            $e = '2';
-                        }elseif ($data->query == 'completedFailed') {
-                            $e = '3';
-                        }
+                        $queryMap = [
+                            'completed' => 1,
+                            'notCompleted' => 0,
+                            'completedApproved' => 2,
+                            'completedFailed' => 3
+                        ];
+                        $e = $queryMap[$data->query] ?? '';
                         $dates = [
                             'type' => $data->type,
-                            'cm' => $data->op,
+                            'cm' => (int)$data->op,
                             'e' => $e
                         ];
                         return $dates;
                         break;
                     case 'date':
-                        error_log('date');
-                        $query = '';
-                        if ($data->query == 'dateFrom'){
-                            $query = '>=';
-                        }elseif ($data->query == 'dateTo') {
-                            $query = '<';
-                        }
+                        $queryMap = [
+                            'dateFrom' => '>=',
+                            'dateTo' => '<'
+                        ];
+                        $query = $queryMap[$data->query] ?? '';
                         $dates = [
                             'type' => $data->type,
                             'd' => $query,
@@ -572,15 +607,16 @@ class MoodleController extends Controller
                         return $dates;
                         break;
                     case 'qualification':
-                        error_log('grade');
                         $dates = [
-                            'type' => 'grade'  
+                            'type' => 'grade',
+                            'id' => MoodleController::getIdGrade($instance_id, (int)$data->op)
                         ];
+                        
                         if (isset($data->objective)) {
-                            $dates['min'] = $data->objective;
+                            $dates['min'] = (int)$data->objective;
                         }
                         if (isset($data->objective2)) {
-                            $dates['max'] = $data->objective2;
+                            $dates['max'] = (int)$data->objective2;
                         }
                         return $dates;
                         break;
@@ -589,16 +625,120 @@ class MoodleController extends Controller
                 }
                 break;
             default:
-                error_log('Case 3: ');
-                $json = $data;
                 break;
         }
-        error_log('Result: '.json_encode($json));
         if($recActive){
             return $json;
         }else{
-            $json['childCount'] = $childCount;
+            $queryMap = [
+                '&' => 'showc',
+                '|' => 'show'
+            ];
+            $show = '';
+            if($queryMap[$data->op] == 'showc'){
+                $show = [];
+                for ($i=0; $i < count($data->conditions); $i++) { 
+                    array_push($show,true);
+                }
+            }
+            elseif ($queryMap[$data->op] == 'show'){
+                $show = true;
+            }
+            $json[$queryMap[$data->op]] = $show;
             return $json;
         }
-    } 
+    }
+
+    public static function getUrlLms($instance){
+        $url_lms = DB::table('instances')
+        ->where('id',$instance)
+        ->select('url_lms')
+        ->first();
+        return $url_lms->url_lms;
+    }
+
+    public static function getModuleById($instance, $item_id){
+
+        $client = new Client([
+            'base_uri' => MoodleController::getURLLMS($instance) . '/webservice/rest/server.php',
+            'timeout' => 2.0,
+        ]);
+        $response = $client->request('GET', '', [
+            'query' => [
+                'wstoken' => env('WSTOKEN'),
+                'wsfunction' => 'core_course_get_course_module',
+                'cmid' => $item_id,
+                'moodlewsrestformat' => 'json'
+            ]
+        ]);
+        
+        $content = $response->getBody()->getContents();
+        $data = json_decode($content);
+        return $data;
+    }
+     
+    public static function getIdGrade($instance, $item_id){
+
+        $module = MoodleController::getModuleById($instance, $item_id);
+
+        $grade_id = DB::connection('moodle')
+            ->table('mdl_grade_items')
+            ->where('mdl_grade_items.courseid', $module->cm->course)
+            ->where('mdl_grade_items.itemname', $module->cm->name)
+            ->where('mdl_grade_items.itemmodule', $module->cm->modname)
+            ->where('mdl_grade_items.iteminstance', $module->cm->instance)
+            ->where('mdl_grade_items.itemtype', 'mod')
+            ->select('mdl_grade_items.id')
+            ->first();
+        return $grade_id->id;
+    }
+
+    public static function getModulesListBySectionsCourse($course_id){
+        $sections = DB::connection('moodle')
+        ->table('mdl_course_sections')
+        ->where('course', $course_id)
+        ->select('id','sequence')
+        ->get();
+        error_log('ARRAYSECTION: '.$sections[0]->sequence);
+        foreach ($sections as $section) {
+            $array = explode(",", $section->sequence);
+            $section->sequence = array_map('intval', $array);
+        }
+        return $sections;
+    }
+
+    public static function setModulesListBySections($sections, $modules){
+        try {
+            DB::connection('moodle')->transaction(function () use ($sections, $modules) {
+                foreach ($sections as $section) {
+                    DB::connection('moodle')
+                    ->table('mdl_course_sections')
+                    ->where('id', $section->id)
+                    ->update(['sequence' => implode(',', $section->sequence)]);
+                }
+                foreach ($modules as $module) {
+                    $conditions = '';
+                    if(isset($module['conditions'])){
+                        $conditions = $module['conditions'];
+                    } 
+                    DB::connection('moodle')
+                    ->table('mdl_course_modules')
+                    ->where('id',$module['id'])
+                    ->update([
+                        'section' => $module['section'],
+                        'indent' => $module['identation'],
+                        'availability' => $conditions,
+                        'visible' => 1
+                    ]);
+                }
+            });
+            return true;
+        } catch (\Exception $e) {
+            // Ocurrió un error, los cambios serán revertidos automáticamente
+            error_log($e);
+            return false;
+        }
+    }
+    
+    
 }

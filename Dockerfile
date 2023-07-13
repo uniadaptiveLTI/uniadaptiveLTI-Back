@@ -13,6 +13,6 @@ RUN apt update && \
 COPY . /var/www/html
 
 RUN composer install --no-dev --no-interaction && \
-    chown -R www-data:www-data /var/www/html/storage
+    chown -R www-data:www-data /var/www/html/storage && php artisan lti:add_platform_1.3 moodle --platform_id='$URL_LMS' --client_id="$CLIENT_ID" --deployment_id="$DEPLOYMENT_ID"
 
 CMD ["php","artisan","serve","--host=0.0.0.0","--port=9000"].

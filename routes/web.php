@@ -16,10 +16,8 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::get('/', function () {
-    return "Instancia no válida: No se ha lanzado correctamente"/*view('welcome')*/;
+    return "Instancia no válida: No se ha lanzado correctamente "/*view('welcome')*/;
 });
-
-
 
 Route::post('/lti/launch', [LtiController::class, 'saveSession']);
 Route::get('/lti/get_session', [LtiController::class, 'getSession']);

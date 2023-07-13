@@ -13,6 +13,7 @@ class Map extends Model
         'name',
         'created_id',
         'course_id',
+        'user_id',
         'lesson_id'
     ];
 

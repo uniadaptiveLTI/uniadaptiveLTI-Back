@@ -18,6 +18,7 @@ return new class extends Migration
             $table->id();
             $table->string('created_id');
             $table->unsignedBigInteger('course_id');
+            $table->unsignedBigInteger('user_id');
             $table->string('lesson_id')->nullable();
             $table->string('name');
             $table->foreign('course_id')->references('id')->on('courses')->onDelete('cascade');
