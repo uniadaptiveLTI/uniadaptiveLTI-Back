@@ -95,31 +95,30 @@ class SakaiController extends Controller
         return $data;
     }
 
-    public static function createSession($sakaiURL, $sakaiServerId)
+    public static function createSession($url_lms, $sakaiServerId)
     {
         $client = new Client();
 
-        $response = $client->request('GET', $sakaiURL . '/sakai-ws/rest/login/login?id=' . env('SAKAI_USER') . '&pw=' . env('SAKAI_PASSWORD'));
+        $response = $client->request('GET', $url_lms . '/sakai-ws/rest/login/login?id=' . env('SAKAI_USER') . '&pw=' . env('SAKAI_PASSWORD'));
         $content = $response->getBody()->getContents();
         $userId = $content . '.' . $sakaiServerId;
         return $userId;
     }
 
-    public static function getLessons($lms, $contextId, $sessionId)
+    public static function getLessons($url_lms, $contextId, $sessionId)
     {
         $client = new Client();
 
-        $response = $client->request('GET', $lms . '/direct/lessons/site/' . $contextId . '.json', [
+        $response = $client->request('GET', $url_lms . '/direct/lessons/site/' . $contextId . '.json', [
             'headers' => [
                 'Cookie' => 'JSESSIONID=' . $sessionId,
             ],
         ]);
         $content = $response->getBody()->getContents();
         $data = json_decode($content);
-        dd($data);
-        $lessons = [];
+        // dd($data);
         foreach ($data->lessons_collection as $Lesson) {
-            $response2 = $client->request('GET', $lms . '/direct/lessons/lesson/' . $Lesson->id . '.json', [
+            $response2 = $client->request('GET', $url_lms . '/direct/lessons/lesson/' . $Lesson->id . '.json', [
                 'headers' => [
                     'Cookie' => 'JSESSIONID=' . $sessionId,
                 ],
@@ -169,11 +168,11 @@ class SakaiController extends Controller
     }
 
     // Función que devuelve los foros de un curso de Sakai
-    public static function getForums($lms, $contextId, $sessionId)
+    public static function getForums($url_lms, $contextId, $sessionId)
     {
         $client = new Client();
 
-        $response = $client->request('GET', $lms . '/direct/forums/site/' . $contextId . '.json', [
+        $response = $client->request('GET', $url_lms . '/direct/forums/site/' . $contextId . '.json', [
             'headers' => [
                 'Cookie' => 'JSESSIONID=' . $sessionId,
             ],
@@ -192,11 +191,11 @@ class SakaiController extends Controller
     }
 
     // Función que devuelve las tareas de un curso de Sakai
-    public static function getAssignments($lms, $contextId, $sessionId)
+    public static function getAssignments($url_lms, $contextId, $sessionId)
     {
         $client = new Client();
 
-        $response = $client->request('GET', $lms . '/direct/assignment/site/' . $contextId . '.json', [
+        $response = $client->request('GET', $url_lms . '/direct/assignment/site/' . $contextId . '.json', [
             'headers' => [
                 'Cookie' => 'JSESSIONID=' . $sessionId,
             ],
@@ -215,12 +214,12 @@ class SakaiController extends Controller
     }
 
     // Función que devuelve los recursos de un curso de Sakai dependiendo de su tipo
-    public static function getResources($lms, $contextId, $sessionId, $type)
+    public static function getResources($url_lms, $contextId, $sessionId, $type)
     {
         // dd($sessionId);
         $client = new Client();
 
-        $response = $client->request('GET', $lms . '/direct/content/resources/group/' . $contextId . '.json?depth=3', [
+        $response = $client->request('GET', $url_lms . '/direct/content/resources/group/' . $contextId . '.json?depth=3', [
             'headers' => [
                 'Cookie' => 'SAKAI2SESSIONID=' . $sessionId,
             ],

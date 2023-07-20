@@ -21,8 +21,11 @@ class LtiController extends Controller
     public function saveSession()
     {
         $tool = LtiTool::getLtiTool();
+        
         $tool->handleRequest();
+        // dd($tool);
         $fire = $tool->getMessageParameters();
+        // dd($fire);
         $fechaActual = date('Y-m-d H:i:s');
         // dd($fire);
         switch ($fire['tool_consumer_info_product_family_code']) {
@@ -64,6 +67,7 @@ class LtiController extends Controller
                 break;
         }
         $headers = @get_headers(env('FRONT_URL'));
+        // dd(env('FRONT_URL'));
         if ($headers && strpos($headers[0], '200')) {
             // URL is available
             // Generate redirect response
@@ -79,6 +83,29 @@ class LtiController extends Controller
     public function getSession()
     {
         header('Access-Control-Allow-Origin: ' . env('FRONT_URL'));
+
+
+        
+        // $client = new Client([
+        //     'base_uri' => 'http://localhost/moodle-3.11.13/webservice/rest/server.php',
+        //     'timeout' => 2.0,
+        // ]);
+        // $response = $client->request('GET', '', [
+        //     'query' => [
+        //         'wstoken' => env('WSTOKEN'),
+        //         'wsfunction' => 'local_uniadaptive_get_coursegrades',
+        //         'course_id' => 8,
+        //         'moodlewsrestformat' => 'json'
+        //     ]
+        // ]);
+        // $content = $response->getBody()->getContents();
+        // $data = json_decode($content);
+
+        // dd($data);
+
+
+
+
         $lastInserted = DB::table('lti_info')->latest()->first();
         // dd($lastInserted);
         switch ($lastInserted->tool_consumer_info_product_family_code) {
@@ -92,6 +119,11 @@ class LtiController extends Controller
                 error_log('La plataforma que está usando no está soportada');
                 break;
         }
+    }
+    public function getVersion(Request $request){
+    header('Access-Control-Allow-Origin: *'/* . env('FRONT_URL')*/);
+    // dd($request);
+        return MoodleController::getVersion($request->version_id);
     }
 
     // Función que devuelve TODOS los modulos de un curso
