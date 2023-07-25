@@ -10,6 +10,7 @@ use GuzzleHttp\Client;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
+
 class MoodleController extends Controller
 {
     // guarda la sesión del usuario en la base de datos y redirecciona al front
@@ -28,7 +29,7 @@ class MoodleController extends Controller
             );
             
             $versionData = $mapData['versions'];
-            $version = Version::updateOrCreate(
+            Version::updateOrCreate(
                 ['map_id' => $map->id, 'name' => $versionData['name']],
                 ['default' => boolval($versionData['default']), 'blocks_data' => json_encode($versionData['blocksData'])]
             );
@@ -43,8 +44,7 @@ class MoodleController extends Controller
     // devuelve la sesión almacenada en la base de datos de un usuario que se ha conectado a la lti
     public static function getSession(Object $lastInserted)
     {
-
-        // dd($lastInserted);
+        // MoodleController::getModulesNotSupported(MoodleController::getinstance($lastInserted->tool_consumer_info_product_family_code, $lastInserted->platform_id), $lastInserted->context_id);
         $data = [
             [
                 'user_id' => $lastInserted->user_id,
@@ -150,12 +150,16 @@ class MoodleController extends Controller
         return $course;
     }
 
-    public static function getVersion($version_id){
+    public static function getVersion($version_id)
+    {
         $dataVersion = Version::select('id', 'map_id', 'name', 'blocks_data', 'updated_at', 'default')
                 ->where('id', $version_id)
                 ->first();
+        if($dataVersion == null)
+        return ['invalid' => true];
+        
         $dataVersion->blocks_data = json_decode($dataVersion->blocks_data);
-        // dd($dataVersion);
+        
         return $dataVersion;
     }
 
@@ -165,7 +169,7 @@ class MoodleController extends Controller
 
         $client = new Client([
             'base_uri' => $url_lms . '/webservice/rest/server.php',
-            'timeout' => 2.0,
+            'timeout' => 20.0,
         ]);
         $response = $client->request('GET', '', [
             'query' => [
@@ -211,7 +215,7 @@ class MoodleController extends Controller
 
         $client = new Client([
             'base_uri' => $url_lms . '/webservice/rest/server.php',
-            'timeout' => 2.0,
+            'timeout' => 20.0,
         ]);
         $response = $client->request('GET', '', [
             'query' => [
@@ -235,8 +239,9 @@ class MoodleController extends Controller
         foreach ($data as $indexS => $section) {
 
             foreach ($section->modules as $indexM => $module) {
-                // dd();
-                $has_grades = isset($module_grades[$module->name]);
+                // dd($module_grades->module_grades);
+                $has_grades = in_array($module->name, $module_grades->module_grades);
+                // dd($has_grades);
                 $module_data = [
                     'name' => e($module->name),
                     'modname' => e($module->modname),
@@ -262,7 +267,7 @@ class MoodleController extends Controller
         // dd($request->lms);
         $client = new Client([
             'base_uri' => $request->url_lms . '/webservice/rest/server.php',
-            'timeout' => 2.0,
+            'timeout' => 20.0,
         ]);
         $response = $client->request('GET', '', [
             'query' => [
@@ -306,7 +311,7 @@ class MoodleController extends Controller
     {
         $client = new Client([
             'base_uri' => $url_lms . '/webservice/rest/server.php',
-            'timeout' => 2.0,
+            'timeout' => 20.0,
         ]);
         $response = $client->request('GET', '', [
             'query' => [
@@ -333,7 +338,7 @@ class MoodleController extends Controller
     {
         $client = new Client([
             'base_uri' => $url_lms . '/webservice/rest/server.php',
-            'timeout' => 2.0,
+            'timeout' => 20.0,
         ]);
         $response = $client->request('GET', '', [
             'query' => [
@@ -360,7 +365,7 @@ class MoodleController extends Controller
     {
         $client = new Client([
             'base_uri' => $url_lms . '/webservice/rest/server.php',
-            'timeout' => 2.0,
+            'timeout' => 20.0,
         ]);
         $response = $client->request('GET', '', [
             'query' => [
@@ -382,7 +387,7 @@ class MoodleController extends Controller
         // header('Access-Control-Allow-Origin: *');
         $client = new Client([
             'base_uri' => $url_lms . '/webservice/rest/server.php',
-            'timeout' => 2.0,
+            'timeout' => 20.0,
         ]);
         $response = $client->request('GET', '', [
             'query' => [
@@ -404,7 +409,7 @@ class MoodleController extends Controller
     {
         $client = new Client([
             'base_uri' => $url_lms . '/webservice/rest/server.php',
-            'timeout' => 2.0,
+            'timeout' => 20.0,
         ]);
         $response = $client->request('GET', '', [
             'query' => [
@@ -425,7 +430,7 @@ class MoodleController extends Controller
     {
         $client = new Client([
             'base_uri' => $url_lms . '/webservice/rest/server.php',
-            'timeout' => 2.0,
+            'timeout' => 20.0,
         ]);
         $response = $client->request('GET', '', [
             'query' => [
@@ -453,38 +458,37 @@ class MoodleController extends Controller
         return $modulesCalificateds;
     }
 
-    public static function editModule($url_lms, $module_id)
-    {
-        $client = new Client([
-            'base_uri' => $url_lms . '/webservice/rest/server.php',
-            'timeout' => 2.0,
-        ]);
-        $response1 = $client->request('POST', '', [
-            'query' => [
-                'wstoken' => env('WSTOKEN'),
-                'wsfunction' => 'core_course_edit_module',
-                'action' => 'hide',
-                'id' => $module_id,
-                'moodlewsrestformat' => 'json'
-            ]
-        ]);
-        $response2 = $client->request('POST', '', [
-            'query' => [
-                'wstoken' => env('WSTOKEN'),
-                'wsfunction' => 'core_course_edit_module',
-                'action' => 'show',
-                'id' => $module_id,
-                'moodlewsrestformat' => 'json'
-            ]
-        ]);
+    // public static function editModule($url_lms, $module_id)
+    // {
+    //     $client = new Client([
+    //         'base_uri' => $url_lms . '/webservice/rest/server.php',
+    //         'timeout' => 20.0,
+    //     ]);
+    //     $response1 = $client->request('POST', '', [
+    //         'query' => [
+    //             'wstoken' => env('WSTOKEN'),
+    //             'wsfunction' => 'core_course_edit_module',
+    //             'action' => 'hide',
+    //             'id' => $module_id,
+    //             'moodlewsrestformat' => 'json'
+    //         ]
+    //     ]);
+    //     $response2 = $client->request('POST', '', [
+    //         'query' => [
+    //             'wstoken' => env('WSTOKEN'),
+    //             'wsfunction' => 'core_course_edit_module',
+    //             'action' => 'show',
+    //             'id' => $module_id,
+    //             'moodlewsrestformat' => 'json'
+    //         ]
+    //     ]);
         
-    }
+    // }
 
     public static function exportVersion(Request $request)
     {
-        $sections = MoodleController::getModulesListBySectionsCourse($request->course);
-        // error_log('Sectiones antes del cambio: '.json_encode($sections));
-        $position = [];
+        $sections = MoodleController::getModulesListBySectionsCourse($request->instance, $request->course);
+        // error_log('Sectiones antes del cambio: '.$sections[0]['id']);
 
         $nodes = $request->nodes;
 
@@ -496,7 +500,6 @@ class MoodleController extends Controller
         });
         
         foreach ($nodes as $index => $data) {
-            $node = json_encode($data);
             // error_log('NodeVisibility: '.$data['lmsVisibility']);
             
             $conditionVisibility = '';
@@ -518,77 +521,58 @@ class MoodleController extends Controller
                     # code...
                     break;
             }
-            
-            $decodedNode = json_decode($node);
-            // error_log(isset($decodedNode->c));
-            if($request->course == '8'){
-                // error_log('NodeSection: '.$nodes[$index]['section']);
-                switch ($data['section']) {
-                    case 0:
-                        $nodes[$index]['section'] = 25;
-                        break;
-                    case 1:
-                        $nodes[$index]['section'] = 26;
-                        break;
-                    case 2:
-                        $nodes[$index]['section'] = 27;
-                        break;
-                    case 3:
-                        $nodes[$index]['section'] = 28;
-                        break;
-                    default:
-                        break;
-                }
+
+            // error_log(isset($nodes[$index]['c']));
+            if(isset($nodes[$index]['c'])){
+                error_log('Condicion sin cambiar: '.json_encode($nodes[$index]['c']));
+                $nodes[$index]['c'] = MoodleController::exportRecursiveConditionsChange($request->instance, $request->course, $nodes[$index]['c'], $conditionVisibility);
+                error_log('Condicion cambiada: '. json_encode($nodes[$index]['c']));
             }
             
-            foreach ($sections as $section) {
+            foreach ($sections->sections as $index => $section) {
+                error_log('SECCION: '.json_encode($sections->sections[$index]->sequence));
                 $key = array_search($data['id'], $section->sequence);
                 if($key !== false){
                     // error_log('BOCATA1: '.json_encode($section->sequence));
                     unset($section->sequence[$key]);
-                    $section->sequence = array_values($section->sequence);
-                    // error_log('BOCATA2: '.json_encode($section->sequence));
+                    $sections->sections[$index]->sequence = array_values($section->sequence);
+                    // error_log('BOCATA2: '.json_encode($sections[$index]->sequence));
                 }
-                error_log(isset($nodes[$index]['c']));
-                if(isset($nodes[$index]['c'])){
-                    error_log('Condicion sin cambiar: '.json_encode($nodes[$index]['c']));
-                    $nodes[$index]['c'] = MoodleController::recursiveConditionsChange($request->instance, $request->course, $nodes[$index]['c'], $conditionVisibility);
-                    error_log('Condicion cambiada: '. json_encode($nodes[$index]['c']));
-                }
+                
             }
-            foreach ($nodes as $data) {
-                foreach ($sections as $index => $section) {
-                    if($section->id == $data['section']){
-                        array_splice($sections[$index]->sequence, $data['order'], 0, $data['id']);
-                    }
+            
+            foreach ($sections->sections as $index => $section) {
+                if($section->id == $data['section']){
+                    array_splice($sections->sections[$index]->sequence, $data['order'], 0, $data['id']);
                 }
-            }
-            // error_log('Secciones después del cambio: '.json_encode($sections));
+            } 
+        }
+        // error_log('Secciones después del cambio: '.json_encode($sections));
+        // error_log('Nodos: '.json_encode($nodes[3]));
+
+        $status = MoodleController::setModulesListBySections($request->instance,$sections->sections, $nodes);
         
 
-            // $status = MoodleController::setModulesListBySections($sections, $nodes);
-            
-
-            // if($status){
-            //     error_log('OK');
-            //     $url_lms = MoodleController::getUrlLms($request->instance);
-            //     MoodleController::editModule($url_lms, MoodleController::getModules($url_lms, $request->course)[0]['id']);
-            //     return response()->json(['ok' => true]);
-            // }else{
-            //     error_log('FAILURE');
-            //     return response()->json(['ok' => false]);
-            // }
+        if($status){
+            error_log('OK');
+            // $url_lms = MoodleController::getUrlLms($request->instance);
+            // MoodleController::editModule($url_lms, MoodleController::getModules($url_lms, $request->course)[0]['id']);
+            return response()->json(['ok' => true]);
+        }else{
+            error_log('FAILURE');
+            return response()->json(['ok' => false]);
         }
     } 
 
-    public static function recursiveConditionsChange($instance_id, $course_id, $data, $visibility, $json = [], $recActive = false)
+    public static function exportRecursiveConditionsChange($instance_id, $course_id, $data, $visibility, $json = [], $recActive = false)
     {
-        error_log('Los datos: '.json_encode($data));
+        // error_log('Los datos: '.json_encode($data));
         switch ($data) {
             case isset($data['c']):
                 $c = [];
                 foreach ($data['c'] as $index => $condition) {
-                    array_push($c, MoodleController::recursiveConditionsChange($instance_id, $course_id, $data['c'][$index], $visibility, $json, true));
+                    // error_log('INDEX: '.$index);
+                    array_push($c, MoodleController::exportRecursiveConditionsChange($instance_id, $course_id, $data['c'][$index], $visibility, $json, true));
                     //  MoodleController::recursiveConditionsChange($instance_id, $course_id, $data['c'][$index], $visibility, $json, true);
                 }
                 // $json['op'] = $data->op;
@@ -612,9 +596,9 @@ class MoodleController extends Controller
                         //     'e' => $e
                         // ];
                         // return $dates;
-                        $data['cm'] = (int)$data['cm'];
-                        $data['e'] = (int)$data['e'];
-                        return $data;
+                        // $data['cm'] = (int)$data['cm'];
+                        // $data['e'] = (int)$data['e'];
+                        // return $data;
                         break;
                     case 'date':
                         // $queryMap = [
@@ -631,7 +615,8 @@ class MoodleController extends Controller
                         $data['t'] = strtotime($data['t']);
                         return $data;
                         break;
-                    case 'qualification':
+                    case 'grade':
+                        // error_log('CONDITION: '.json_encode($data));
                         // error_log('CM: '.$data['cm']);
                         // $data['cm'] = MoodleController::getIdGrade($instance_id, MoodleController::getModuleById($instance_id, $data['cm']));
                         // error_log('hola?: '.json_encode($data));
@@ -640,14 +625,35 @@ class MoodleController extends Controller
                         //     'type' => 'grade',
                         //     'id' => MoodleController::getIdGrade($instance_id, MoodleController::getModuleById($instance_id, (int)$data->op))
                         // ];
-                        
+                        $data['id'] = MoodleController::getIdGrade($instance_id, MoodleController::getModuleById($instance_id, $data['id']));
                         // if (isset($data->objective)) {
                         //     $dates['min'] = (int)$data->objective;
                         // }
                         // if (isset($data->objective2)) {
                         //     $dates['max'] = (int)$data->objective2;
                         // }
-                        // return $dates;
+                        return $data;
+                        break;
+                    case 'courseGrade':
+                        // error_log('CONDITION: '.json_encode($data));
+                        // error_log('CM: '.$data['cm']);
+                        // $data['cm'] = MoodleController::getIdGrade($instance_id, MoodleController::getModuleById($instance_id, $data['cm']));
+                        error_log('ID: '.$data['courseId']);
+                        // error_log('Module: '.json_encode(MoodleController::getModuleById($instance_id, $data['courseId'])));
+                        // dd(MoodleController::getModuleById($instance_id, $data['idcourseId']));
+                        $dates = [
+                            'type' => 'grade',
+                            'id' => MoodleController::getIdCourseGrade($instance_id, $data['courseId'])
+                        ];
+                        error_log('ID: '.$dates['id']);
+                        if (isset($data['min'])) {
+                            $dates['min'] = $data['min'];
+                        }
+                        if (isset($data['max'])) {
+                            $dates['max'] = $data['max'];
+                        }
+                        error_log('hola??'.json_encode($dates));
+                        return $dates;
                         break;
                     default:
                         break;
@@ -690,10 +696,11 @@ class MoodleController extends Controller
 
     public static function getModuleById($instance, $item_id)
     {
-
+        // error_log('INSTANCIA: '.$instance);
+        // error_log('ID: '.$item_id);
         $client = new Client([
             'base_uri' => MoodleController::getURLLMS($instance) . '/webservice/rest/server.php',
-            'timeout' => 2.0,
+            'timeout' => 20.0,
         ]);
         $response = $client->request('GET', '', [
             'query' => [
@@ -707,19 +714,21 @@ class MoodleController extends Controller
         $content = $response->getBody()->getContents();
        
         $data = json_decode($content);
-        // error_log('MODULE: '.$data);
+        error_log('MODULE: '.json_encode($data->cm));
         return $data;
     }
+
     public static function getIdGrade($instance, $module)
     {
         $client = new Client([
             'base_uri' => MoodleController::getURLLMS($instance) . '/webservice/rest/server.php',
-            'timeout' => 2.0,
+            'timeout' => 20.0,
         ]);
+        error_log('MODULE ID: '.json_encode($module->cm));
         $response = $client->request('GET', '', [
             'query' => [
                 'wstoken' => env('WSTOKEN'),
-                'wsfunction' => 'local_uniadaptive_get_coursegrades',
+                'wsfunction' => 'local_uniadaptive_get_id_grade',
                 'courseid' => $module->cm->course,
                 'cmname' => $module->cm->name,
                 'cmmodname' => $module->cm->modname,
@@ -730,56 +739,126 @@ class MoodleController extends Controller
         $content = $response->getBody()->getContents();
         $data = json_decode($content);
         error_log('GRADE: '.json_encode($data));
+        return $data->grade_id;
+    }
+
+    public static function getIdCourseGrade($instance, $course_id)
+    {
+        $client = new Client([
+            'base_uri' => MoodleController::getURLLMS($instance) . '/webservice/rest/server.php',
+            'timeout' => 20.0,
+        ]);
+        // error_log('MODULE ID: '.json_encode($module->cm));
+        $response = $client->request('GET', '', [
+            'query' => [
+                'wstoken' => env('WSTOKEN'),
+                'wsfunction' => 'local_uniadaptive_get_course_grade',
+                'courseid' => $course_id,
+                'moodlewsrestformat' => 'json'
+            ]
+        ]);
+        $content = $response->getBody()->getContents();
+        $data = json_decode($content);
+        error_log('GRADE: '.json_encode($data));
+        return $data->grade_id;
+    }
+
+    public static function getModulesListBySectionsCourse($instance, $course_id)
+    {
+        $client = new Client([
+            'base_uri' => MoodleController::getURLLMS($instance) . '/webservice/rest/server.php',
+            'timeout' => 20.0,
+        ]);
+        $response = $client->request('POST', '', [
+            'query' => [
+                'wstoken' => env('WSTOKEN'),
+                'wsfunction' => 'local_uniadaptive_get_modules_list_by_sections_course',
+                'courseid' => $course_id,
+                'moodlewsrestformat' => 'json'
+            ]
+        ]);
+    
+        $content = $response->getBody()->getContents();
+        $data = json_decode($content);
+        error_log('Sequence: '.json_encode($data));
         return $data;
     }
 
-    public static function getModulesListBySectionsCourse($course_id)
-    {
-        $sections = DB::connection('moodle')
-        ->table('mdl_course_sections')
-        ->where('course', $course_id)
-        ->select('id','sequence')
-        ->get();
-        foreach ($sections as $section) {
-            $array = explode(",", $section->sequence);
-            $section->sequence = array_map('intval', $array);
+    public static function setModulesListBySections($instance, $sections, $modules) {
+        foreach ($modules as &$module) {
+            if (isset($module['c'])) {
+                $module['c'] = json_encode($module['c']);
+                error_log('Condiciones: '.$module['c']);
+            }
         }
-        return $sections;
+        unset($module);
+        $client = new Client([
+            'base_uri' => MoodleController::getURLLMS($instance) . '/webservice/rest/server.php',
+            'timeout' => 20.0,
+        ]);
+        $response = $client->request('POST', '', [
+            'query' => [
+                'wstoken' => env('WSTOKEN'),
+                'wsfunction' => 'local_uniadaptive_set_modules_list_by_sections',
+                'moodlewsrestformat' => 'json'
+            ],
+            'form_params' => [
+                'sections' => json_decode(json_encode($sections)),
+                'modules' => $modules
+            ]
+    
+        ]);
+    
+        $content = $response->getBody()->getContents();
+        $data = json_decode($content);
+        error_log(json_encode($data));
+        return $data->result;
     }
-
-    public static function setModulesListBySections($sections, $modules)
-    {
-        try {
-            DB::connection('moodle')->transaction(function () use ($sections, $modules) {
-                foreach ($sections as $section) {
-                    DB::connection('moodle')
-                    ->table('mdl_course_sections')
-                    ->where('id', $section->id)
-                    ->update(['sequence' => implode(',', $section->sequence)]);
+    
+    public static function getModulesNotSupported($request){
+        $sections = json_decode($request->sections);
+        $client = new Client([
+            'base_uri' => $request->url_lms . '/webservice/rest/server.php',
+            'timeout' => 20.0,
+        ]);
+        $response = $client->request('POST', '', [
+            'query' => [
+                'wstoken' => env('WSTOKEN'),
+                'wsfunction' => 'local_uniadaptive_get_course_modules',
+                'courseid' => $request->course,
+                'exclude' => explode(',',$request->supportedTypes),
+                'invert' => false,
+                'moodlewsrestformat' => 'json'
+            ]
+    
+        ]);
+    
+        $content = $response->getBody()->getContents();
+        // dd($content);
+        $data = json_decode($content);
+        // dd($data->modules[0]);
+        $modules = [];
+        foreach ($data->modules as $module) {
+            // dd($module);
+            $section_position = 0;
+            foreach ($sections as $section) {
+                if ($section->id == $module->section) {
+                    $section_position = $section->position;
+                    break;
                 }
-                foreach ($modules as $module) {
-                    $conditions = '';
-                    if(isset($module['conditions'])){
-                        $conditions = $module['conditions'];
-                    } 
-                    DB::connection('moodle')
-                    ->table('mdl_course_modules')
-                    ->where('id',$module['id'])
-                    ->update([
-                        'section' => $module['section'],
-                        'indent' => $module['identation'],
-                        'availability' => $conditions,
-                        'visible' => $module['lmsVisibility']
-                    ]);
-                }
-            });
-            return true;
-        } catch (\Exception $e) {
-            // Ocurrió un error, los cambios serán revertidos automáticamente
-            error_log($e);
-            return false;
+            }
+            array_push($modules, [
+                'id' => htmlspecialchars($module->id),
+                'name' => htmlspecialchars($module->name),
+                'section' => htmlspecialchars($section_position),
+                'has_grades' => false
+            ]);
         }
+        // dd($modules);
+        return $modules;
+        
     }
+    
     
     
 }

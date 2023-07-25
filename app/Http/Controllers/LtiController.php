@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Instance;
+use App\Models\Map;
+use App\Models\Version;
 use GuzzleHttp\Client;
 use LonghornOpen\LaravelCelticLTI\LtiTool;
 use Illuminate\Http\Request;
@@ -163,7 +165,13 @@ class LtiController extends Controller
         // dd(intVal($request->course), $request->type);
         switch ($request->platform) {
             case 'moodle':
-                return MoodleController::getModulesByType($request);
+                // dd($request->type);
+                if($request->type == 'unsupported'){
+                    return MoodleController::getModulesNotSupported($request);
+                }else{
+                    return MoodleController::getModulesByType($request);
+                }
+                
                 break;
             case 'sakai':
                 return SakaiController::getModulesByType($request);
@@ -182,5 +190,32 @@ class LtiController extends Controller
     public function exportVersion(Request $request)
     {
         MoodleController::exportVersion($request);
+    }
+
+    public function deleteVersion(Request $request){
+        error_log('hola deleteVersion');
+
+        try {
+            Version::destroy($request->id);
+            return response()->json(['ok' => true]);
+        } catch (\Exception $e) {
+            // Ocurrió un error, los cambios serán revertidos automáticamente
+            error_log($e);
+            return response()->json(['ok' => false]);
+        }
+        
+    }
+    function deleteMap(Request $request) {
+        error_log($request->id);
+        try {
+            
+            $map = Map::where('created_id', $request->id);
+            $map->delete();
+            return response()->json(['ok' => true]);
+        } catch (\Exception $e) {
+            // Ocurrió un error, los cambios serán revertidos automáticamente
+            error_log($e);
+            return response()->json(['ok' => false]);
+        }
     }
 }

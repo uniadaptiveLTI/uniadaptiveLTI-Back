@@ -32,5 +32,5 @@ use Illuminate\Support\Facades\Route;
 // });
 Route::post('/lti/store_version', [LtiController::class, 'storeVersion']);
 Route::post('/lti/export_version', [LtiController::class, 'exportVersion']);
-// Route::post('/lti/delete_map', [LtiController::class, 'deleteMap']);
-// Route::post('/lti/delete_version', [LtiController::class, 'deleteVersion']);
+Route::post('/lti/delete_map_by_id', [LtiController::class, 'deleteMap']);
+Route::post('/lti/delete_version_by_id', [LtiController::class, 'deleteVersion']);
