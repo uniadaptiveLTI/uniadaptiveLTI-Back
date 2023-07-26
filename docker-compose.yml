@@ -1,25 +1,50 @@
 version: '3'
 
 services:
+  db:
+    image: mysql:8.0
+    container_name: uniadaptivedb
+    restart: always
+    environment:
+      MYSQL_DATABASE: uniadaptive_back
+      MYSQL_PASSWORD: 
+      MYSQL_ROOT_PASSWORD: 
+      MYSQL_ALLOW_EMPTY_PASSWORD: allow
+    networks:
+      - uniadaptive-network
+      
   app:
     build:
       context: .
       dockerfile: Dockerfile
-    image: uniadpativelti-back
-    container_name: uniadpativelti-back
-    restart: unless-stopped
+      args:
+        URL_LMS: "https://moodle.uniadaptive.edf.global"
+        CLIENT_ID: p925I04xGznXq74
+        DEPLOYMENT_ID: 3
+    image: uniadaptivelti-back
+    depends_on:
+      - db
+    container_name: uniadaptiveb
+    
     tty: true
     ports:
       - 9000:9000
     environment:
       APP_NAME: UNIAdaptiveLTI-BackEnd
-      ETC:
+      ETC: ""
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: uniadaptive_back
+      DB_USERNAME: root
+      DB_PASSWORD: 
     working_dir: /var/www/html
     volumes:
       - ./:/var/www/html
       - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
     networks:
       - uniadaptive-network
+
 networks:
   uniadaptive-network:
-    driver: bridge
+    external: true
