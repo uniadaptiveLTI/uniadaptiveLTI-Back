@@ -22,6 +22,12 @@ class LtiController extends Controller
     // Función que obtiene datos del LMS, los almacena en la base de datos (TEMPORAL) y redirige al front
     public function saveSession()
     {
+        if(env('APP_PROXY') != ''){
+            $_SERVER['SERVER_NAME'] = env('APP_PROXY');
+		    $_SERVER['SERVER_PORT'] = env('APP_PROXY_PORT');
+        }
+        $_SERVER['HTTPS'] = env('APP_HTTPS');
+
         $tool = LtiTool::getLtiTool();
         
         $tool->handleRequest();
@@ -86,9 +92,7 @@ class LtiController extends Controller
     {
         header('Access-Control-Allow-Origin: ' . env('FRONT_URL'));
 
-
-        
-        // $client = new Client([
+            // $client = new Client([
         //     'base_uri' => 'http://localhost/moodle-3.11.13/webservice/rest/server.php',
         //     'timeout' => 2.0,
         // ]);
@@ -105,9 +109,6 @@ class LtiController extends Controller
 
         // dd($data);
 
-
-
-
         $lastInserted = DB::table('lti_info')->latest()->first();
         // dd($lastInserted);
         switch ($lastInserted->tool_consumer_info_product_family_code) {
@@ -122,6 +123,10 @@ class LtiController extends Controller
                 break;
         }
     }
+        
+
+
+
     public function getVersion(Request $request){
     header('Access-Control-Allow-Origin: *'/* . env('FRONT_URL')*/);
     // dd($request);
