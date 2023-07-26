@@ -26,7 +26,10 @@ class LtiController extends Controller
             $_SERVER['SERVER_NAME'] = env('APP_PROXY');
 		    $_SERVER['SERVER_PORT'] = env('APP_PROXY_PORT');
         }
-        $_SERVER['HTTPS'] = env('APP_HTTPS');
+        if(env('APP_HTTPS') != ''){
+            $_SERVER['HTTPS'] = env('APP_HTTPS');
+        }
+        
 
         $tool = LtiTool::getLtiTool();
         
