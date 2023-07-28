@@ -16,6 +16,7 @@ class MoodleController extends Controller
     // guarda la sesión del usuario en la base de datos y redirecciona al front
     public static function storeVersion(Request $request)
     {
+        // error_log($request);
         try {
             $course = Course::where('instance_id', $request->saveData['instance_id'])
                 ->where('course_id', $request->saveData['course_id'])
@@ -35,7 +36,7 @@ class MoodleController extends Controller
             );
             return response()->json(['ok' => true]);
         } catch (\Exception $e) {
-            
+            error_log($e);
             abort(500, $e->getMessage());
             return response()->json(['ok' => false]);
         }
@@ -491,7 +492,7 @@ class MoodleController extends Controller
         // error_log('Sectiones antes del cambio: '.$sections[0]['id']);
 
         $nodes = $request->nodes;
-        error_log("nodes:" . json_encode($nodes));
+
 
         usort($nodes, function ($a, $b) {
             if ($a['section'] === $b['section']) {
@@ -525,13 +526,13 @@ class MoodleController extends Controller
 
             // error_log(isset($nodes[$index]['c']));
             if(isset($nodes[$index]['c'])){
-                error_log('Condicion sin cambiar: '.json_encode($nodes[$index]['c']));
+                // error_log('Condicion sin cambiar: '.json_encode($nodes[$index]['c']));
                 $nodes[$index]['c'] = MoodleController::exportRecursiveConditionsChange($request->instance, $request->course, $nodes[$index]['c'], $conditionVisibility);
-                error_log('Condicion cambiada: '. json_encode($nodes[$index]['c']));
+                // error_log('Condicion cambiada: '. json_encode($nodes[$index]['c']));
             }
             
             foreach ($sections->sections as $index => $section) {
-                error_log('SECCION: '.json_encode($sections->sections[$index]->sequence));
+                // error_log('SECCION: '.json_encode($sections->sections[$index]->sequence));
                 $key = array_search($data['id'], $section->sequence);
                 if($key !== false){
                     // error_log('BOCATA1: '.json_encode($section->sequence));
@@ -555,12 +556,12 @@ class MoodleController extends Controller
         
 
         if($status){
-            error_log('OK');
+            // error_log('OK');s
             // $url_lms = MoodleController::getUrlLms($request->instance);
             // MoodleController::editModule($url_lms, MoodleController::getModules($url_lms, $request->course)[0]['id']);
             return response()->json(['ok' => true]);
         }else{
-            error_log('FAILURE');
+            // error_log('FAILURE');
             return response()->json(['ok' => false]);
         }
     } 
@@ -646,14 +647,14 @@ class MoodleController extends Controller
                             'type' => 'grade',
                             'id' => MoodleController::getIdCourseGrade($instance_id, $data['id'])
                         ];
-                        error_log('ID: '.$dates['id']);
+                        // error_log('ID: '.$dates['id']);
                         if (isset($data['min'])) {
                             $dates['min'] = $data['min'];
                         }
                         if (isset($data['max'])) {
                             $dates['max'] = $data['max'];
                         }
-                        error_log('hola??'.json_encode($dates));
+                        // error_log('hola??'.json_encode($dates));
                         return $dates;
                         break;
                     default:
@@ -715,7 +716,7 @@ class MoodleController extends Controller
         $content = $response->getBody()->getContents();
        
         $data = json_decode($content);
-        error_log('MODULE: '.json_encode($data->cm));
+        // error_log('MODULE: '.json_encode($data->cm));
         return $data;
     }
 
@@ -725,7 +726,7 @@ class MoodleController extends Controller
             'base_uri' => MoodleController::getURLLMS($instance) . '/webservice/rest/server.php',
             'timeout' => 20.0,
         ]);
-        error_log('MODULE ID: '.json_encode($module->cm));
+        // error_log('MODULE ID: '.json_encode($module->cm));
         $response = $client->request('GET', '', [
             'query' => [
                 'wstoken' => env('WSTOKEN'),
@@ -739,7 +740,7 @@ class MoodleController extends Controller
         ]);
         $content = $response->getBody()->getContents();
         $data = json_decode($content);
-        error_log('GRADE: '.json_encode($data));
+        // error_log('GRADE: '.json_encode($data));
         return $data->grade_id;
     }
 
@@ -760,7 +761,7 @@ class MoodleController extends Controller
         ]);
         $content = $response->getBody()->getContents();
         $data = json_decode($content);
-        error_log('GRADE: '.json_encode($data));
+        // error_log('GRADE: '.json_encode($data));
         return $data->grade_id;
     }
 
@@ -790,7 +791,7 @@ class MoodleController extends Controller
         foreach ($modules as &$module) {
             if (isset($module['c'])) {
                 $module['c'] = json_encode($module['c']);
-                error_log('Condiciones: '.$module['c']);
+                // error_log('Condiciones: '.$module['c']);
             }
         }
         //error_log(json_encode($modules));

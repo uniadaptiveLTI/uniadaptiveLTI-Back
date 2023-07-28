@@ -201,7 +201,6 @@ class LtiController extends Controller
     }
 
     public function deleteVersion(Request $request){
-        error_log('hola deleteVersion');
 
         try {
             Version::destroy($request->id);
@@ -214,7 +213,6 @@ class LtiController extends Controller
         
     }
     function deleteMap(Request $request) {
-        error_log($request->id);
         try {
             
             $map = Map::where('created_id', $request->id);

@@ -35,7 +35,7 @@ php artisan migrate --seed
 Run the development server:
 
 ```bash
-php artisan serve --port:9000
+php artisan serve --port=9000
 ```
 
 Open http://localhost:9000 with your browser to see the result.
