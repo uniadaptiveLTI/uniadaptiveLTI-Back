@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\Instance;
 use App\Models\Map;
 use App\Models\Version;
+use Carbon\Carbon;
 use GuzzleHttp\Client;
 use LonghornOpen\LaravelCelticLTI\LtiTool;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class LtiController extends Controller
 {
@@ -37,8 +39,18 @@ class LtiController extends Controller
         // dd($tool);
         $fire = $tool->getMessageParameters();
         // dd($fire);
-        $fechaActual = date('Y-m-d H:i:s');
+        $currentDate = date('Y-m-d H:i:s');
         // dd($fire);
+        $token = Str::uuid();
+        $expDate = intval(Carbon::now()->addSeconds(30)->valueOf());
+        //dd(intval(Carbon::now()->valueOf()));
+        // dd($token->toString());
+        DB::table('lti_info')->where([
+            ['user_id', '=', $fire['user_id']],
+            ['platform_id', '=', $fire['platform_id']],
+            ['expires_at', '>=', intval(Carbon::now()->valueOf())]
+        ])->delete();
+        
         switch ($fire['tool_consumer_info_product_family_code']) {
             case 'moodle':
                 DB::table('lti_info')->insert([
@@ -47,13 +59,15 @@ class LtiController extends Controller
                     'context_title' => $fire['context_title'],
                     'launch_presentation_locale' => $fire['launch_presentation_locale'],
                     'platform_id' => $fire['platform_id'],
+                    'token' => $token->toString(),
                     'launch_presentation_return_url' => $fire['launch_presentation_return_url'],
                     'user_id' =>  $fire['user_id'],
                     'lis_person_name_full' => $fire['lis_person_name_full'],
                     'profile_url' => MoodleController::getImgUser($fire['platform_id'], $fire['user_id']),
                     'roles' =>  $fire['roles'],
-                    'created_at' => $fechaActual,
-                    'updated_at' => $fechaActual,
+                    'expires_at' => $expDate,
+                    'created_at' => $currentDate,
+                    'updated_at' => $currentDate,
                 ]);
                 break;
             case 'sakai':
@@ -63,6 +77,7 @@ class LtiController extends Controller
                     'context_title' => $fire['context_title'],
                     'launch_presentation_locale' => $fire['launch_presentation_locale'],
                     'platform_id' => $fire['ext_sakai_server'],
+                    'token' => $token->toString(),
                     'ext_sakai_serverid' => $fire['ext_sakai_serverid'],
                     'session_id' =>  SakaiController::createSession($fire['ext_sakai_server'], $fire['ext_sakai_serverid']),
                     'launch_presentation_return_url' => $fire['launch_presentation_return_url'],
@@ -70,19 +85,22 @@ class LtiController extends Controller
                     'lis_person_name_full' => $fire['lis_person_name_full'],
                     'profile_url' => $fire['user_image'],
                     'roles' =>  $fire['roles'],
-                    'created_at' => $fechaActual,
-                    'updated_at' => $fechaActual,
+                    'expires_at' => $expDate,
+                    'created_at' => $currentDate,
+                    'updated_at' => $currentDate,
                 ]);
                 break;
             default:
                 break;
         }
         $headers = @get_headers(env('FRONT_URL'));
+        
         // dd(env('FRONT_URL'));
         if ($headers && strpos($headers[0], '200')) {
             // URL is available
             // Generate redirect response
-            return redirect()->to(env('FRONT_URL'));
+            return redirect()->to(env('FRONT_URL').'?token='.$token->toString());
+            // return Redirect::route('clients.show, $id') );
         } else {
             // URL is not available
             // Handle error
@@ -91,9 +109,9 @@ class LtiController extends Controller
     }
 
     // Función que devuelve los datos del usuario y del curso
-    public function getSession()
+    public function getSession(Request $request)
     {
-        header('Access-Control-Allow-Origin: ' . env('FRONT_URL'));
+       
 
             // $client = new Client([
         //     'base_uri' => 'http://localhost/moodle-3.11.13/webservice/rest/server.php',
@@ -112,18 +130,25 @@ class LtiController extends Controller
 
         // dd($data);
 
-        $lastInserted = DB::table('lti_info')->latest()->first();
+        $sessionData = DB::table('lti_info')
+        ->where('token', '=', $request->token)
+        ->first();
         // dd($lastInserted);
-        switch ($lastInserted->tool_consumer_info_product_family_code) {
-            case 'moodle':
-                return MoodleController::getSession($lastInserted);
+        if($this->checkToken($sessionData->token)){
+            
+            switch ($sessionData->tool_consumer_info_product_family_code) {
+                case 'moodle':
+                    return MoodleController::getSession($sessionData);
+                    break;
+                case 'sakai':
+                    return SakaiController::getSession($sessionData);
+                    break;
+                default:
+                return response()->json(['ok' => false,'error_type' => 'PLATFORM_NOT_SUPPORTED' , 'data' => []]);
                 break;
-            case 'sakai':
-                return SakaiController::getSession($lastInserted);
-                break;
-            default:
-                error_log('La plataforma que está usando no está soportada');
-                break;
+            }
+        }else{
+            return response()->json(['ok' => false, 'data' => []]);
         }
     }
         
@@ -131,97 +156,143 @@ class LtiController extends Controller
 
 
     public function getVersion(Request $request){
-    header('Access-Control-Allow-Origin: *'/* . env('FRONT_URL')*/);
-    // dd($request);
-        return MoodleController::getVersion($request->version_id);
+        if($this->checkToken($request->token)){
+            return MoodleController::getVersion($request->version_id);
+        }else{
+            return response()->json(['ok' => false,'error_type' => 'INVALID_OR_EXPIRED_TOKEN' , 'data' => []]);
+        }
+        
     }
 
     // Función que devuelve TODOS los modulos de un curso
     public function getModules(Request $request)
     {
-        header('Access-Control-Allow-Origin: *'/* . env('FRONT_URL')*/);
-        // dd($request);
 
 
-
-        $instance = Instance::select('platform', 'url_lms')
+        if($this->checkToken($request->token)){
+            
+            $instance = Instance::select('platform', 'url_lms')
             ->where('id', $request->instance)
             ->first();
-        // dd($instance);
-        if ($instance->exists) {
-            // dd($request->course);
-            switch ($instance->platform) {
-                case 'moodle':
-                    return MoodleController::getModules($instance->url_lms, $request->course);
-                    break;
-                case 'sakai':
-                    return SakaiController::getLessons($instance->url_lms, $request->course, $request->session);
-                    break;
-                default:
-                    error_log('La plataforma que está usando no está soportada');
-                    break;
+            // dd($instance);
+            if ($instance->exists) {
+                // dd($request->course);
+                switch ($instance->platform) {
+                    case 'moodle':
+                        return MoodleController::getModules($instance->url_lms, $request->course);
+                        break;
+                    case 'sakai':
+                        return SakaiController::getLessons($instance->url_lms, $request->course, $request->session);
+                        break;
+                    default:
+                        error_log('La plataforma que está usando no está soportada');
+                        return response()->json(['ok' => false,'error_type' => 'PLATFORM_NOT_SUPPORTED' , 'data' => []]);
+                        break;
+                }
+            } else {
+                error_log('No existe la instancia');
+                return response()->json(['ok' => false,'error_type' => 'INVALID_INSTANCE' , 'data' => []]);
             }
-        } else {
-            error_log('No existe la instancia');
+        }else{
+            return response()->json(['ok' => false,'error_type' => 'INVALID_OR_EXPIRED_TOKEN' , 'data' => []]);
         }
     }
     // Función que devuelve los modulos con tipo en concreto de un curso
     public function getModulesByType(Request $request)
     {
-        header('Access-Control-Allow-Origin: *'/* . env('FRONT_URL')*/);
-        // dd($request);
-        // dd(intVal($request->course), $request->type);
-        switch ($request->platform) {
-            case 'moodle':
-                // dd($request->type);
-                if($request->type == 'unsupported'){
-                    return MoodleController::getModulesNotSupported($request);
-                }else{
-                    return MoodleController::getModulesByType($request);
-                }
-                
-                break;
-            case 'sakai':
-                return SakaiController::getModulesByType($request);
-                break;
-            default:
-                error_log('La plataforma que está usando no está soportada');
-                break;
+        if($this->checkToken($request->token)){
+            
+            // dd($request);
+            // dd(intVal($request->course), $request->type);
+            switch ($request->platform) {
+                case 'moodle':
+                    // dd($request->type);
+                    if($request->type == 'unsupported'){
+                        return MoodleController::getModulesNotSupported($request);
+                    }else{
+                        return MoodleController::getModulesByType($request);
+                    }
+                    
+                    break;
+                case 'sakai':
+                    return SakaiController::getModulesByType($request);
+                    break;
+                default:
+                    error_log('La plataforma que está usando no está soportada');
+                    break;
+            }
+            
+        }else{
+            return response()->json(['ok' => false,'error_type' => 'INVALID_OR_EXPIRED_TOKEN' , 'data' => []]);
         }
-        // dd($request);
     }
     public function storeVersion(Request $request)
-    {
-        MoodleController::storeVersion($request);
+    {   
+
+        if($this->checkToken($request->token)){
+            MoodleController::storeVersion($request);
+        }else{
+            return response()->json(['ok' => false,'error_type' => 'INVALID_OR_EXPIRED_TOKEN' , 'data' => []]);
+        }
+        
     }
 
     public function exportVersion(Request $request)
     {
-        MoodleController::exportVersion($request);
+        if($this->checkToken($request->token)){
+            MoodleController::exportVersion($request);
+        }else{
+            return response()->json(['ok' => false,'error_type' => 'INVALID_OR_EXPIRED_TOKEN' , 'data' => []]);
+        }
+        
     }
 
     public function deleteVersion(Request $request){
 
-        try {
-            Version::destroy($request->id);
-            return response()->json(['ok' => true]);
-        } catch (\Exception $e) {
-            // Ocurrió un error, los cambios serán revertidos automáticamente
-            error_log($e);
-            return response()->json(['ok' => false]);
+        if($this->checkToken($request->token)){
+                
+            try {
+                Version::destroy($request->id);
+                return response()->json(['ok' => true]);
+            } catch (\Exception $e) {
+                // Ocurrió un error, los cambios serán revertidos automáticamente
+                error_log($e);
+                return response()->json(['ok' => false, 'errorType' => 'FAILED_TO_REMOVE_VERSION']);
+            }
+        }else{
+            return response()->json(['ok' => false,'error_type' => 'INVALID_OR_EXPIRED_TOKEN' , 'data' => []]);
         }
         
     }
     function deleteMap(Request $request) {
-        try {
+        
+        if($this->checkToken($request->token)){
+            try {
             
-            $map = Map::where('created_id', $request->id);
-            $map->delete();
-            return response()->json(['ok' => true]);
-        } catch (\Exception $e) {
-            // Ocurrió un error, los cambios serán revertidos automáticamente
-            error_log($e);
-            return response()->json(['ok' => false]);
+                $map = Map::where('created_id', $request->id);
+                $map->delete();
+                return response()->json(['ok' => true]);
+            } catch (\Exception $e) {
+                // Ocurrió un error, los cambios serán revertidos automáticamente
+                error_log($e);
+                return response()->json(['ok' => false, 'errorType' => 'FAILED_TO_REMOVE_MAP']);
+            }
+        }else{
+            return response()->json(['ok' => false,'error_type' => 'INVALID_OR_EXPIRED_TOKEN' , 'data' => []]);
+        }
+        
+    }
+
+    function checkToken($token){
+        $nowDate = intval(Carbon::now()->valueOf());
+        $sessionData = DB::table('lti_info')
+        ->where('token', '=', $token)
+        ->where('expires_at', '>=', $nowDate)
+        ->first();
+        if($sessionData != null){
+            return true;
+        }else{
+            return false;
         }
     }
 }

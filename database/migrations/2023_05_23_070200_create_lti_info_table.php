@@ -20,6 +20,7 @@ return new class extends Migration
             $table->string('context_title');
             $table->string('launch_presentation_locale');
             $table->string('platform_id');
+            $table->string('token');
             $table->string('ext_sakai_serverid')->nullable();
             $table->string('session_id')->nullable();
             $table->string('launch_presentation_return_url');
@@ -27,6 +28,7 @@ return new class extends Migration
             $table->string('lis_person_name_full');
             $table->longText('profile_url');
             $table->mediumText('roles');
+            $table->bigInteger('expires_at');
             $table->timestamps();
         });
     }

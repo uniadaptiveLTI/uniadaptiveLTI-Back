@@ -20,8 +20,4 @@ Route::get('/', function () {
 });
 
 Route::post('/lti/launch', [LtiController::class, 'saveSession']);
-Route::get('/lti/get_session', [LtiController::class, 'getSession']);
-Route::get('/lti/get_modules', [LtiController::class, 'getModules']);
-Route::get('/lti/get_version', [LtiController::class, 'getVersion']);
-Route::get('/lti/get_modules_by_type', [LtiController::class, 'getModulesByType']);
 Route::get('/lti/jwks', [LtiController::class, 'getJWKS']);

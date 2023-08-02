@@ -38,14 +38,13 @@ class MoodleController extends Controller
         } catch (\Exception $e) {
             error_log($e);
             abort(500, $e->getMessage());
-            return response()->json(['ok' => false]);
+            return response()->json(['ok' => false, 'errorType' => 'ERROR_SAVING_VERSION']);
         }
     }
 
     // devuelve la sesión almacenada en la base de datos de un usuario que se ha conectado a la lti
     public static function getSession(Object $lastInserted)
     {
-        // MoodleController::getModulesNotSupported(MoodleController::getinstance($lastInserted->tool_consumer_info_product_family_code, $lastInserted->platform_id), $lastInserted->context_id);
         $data = [
             [
                 'user_id' => $lastInserted->user_id,
@@ -73,7 +72,8 @@ class MoodleController extends Controller
                 $lastInserted->user_id
             )
         ];
-        return $data;
+        return response()->json(['ok' => true, 'data' => $data]);
+        // return $data;
     }
 
     // Devuelve la istáncia
@@ -157,11 +157,11 @@ class MoodleController extends Controller
                 ->where('id', $version_id)
                 ->first();
         if($dataVersion == null)
-        return ['invalid' => true];
+        return response()->json(['ok' => false,'errorType' => 'Invalid_version',  'data' => ['invalid' => true]]);
         
         $dataVersion->blocks_data = json_decode($dataVersion->blocks_data);
         
-        return $dataVersion;
+        return response()->json(['ok' => true, 'data' => $dataVersion]);
     }
 
     // Función que devuelve TODAS las secciones de un curso
@@ -259,7 +259,7 @@ class MoodleController extends Controller
                 $modules[] = $module_data;
             }
         }
-        return $modules;
+        return response()->json(['ok' => true, 'data' => $modules]);
     }
 
     // Función que devuelve los modulos con tipo en concreto de un curso
@@ -304,7 +304,7 @@ class MoodleController extends Controller
             }
         }
         // dd($modules);
-        return $modules;
+        return response()->json(['ok' => true, 'data' => $modules]);
     }
 
     // Función que devuelve los grupos de un curso
@@ -562,7 +562,7 @@ class MoodleController extends Controller
             return response()->json(['ok' => true]);
         }else{
             // error_log('FAILURE');
-            return response()->json(['ok' => false]);
+            return response()->json(['ok' => false, 'errorType' => 'FAILED_EXPORT']);
         }
     } 
 
@@ -859,7 +859,7 @@ class MoodleController extends Controller
             ]);
         }
         // dd($modules);
-        return $modules;
+        return response()->json(['ok' => true, 'data' => $modules]);
         
     }
     

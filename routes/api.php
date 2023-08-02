@@ -30,7 +30,11 @@ use Illuminate\Support\Facades\Route;
 //         return response('Token inválido', 401);
 //     }
 // });
+Route::post('/lti/get_session', [LtiController::class, 'getSession']);
 Route::post('/lti/store_version', [LtiController::class, 'storeVersion']);
 Route::post('/lti/export_version', [LtiController::class, 'exportVersion']);
 Route::post('/lti/delete_map_by_id', [LtiController::class, 'deleteMap']);
 Route::post('/lti/delete_version_by_id', [LtiController::class, 'deleteVersion']);
+Route::post('/lti/get_modules', [LtiController::class, 'getModules']);
+Route::post('/lti/get_version', [LtiController::class, 'getVersion']);
+Route::post('/lti/get_modules_by_type', [LtiController::class, 'getModulesByType']);
