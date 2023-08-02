@@ -14,33 +14,33 @@ use Illuminate\Support\Facades\DB;
 class MoodleController extends Controller
 {
     // guarda la sesión del usuario en la base de datos y redirecciona al front
-    public static function storeVersion(Request $request)
-    {
-        // error_log($request);
-        try {
-            $course = Course::where('instance_id', $request->saveData['instance_id'])
-                ->where('course_id', $request->saveData['course_id'])
-                ->select('id')
-                ->first();
-            $mapData = $request->saveData['map'];
-            
-            $map = Map::updateOrCreate(
-                ['created_id' => $mapData['id'],  'course_id' =>  $course->id, 'user_id' => intval($request->saveData['user_id'])],
-                ['name' => $mapData['name'], 'lesson_id' => $request->saveData['instance_id']]
-            );
-            
-            $versionData = $mapData['versions'];
-            Version::updateOrCreate(
-                ['map_id' => $map->id, 'name' => $versionData['name']],
-                ['default' => boolval($versionData['default']), 'blocks_data' => json_encode($versionData['blocksData'])]
-            );
-            return response()->json(['ok' => true]);
-        } catch (\Exception $e) {
-            error_log($e);
-            abort(500, $e->getMessage());
-            return response()->json(['ok' => false, 'errorType' => 'ERROR_SAVING_VERSION']);
-        }
+    public static function storeVersion($saveData,$token)
+{
+    try {
+        $course = Course::where('instance_id', $saveData['instance_id'])
+            ->where('course_id', $saveData['course_id'])
+            ->select('id')
+            ->first();
+        $mapData = $saveData['map'];
+
+        $map = Map::updateOrCreate(
+            ['created_id' => $mapData['id'],  'course_id' =>  $course->id, 'user_id' => intval($saveData['user_id'])],
+            ['name' => $mapData['name'], 'lesson_id' => $saveData['instance_id']]
+        );
+        
+        $versionData = $mapData['versions'];
+        Version::updateOrCreate(
+            ['map_id' => $map->id, 'name' => $versionData['name']],
+            ['default' => boolval($versionData['default']), 'blocks_data' => json_encode($versionData['blocksData'])]
+        );
+        return response()->json(['ok' => true]);
+    } catch (\Exception $e) {
+        error_log($e);
+        abort(500, $e->getMessage());
+        return response()->json(['ok' => false, 'errorType' => 'ERROR_SAVING_VERSION']);
     }
+}
+
 
     // devuelve la sesión almacenada en la base de datos de un usuario que se ha conectado a la lti
     public static function getSession(Object $lastInserted)
@@ -263,18 +263,19 @@ class MoodleController extends Controller
     }
 
     // Función que devuelve los modulos con tipo en concreto de un curso
-    public static function getModulesByType(Request $request)
+    public static function getModulesByType(Request $request,$sessionData)
     {
         // dd($request->lms);
         $client = new Client([
-            'base_uri' => $request->url_lms . '/webservice/rest/server.php',
+            'base_uri' => $sessionData->platform_id . '/webservice/rest/server.php',
             'timeout' => 20.0,
         ]);
+        
         $response = $client->request('GET', '', [
             'query' => [
                 'wstoken' => env('WSTOKEN'),
                 'wsfunction' => 'core_course_get_contents',
-                'courseid' => $request->course,
+                'courseid' => $sessionData->context_id,
                 'options' => [
                     [
                         'name' => 'modname',
@@ -289,7 +290,7 @@ class MoodleController extends Controller
         // dd($content);
         $data = json_decode($content);
         // dd($data);
-        $module_grades = MoodleController::getCoursegrades($request->url_lms, $request->course);
+        $module_grades = MoodleController::getCoursegrades($sessionData->platform_id, $sessionData->context_id);
         $modules = [];
         foreach ($data as $indexM => $section) {
             // dd($section);
@@ -819,17 +820,17 @@ class MoodleController extends Controller
         return $data->result;
     }
     
-    public static function getModulesNotSupported($request){
+    public static function getModulesNotSupported($request,$sessionData){
         $sections = json_decode($request->sections);
         $client = new Client([
-            'base_uri' => $request->url_lms . '/webservice/rest/server.php',
+            'base_uri' => $sessionData->platform_id . '/webservice/rest/server.php',
             'timeout' => 20.0,
         ]);
         $response = $client->request('POST', '', [
             'query' => [
                 'wstoken' => env('WSTOKEN'),
                 'wsfunction' => 'local_uniadaptive_get_course_modules',
-                'courseid' => $request->course,
+                'courseid' => $sessionData->context_id,
                 'exclude' => explode(',',$request->supportedTypes),
                 'invert' => false,
                 'moodlewsrestformat' => 'json'
