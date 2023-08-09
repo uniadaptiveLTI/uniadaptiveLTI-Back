@@ -17,3 +17,5 @@ yarn-error.log
 /.idea
 /.vscode
 storage/keys/*
+storage/logs/*
+logs/*

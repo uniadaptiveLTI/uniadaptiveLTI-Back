@@ -100,8 +100,10 @@ class SakaiController extends Controller
         $client = new Client();
 
         $response = $client->request('GET', $url_lms . '/sakai-ws/rest/login/login?id=' . env('SAKAI_USER') . '&pw=' . env('SAKAI_PASSWORD'));
+        dd($response);
         $content = $response->getBody()->getContents();
         $userId = $content . '.' . $sakaiServerId;
+        dd($userId);
         return $userId;
     }
 

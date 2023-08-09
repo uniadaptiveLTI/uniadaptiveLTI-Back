@@ -23,7 +23,7 @@
         "laravel/sanctum": "^3.0",
         "laravel/tinker": "^2.7",
         "llagerlof/moodlerest": "^2.4",
-        "longhornopen/laravel-celtic-lti": "^0.4.7",
+        "longhornopen/laravel-celtic-lti": "0.4.7",
         "tymon/jwt-auth": "dev-develop"
     },
     "require-dev": {
