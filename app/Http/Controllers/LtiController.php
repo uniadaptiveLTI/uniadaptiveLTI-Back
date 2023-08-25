@@ -67,7 +67,7 @@ class LtiController extends Controller
                     'launch_presentation_return_url' => $fire['launch_presentation_return_url'],
                     'user_id' =>  $fire['user_id'],
                     'lis_person_name_full' => $fire['lis_person_name_full'],
-                    'profile_url' => MoodleController::getImgUser($fire['platform_id'], $fire['user_id']),
+                    'profile_url' => '',//MoodleController::getImgUser($fire['platform_id'], $fire['user_id']),
                     'roles' =>  $fire['roles'],
                     'expires_at' => $expDate,
                     'created_at' => $currentDate,

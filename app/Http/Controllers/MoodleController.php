@@ -387,6 +387,7 @@ class MoodleController extends Controller
     public static function getImgUser($url_lms, $user_id)
     {
         // header('Access-Control-Allow-Origin: *');
+        // dd($url_lms, $user_id);
         $client = new Client([
             'base_uri' => $url_lms . '/webservice/rest/server.php',
             'timeout' => 20.0,
