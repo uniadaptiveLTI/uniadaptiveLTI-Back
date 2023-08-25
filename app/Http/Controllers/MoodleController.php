@@ -698,7 +698,7 @@ class MoodleController extends Controller
         return $url_lms->url_lms;
     }
 
-    public static function getModuleById($instance, $item_id)
+    public static function  getModuleById($instance, $item_id)
     {
         // error_log('INSTANCIA: '.$instance);
         // error_log('ID: '.$item_id);

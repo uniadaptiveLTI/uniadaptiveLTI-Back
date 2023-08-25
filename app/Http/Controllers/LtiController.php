@@ -5,25 +5,26 @@ namespace App\Http\Controllers;
 use App\Models\Instance;
 use App\Models\Map;
 use App\Models\Version;
-use Carbon\Carbon;
+
+use Error;
 use GuzzleHttp\Client;
 use LonghornOpen\LaravelCelticLTI\LtiTool;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-
 class LtiController extends Controller
 {
 
-    public function getJWKS()
-    {
-        header('Access-Control-Allow-Origin: ' . env('FRONT_URL'));
+    public function getJWKS() {
+    header('Access-Control-Allow-Origin: *' /*. env('FRONT_URL')*/);
         $tool = LtiTool::getLtiTool();
         return $tool->getJWKS();
     }
     // Función que obtiene datos del LMS, los almacena en la base de datos (TEMPORAL) y redirige al front
     public function saveSession()
     {
+
         if (env('APP_PROXY') != '') {
             $_SERVER['SERVER_NAME'] = env('APP_PROXY');
             $_SERVER['SERVER_PORT'] = env('APP_PROXY_PORT');
@@ -31,90 +32,109 @@ class LtiController extends Controller
         if (env('APP_HTTPS') != '') {
             $_SERVER['HTTPS'] = env('APP_HTTPS');
         }
-        // dd('hola');
-
         $tool = LtiTool::getLtiTool();
-        // dd($tool);
         $tool->handleRequest();
         // dd($tool);
+        $jwt = $tool->getJWT();
         $fire = $tool->getMessageParameters();
-        // dd($fire);
-        $currentDate = date('Y-m-d H:i:s');
-        // dd($fire);
-        $token = Str::uuid();
-        $expDate = intval(Carbon::now()->addSeconds(1296000)->valueOf());
-        //dd(intval(Carbon::now()->valueOf()));
-        // dd($token->toString());
-        
-
-        switch ($fire['tool_consumer_info_product_family_code']) {
-            
-            case 'moodle':
-                DB::table('lti_info')->where([
-                    ['user_id', '=', $fire['user_id']],
-                    ['platform_id', '=', $fire['platform_id']],
-                    ['context_id', '=', $fire['context_id']],
-                    ['expires_at', '>=', intval(Carbon::now()->valueOf())]
-                ])->delete();
-
-                DB::table('lti_info')->insert([
-                    'tool_consumer_info_product_family_code' => $fire['tool_consumer_info_product_family_code'],
-                    'context_id' =>  $fire['context_id'],
-                    'context_title' => $fire['context_title'],
-                    'launch_presentation_locale' => $fire['launch_presentation_locale'],
-                    'platform_id' => $fire['platform_id'],
-                    'token' => $token->toString(),
-                    'launch_presentation_return_url' => $fire['launch_presentation_return_url'],
-                    'user_id' =>  $fire['user_id'],
-                    'lis_person_name_full' => $fire['lis_person_name_full'],
-                    'profile_url' => '',//MoodleController::getImgUser($fire['platform_id'], $fire['user_id']),
-                    'roles' =>  $fire['roles'],
-                    'expires_at' => $expDate,
-                    'created_at' => $currentDate,
-                    'updated_at' => $currentDate,
-                ]);
-                break;
-            case 'sakai':
-                
-                DB::table('lti_info')->where([
-                    ['user_id', '=', $fire['user_id']],
-                    ['platform_id', '=', $fire['ext_sakai_server']],
-                    ['context_id', '=', $fire['context_id']],
-                    ['expires_at', '>=', intval(Carbon::now()->valueOf())]
-                ])->delete();
-                
-                DB::table('lti_info')->insert([
-                    'tool_consumer_info_product_family_code' => $fire['tool_consumer_info_product_family_code'],
-                    'context_id' =>  $fire['context_id'],
-                    'context_title' => $fire['context_title'],
-                    'launch_presentation_locale' => $fire['launch_presentation_locale'],
-                    'platform_id' => $fire['ext_sakai_server'],
-                    'token' => $token->toString(),
-                    'ext_sakai_serverid' => $fire['ext_sakai_serverid'],
-                    'session_id' =>  SakaiController::createSession($fire['ext_sakai_server'], $fire['ext_sakai_serverid']),
-                    'launch_presentation_return_url' => $fire['launch_presentation_return_url'],
-                    'user_id' =>  $fire['user_id'],
-                    'lis_person_name_full' => $fire['lis_person_name_full'],
-                    'profile_url' => '',
-                    // 'profile_url' => $fire['user_image'],
-                    'roles' =>  $fire['roles'],
-                    'expires_at' => $expDate,
-                    'created_at' => $currentDate,
-                    'updated_at' => $currentDate,
-                ]);
-                dd('no falla');
-                break;
-            default:
-                break;
+        $session = DB::table('lti_info')->where([
+            ['user_id', '=', $fire['user_id']],
+            ['platform_id', '=', $fire['platform_id']],
+            ['context_id', '=', $fire['context_id']],
+            ['expires_at', '>=', intval(Carbon::now()->valueOf())]
+        ])->first();
+        if($session){
+            switch ($fire['tool_consumer_info_product_family_code']) {
+                case 'moodle':
+                    DB::table('lti_info')->where([
+                        ['user_id', '=', $fire['user_id']],
+                        ['platform_id', '=', $fire['platform_id']],
+                        ['context_id', '=', $fire['context_id']],
+                        ['expires_at', '>=', intval(Carbon::now()->valueOf())]
+                    ])->update([
+                        'profile_url' => MoodleController::getImgUser($fire['platform_id'],
+                        $fire['user_id']),'lis_person_name_full' => $fire['lis_person_name_full']
+                    ]);
+                    break;
+                case 'sakai':
+                    default:
+                    break;
+            }
+        }else{
+            $currentDate = date('Y-m-d H:i:s');
+            $expDate = intval(Carbon::now()->addSeconds(3000)->valueOf());
+            $session = DB::table('lti_info')->where([
+                ['user_id', '=', $fire['user_id']],
+                ['platform_id', '=', $fire['platform_id']],
+                ['context_id', '=', $fire['context_id']]
+            ])->delete();
+            switch ($fire['tool_consumer_info_product_family_code']) {
+                case 'moodle':
+                    DB::table('lti_info')->insert([
+                        'tool_consumer_info_product_family_code' => $fire['tool_consumer_info_product_family_code'],
+                        'context_id' =>  $fire['context_id'],
+                        'context_title' => $fire['context_title'],//
+                        'launch_presentation_locale' => $fire['launch_presentation_locale'],//
+                        'platform_id' => $fire['platform_id'],
+                        'token' => Str::uuid()->toString(),
+                        'launch_presentation_return_url' => $fire['launch_presentation_return_url'],
+                        'user_id' =>  $fire['user_id'],
+                        'lis_person_name_full' => $fire['lis_person_name_full'],//
+                        'profile_url' => MoodleController::getImgUser($fire['platform_id'], $fire['user_id']),
+                        'roles' =>  $fire['roles'],//
+                        'expires_at' => $expDate,
+                        'created_at' => $currentDate,
+                        'updated_at' => $currentDate,//
+                    ]);
+                    break;
+                case 'sakai':
+                    
+                    $jwtPayload = $jwt->getPayload();
+                    $locale = $jwtPayload->locale;
+                    $sakai_serverid = $jwtPayload->{'https://www.sakailms.org/spec/lti/claim/extension'}->sakai_serverid;
+                    DB::table('lti_info')->insert([
+                        'tool_consumer_info_product_family_code' => $fire['tool_consumer_info_product_family_code'],
+                        'context_id' =>  $fire['context_id'],
+                        'context_title' => $fire['context_title'],//
+                        'launch_presentation_locale' => $locale,//
+                        'platform_id' => $fire['platform_id'],
+                        'token' => Str::uuid()->toString(),
+                        'ext_sakai_serverid' => $sakai_serverid,
+                        'session_id' =>  SakaiController::createSession($fire['platform_id'], $sakai_serverid),//
+                        'launch_presentation_return_url' => $fire['platform_id'] .'/portal/site/'.$fire['context_id'],
+                        'user_id' =>  $fire['user_id'],
+                        'lis_person_name_full' => $fire['lis_person_name_full'],//
+                        'profile_url' => 'default',
+                        'roles' =>  $fire['roles'],//
+                        'expires_at' => $expDate,
+                        'created_at' => $currentDate,
+                        'updated_at' => $currentDate,//
+                    ]);
+                    break;
+                default:
+                    break;
+            }
         }
+        $session = DB::table('lti_info')->where([
+            ['user_id', '=', $fire['user_id']],
+            ['platform_id', '=', $fire['platform_id']],
+            ['context_id', '=', $fire['context_id']],
+            ['expires_at', '>=', intval(Carbon::now()->valueOf())]
+        ])->first();
+        // dd($session);
         $headers = @get_headers(env('FRONT_URL'));
-
-        dd(env('FRONT_URL'));
-        if ($headers && strpos($headers[0], '200')) {
+        $canSee = false;
+        foreach ($headers as $header) {
+            if(strpos($header, '200 OK')){
+                $canSee = true;
+                break;
+            }
+        }
+        if ($canSee) {
             // URL is available
             // Generate redirect response
-            return redirect()->to(env('FRONT_URL') . '?token=' . $token->toString());
-            // return Redirect::route('clients.show, $id') );
+            // dd($session->token);
+            return redirect()->to(env('FRONT_URL') . '?token=' . $session->token);
         } else {
             // URL is not available
             // Handle error
@@ -125,26 +145,6 @@ class LtiController extends Controller
     // Función que devuelve los datos del usuario y del curso
     public function getSession(Request $request)
     {
-    
-        // $client = new Client([
-        //     'base_uri' => 'http://localhost/moodle-3.11.13/webservice/rest/server.php',
-        //     'timeout' => 2.0,
-        // ]);
-        // $response = $client->request('GET', '', [
-        //     'query' => [
-        //         'wstoken' => env('WSTOKEN'),
-        //         'wsfunction' => 'local_uniadaptive_get_coursegrades',
-        //         'course_id' => 8,
-        //         'moodlewsrestformat' => 'json'
-        //     ]
-        // ]);
-        // $content = $response->getBody()->getContents();
-        // $data = json_decode($content);
-
-        // dd($data);
-
-        
-        // dd($lastInserted);
         if ($this->checkToken($request->token)) {
             $sessionData = DB::table('lti_info')
                 ->where('token', '=', $request->token)
@@ -212,7 +212,7 @@ class LtiController extends Controller
     public function getModulesByType(Request $request)
     {
         if ($this->checkToken($request->token)) {
-
+            
             // dd($request);
             // dd(intVal($request->course), $request->type);
             $sessionData = DB::table('lti_info')
@@ -376,5 +376,50 @@ class LtiController extends Controller
         }
         fwrite($archive, "[" . $date . " " . $date2 . "] ".$message." \n");
         fclose($archive);
+    }
+
+    public function getDate($token){
+        
+        if ($this->checkToken($token)) {
+            return response()->json(['ok' => true, 'data' => date('Y-m-d\TH:i')]);
+        } else {
+            return response()->json(['ok' => false, 'error_type' => 'INVALID_OR_EXPIRED_TOKEN', 'data' => []]);
+        }
+    }
+
+    //front backend configuration
+
+    public function auth(Request $request){
+        $password = $request->password;
+        $adminPassword = env('ADMIN_PASSWORD');
+
+        try {
+            if ($adminPassword == $password || $adminPassword == '') {
+                return response()->json(['ok' => true]);
+            } else {
+                return response()->json(['ok' => false, 'error_type' => 'INVALID_PASSWORD']);
+            }
+        } catch (Error $e) {
+            return response()->json(['ok' => false, 'error_type' => 'INVALID_REQUEST']);
+        }
+    }
+
+    public function getResource(){
+        header('Content-Type: application/json');
+        try {
+            return response()->json(['ok' => true, 'data' => getrusage()]);
+        } catch (Error $e) {
+            return response()->json(['ok' => false, 'error_type' => 'CANT_CONNECT_TO_SERVER']);
+        }
+        
+    }
+
+    public function getServerInfo(){
+        header('Content-Type: application/json');
+        try {
+            return response()->json(['ok' => true, 'data' => Carbon::createFromTimestamp(filemtime('/proc/uptime'))->toDateTimeString()]);
+        } catch (Error $e) {
+            return response()->json(['ok' => false, 'error_type' => 'CANT_CONNECT_TO_SERVER']);
+        }
     }
 }

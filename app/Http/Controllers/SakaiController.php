@@ -80,11 +80,14 @@ class SakaiController extends Controller
             [
                 'name' => $lastInserted->context_title,
                 // 'instance_id' => $this->getinstance($lastInserted->tool_consumer_info_product_family_code, $lastInserted->platform_id),
+                'lessons' => SakaiController::getLessons($lastInserted->platform_id,$lastInserted->context_id,$lastInserted->session_id),
                 'course_id' => $lastInserted->context_id,
                 'session_id' => $lastInserted->session_id,
                 'platform' => $lastInserted->tool_consumer_info_product_family_code,
                 'lms_url' => $lastInserted->platform_id,
                 'return_url' => $lastInserted->launch_presentation_return_url,
+                'user_members' => SakaiController::getUserMembers($lastInserted->platform_id,$lastInserted->context_id,$lastInserted->session_id),
+                'groups' => SakaiController::getGroups($lastInserted->platform_id,$lastInserted->context_id,$lastInserted->session_id)
             ],
             SakaiController::getCourse(
                 $lastInserted->context_id,
@@ -92,25 +95,26 @@ class SakaiController extends Controller
                 $lastInserted->platform_id
             )
         ];
-        return $data;
+        return response()->json(['ok' => true, 'data' => $data]);
     }
 
     public static function createSession($url_lms, $sakaiServerId)
     {
+        // header('Access-Control-Allow-Origin: *' /*. env('FRONT_URL')*/);
         $client = new Client();
-
+        // dd($url_lms . '/sakai-ws/rest/login/login?id=' . env('SAKAI_USER') . '&pw=' . env('SAKAI_PASSWORD'));
         $response = $client->request('GET', $url_lms . '/sakai-ws/rest/login/login?id=' . env('SAKAI_USER') . '&pw=' . env('SAKAI_PASSWORD'));
-        dd($response);
+        
         $content = $response->getBody()->getContents();
         $userId = $content . '.' . $sakaiServerId;
-        dd($userId);
+        // dd($userId);
         return $userId;
     }
 
     public static function getLessons($url_lms, $contextId, $sessionId)
     {
         $client = new Client();
-
+        // dd($sessionId);
         $response = $client->request('GET', $url_lms . '/direct/lessons/site/' . $contextId . '.json', [
             'headers' => [
                 'Cookie' => 'JSESSIONID=' . $sessionId,
@@ -119,52 +123,47 @@ class SakaiController extends Controller
         $content = $response->getBody()->getContents();
         $data = json_decode($content);
         // dd($data);
+        $lessons = [];
         foreach ($data->lessons_collection as $Lesson) {
-            $response2 = $client->request('GET', $url_lms . '/direct/lessons/lesson/' . $Lesson->id . '.json', [
-                'headers' => [
-                    'Cookie' => 'JSESSIONID=' . $sessionId,
-                ],
+            
+            array_push($lessons, [
+                'id' => $Lesson->id,
+                'name' => $Lesson->lessonTitle
             ]);
-            $content2 = $response2->getBody()->getContents();
-            $data2 = json_decode($content2);
-            dd($data2->contentsList);
-            // array_push($modules, [
-            //     'id' => htmlspecialchars($module->id),
-            //     'name' => htmlspecialchars($module->name)
-            // ]);
         }
         // dd($data->lessons_collection[0]->id);
-        return $data;
+        return $lessons;
     }
 
     // Función que devuelve los modulos con tipo en concreto de un curso
-    public static function getModulesByType(Request $request)
-    {
-        // dd($request);
+    public static function getModulesByType(Request $request,$sessionData)
+    {   
+        // dd($request, $sessionData);
         switch ($request->type) {
             case 'forum':
-                return SakaiController::getForums($request->lms, $request->course, $request->session);
+                // error_log('hola');
+                return SakaiController::getForums($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id);
                 break;
             case 'assign':
-                return SakaiController::getAssignments($request->lms, $request->course, $request->session);
+                return SakaiController::getAssignments($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id);
                 break;
             case 'text':
-                return SakaiController::getResources($request->lms, $request->course, $request->session, 'text/plain');
+                return SakaiController::getResources($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id, 'text/plain');
                 break;
             case 'url':
-                return SakaiController::getResources($request->lms, $request->course, $request->session, 'text/url');
+                return SakaiController::getResources($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id, 'text/url');
                 break;
             case 'html':
-                return SakaiController::getResources($request->lms, $request->course, $request->session, 'text/html');
+                return SakaiController::getResources($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id, 'text/html');
                 break;
             case 'folder':
-                return SakaiController::getResources($request->lms, $request->course, $request->session, null);
+                return SakaiController::getResources($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id, null);
                 break;
             case 'resource':
-                return SakaiController::getResources($request->lms, $request->course, $request->session, 'resource');
+                return SakaiController::getResources($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id, 'resource');
                 break;
             default:
-                # code...
+                return response()->json(['ok' => false, 'errorType' => 'TYPE_NOT_SUPPORTED', 'data' => '']);
                 break;
         }
     }
@@ -189,15 +188,15 @@ class SakaiController extends Controller
                 'name' => $forum->title
             );
         }
-        return $forums;
+    
+        return response()->json(['ok' => true, 'data' => $forums]);
     }
 
     // Función que devuelve las tareas de un curso de Sakai
     public static function getAssignments($url_lms, $contextId, $sessionId)
     {
         $client = new Client();
-
-        $response = $client->request('GET', $url_lms . '/direct/assignment/site/' . $contextId . '.json', [
+        $response = $client->request('GET', $url_lms , [
             'headers' => [
                 'Cookie' => 'JSESSIONID=' . $sessionId,
             ],
@@ -212,18 +211,19 @@ class SakaiController extends Controller
                 'name' => $assignment->title
             );
         }
-        return $assignments;
+        return response()->json(['ok' => true, 'data' => $assignments]);
     }
 
     // Función que devuelve los recursos de un curso de Sakai dependiendo de su tipo
     public static function getResources($url_lms, $contextId, $sessionId, $type)
     {
+        
         // dd($sessionId);
         $client = new Client();
 
         $response = $client->request('GET', $url_lms . '/direct/content/resources/group/' . $contextId . '.json?depth=3', [
             'headers' => [
-                'Cookie' => 'SAKAI2SESSIONID=' . $sessionId,
+                'Cookie' => 'JSESSIONID=' . $sessionId,
             ],
         ]);
         $content = $response->getBody()->getContents();
@@ -248,7 +248,7 @@ class SakaiController extends Controller
                 }
             }
             // dd($data);
-            return $resources;
+            return response()->json(['ok' => true, 'data' => $resources]);
         } else {
             foreach ($dataContents->content_collection[0]->resourceChildren as $resource) {
                 // dd($resource);
@@ -261,7 +261,47 @@ class SakaiController extends Controller
                 }
             }
             // dd($data);
-            return $resources;
+            return response()->json(['ok' => true, 'data' => $resources]);
         }
+    }
+    public static function getUserMembers($url_lms, $contextId, $sessionId){
+        $client = new Client();
+
+        $response = $client->request('GET', $url_lms . '/direct/site/' . $contextId . '/memberships.json', [
+            'headers' => [
+                'Cookie' => 'JSESSIONID=' . $sessionId,
+            ],
+        ]);
+        $content = $response->getBody()->getContents();
+        $dataUsers = json_decode($content);
+        
+        $users = [];
+        foreach ($dataUsers->membership_collection as $user) {
+            $users[] = array(
+                'id' => $user->userId,
+                'name' => $user->userDisplayName
+            );
+        }
+        return $users;
+    }
+    public static function getgroups($url_lms, $contextId, $sessionId){
+        $client = new Client();
+
+        $response = $client->request('GET', $url_lms . '/direct/site/' . $contextId . '/groups.json', [
+            'headers' => [
+                'Cookie' => 'JSESSIONID=' . $sessionId,
+            ],
+        ]);
+        $content = $response->getBody()->getContents();
+        $dataGroups = json_decode($content);
+        error_log(json_encode($dataGroups));
+        $groups = [];
+        foreach ($dataGroups as $group) {
+            $groups[] = array(
+                'id' => $group->id,
+                'name' => $group->title
+            );
+        }
+        return $groups;
     }
 }

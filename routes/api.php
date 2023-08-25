@@ -38,3 +38,5 @@ Route::post('/lti/delete_version_by_id', [LtiController::class, 'deleteVersion']
 Route::post('/lti/get_modules', [LtiController::class, 'getModules']);
 Route::post('/lti/get_version', [LtiController::class, 'getVersion']);
 Route::post('/lti/get_modules_by_type', [LtiController::class, 'getModulesByType']);
+Route::post('/lti/get_date', [LtiController::class, 'getDate']);
+Route::post('/lti/auth', [LtiController::class, 'auth']);
