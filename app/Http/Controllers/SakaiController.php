@@ -304,4 +304,16 @@ class SakaiController extends Controller
         }
         return $groups;
     }
+
+    public static function getModules($url_lms, $contextId, $sessionId){
+        $client = new Client();
+        $response = $client->request('GET', $url_lms . '/direct/lessons/lesson/' . $contextId . '.json', [
+            'headers' => [
+                'Cookie' => 'JSESSIONID=' . $sessionId,
+            ],
+        ]);
+        $content = $response->getBody()->getContents();
+        $dataModules = json_decode($content);
+        return response()->json(['ok' => true, 'data' => $dataModules]);
+    }
 }

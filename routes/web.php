@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\LtiController;
+use App\Http\Controllers\MoodleController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -23,3 +24,4 @@ Route::any('/lti', [LtiController::class, 'saveSession']);
 Route::get('/lti/jwks', [LtiController::class, 'getJWKS']);
 Route::get('/lti/get_resource', [LtiController::class, 'getResource']);
 Route::get('/lti/get_server_info', [LtiController::class, 'getServerInfo']);
+Route::get('/lti/get_grade_module', [MoodleController::class, 'getGradeModule']);

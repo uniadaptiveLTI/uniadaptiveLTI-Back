@@ -254,7 +254,7 @@ class MoodleController extends Controller
                     'visible' => ($module->visible >= 1) ? 'show_unconditionally' : 'hidden_until_access'
                 ];
                 if ($module->availability != null) {
-                    $module_data['availability'] = json_decode($module->availability);
+                    $module_data['availability'] = MoodleController::importRecursiveConditionsChange($url_lms,json_decode($module->availability));
                 }
                 $modules[] = $module_data;
             }
@@ -566,85 +566,55 @@ class MoodleController extends Controller
             // error_log('FAILURE');
             return response()->json(['ok' => false, 'errorType' => 'FAILED_EXPORT']);
         }
-    } 
+    }
+
+    public static function importRecursiveConditionsChange($url_lms, $data)
+    {
+        switch ($data) {
+            case isset($data->c):
+                $c = [];
+                foreach ($data->c as $index => $condition) {
+                    array_push($c, MoodleController::importRecursiveConditionsChange($url_lms, $condition));
+                }
+                $data->c = $c;
+                break;
+            case isset($data->type):
+                switch ($data->type) {
+                    case 'grade':
+                        $data->id = MoodleController::getGradeModule($url_lms, $data->id);
+                        return $data;
+                        break;
+                    default:
+                        break;
+                }
+                break;
+            default:
+                break;
+        }
+        return $data;
+    }
 
     public static function exportRecursiveConditionsChange($instance_id, $course_id, $data, $visibility, $json = [], $recActive = false)
     {
-        
         switch ($data) {
             case isset($data['c']):
                 $c = [];
                 foreach ($data['c'] as $index => $condition) {
-                    // error_log('INDEX: '.$index);
                     array_push($c, MoodleController::exportRecursiveConditionsChange($instance_id, $course_id, $data['c'][$index], $visibility, $json, true));
-                    //  MoodleController::recursiveConditionsChange($instance_id, $course_id, $data['c'][$index], $visibility, $json, true);
                 }
-                // $json['op'] = $data->op;
                 $data['c'] = $c;
                 break;
             case isset($data['type']):
-                // error_log('hola?: ');
                 switch ($data['type']) {
-                    
-                    case 'completion':
-                        // $queryMap = [
-                        //     'completed' => 1,
-                        //     'notCompleted' => 0,
-                        //     'completedApproved' => 2,
-                        //     'completedFailed' => 3
-                        // ];
-                        // $e = $queryMap[$data->query] ?? '';
-                        // $dates = [
-                        //     'type' => $data->type,
-                        //     'cm' => (int)$data->op,
-                        //     'e' => $e
-                        // ];
-                        // return $dates;
-                        // $data['cm'] = (int)$data['cm'];
-                        // $data['e'] = (int)$data['e'];
-                        // return $data;
-                        break;
                     case 'date':
-                        // $queryMap = [
-                        //     'dateFrom' => '>=',
-                        //     'dateTo' => '<'
-                        // ];
-                        // $query = $queryMap[$data->query] ?? '';
-                        // $dates = [
-                        //     'type' => $data->type,
-                        //     'd' => $query,
-                        //     't' => strtotime($data->op)
-                        // ];
-                        // return $dates;
                         $data['t'] = strtotime($data['t']);
                         return $data;
                         break;
                     case 'grade':
-                        // error_log('CONDITION: '.json_encode($data));
-                        // error_log('CM: '.$data['cm']);
-                        // $data['cm'] = MoodleController::getIdGrade($instance_id, MoodleController::getModuleById($instance_id, $data['cm']));
-                        // error_log('hola?: '.json_encode($data));
-
-                        // $dates = [
-                        //     'type' => 'grade',
-                        //     'id' => MoodleController::getIdGrade($instance_id, MoodleController::getModuleById($instance_id, (int)$data->op))
-                        // ];
                         $data['id'] = MoodleController::getIdGrade($instance_id, MoodleController::getModuleById($instance_id, $data['id']));
-                        // if (isset($data->objective)) {
-                        //     $dates['min'] = (int)$data->objective;
-                        // }
-                        // if (isset($data->objective2)) {
-                        //     $dates['max'] = (int)$data->objective2;
-                        // }
                         return $data;
                         break;
                     case 'courseGrade':
-                        // error_log('CONDITION: '.json_encode($data));
-                        // error_log('CM: '.$data['cm']);
-                        // $data['cm'] = MoodleController::getIdGrade($instance_id, MoodleController::getModuleById($instance_id, $data['cm']));
-                        //error_log('Los datos: '.json_encode($data));
-                        // error_log('Module: '.json_encode(MoodleController::getModuleById($instance_id, $data['courseId'])));
-                        // dd(MoodleController::getModuleById($instance_id, $data['idcourseId']));
                         $dates = [
                             'type' => 'grade',
                             'id' => MoodleController::getIdCourseGrade($instance_id, $data['id'])
@@ -666,26 +636,6 @@ class MoodleController extends Controller
             default:
                 break;
         }
-        // if($recActive){
-        //     return $json;
-        // }else{
-        //     $queryMap = [
-        //         '&' => 'showc',
-        //         '|' => 'show'
-        //     ];
-        //     $show = '';
-        //     if($queryMap[$data->op] == 'showc'){
-        //         $show = [];
-        //         for ($i=0; $i < count($data->conditions); $i++) { 
-        //             array_push($show, $visibility);
-        //         }
-        //     }
-        //     elseif ($queryMap[$data->op] == 'show'){
-        //         $show =  $visibility;
-        //     }
-        //     $json[$queryMap[$data->op]] = $show;
-        //     return $json;
-        // }
         return $data;
     }
 
@@ -865,6 +815,26 @@ class MoodleController extends Controller
         
     }
     
+    public static function getGradeModule($url_lms, $gradeId)
+    {
+        $client = new Client([
+            'base_uri' => $url_lms.'/webservice/rest/server.php',
+            'timeout' => 20.0,
+        ]);
+        // error_log('MODULE ID: '.json_encode($module->cm));
+        $response = $client->request('GET', '', [
+            'query' => [
+                'wstoken' => env('WSTOKEN'),
+                'wsfunction' => 'local_uniadaptive_get_course_item_id_for_grade_id',
+                'gradeid' => $gradeId,
+                'moodlewsrestformat' => 'json'
+            ]
+        ]);
+        $content = $response->getBody()->getContents();
+        $data = json_decode($content);
+        // error_log('GRADE: '.json_encode($data));
+        return $data->itemid;
+    }
     
     
 }

@@ -13,6 +13,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+
+use function PHPUnit\Framework\isNan;
+
 class LtiController extends Controller
 {
 
@@ -145,6 +148,7 @@ class LtiController extends Controller
     // Función que devuelve los datos del usuario y del curso
     public function getSession(Request $request)
     {
+    // header('Access-Control-Allow-Origin: *' /*. env('FRONT_URL')*/);
         if ($this->checkToken($request->token)) {
             $sessionData = DB::table('lti_info')
                 ->where('token', '=', $request->token)
@@ -186,7 +190,6 @@ class LtiController extends Controller
     public function getModules(Request $request)
     {
 
-
         if ($this->checkToken($request->token)) {
             $sessionData = DB::table('lti_info')
                 ->where('token', '=', $request->token)
@@ -197,7 +200,11 @@ class LtiController extends Controller
                     return MoodleController::getModules($sessionData->platform_id, $sessionData->context_id);
                     break;
                 case 'sakai':
-                    return SakaiController::getLessons($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id);
+                    if(isset($request->lesson) && !isNan($request->lesson)){
+                        return SakaiController::getModules($sessionData->platform_id, $request->lesson, $sessionData->session_id);
+                    }else{
+                        return response()->json(['ok' => false, 'error_type' => 'LESSON_NOT_VALID', 'data' => []]);
+                    }
                     break;
                 default:
                     error_log('La plataforma que está usando no está soportada');
