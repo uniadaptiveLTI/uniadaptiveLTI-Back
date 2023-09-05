@@ -200,7 +200,7 @@ class LtiController extends Controller
                     return MoodleController::getModules($sessionData->platform_id, $sessionData->context_id);
                     break;
                 case 'sakai':
-                    if(isset($request->lesson) && !isNan($request->lesson)){
+                    if(isset($request->lesson)){
                         return SakaiController::getModules($sessionData->platform_id, $request->lesson, $sessionData->session_id);
                     }else{
                         return response()->json(['ok' => false, 'error_type' => 'LESSON_NOT_VALID', 'data' => []]);
