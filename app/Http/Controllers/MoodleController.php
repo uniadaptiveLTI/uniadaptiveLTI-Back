@@ -228,6 +228,7 @@ class MoodleController extends Controller
                     'modname' => e($module->modname),
                     'id' => e($module->id),
                     'has_califications' => $has_grades,
+                    'g' => MoodleController::getCalifications($url_lms,$module->id,$module->modname),
                     'order' => $indexM,
                     'section' => $indexS,
                     'indent' => $module->indent,
@@ -469,8 +470,8 @@ class MoodleController extends Controller
                 if (isset($nodes[$index]['c']['type'])) {
                     unset($nodes[$index]['c']['type']);
                 }
-                if (isset($nodes[$index]['g'])) {
-                    dd($nodes[$index]['g']);
+                if(isset($nodes[$index]['g'])){
+                    // dd($nodes[$index]);
                     unset($nodes[$index]['g']);
                 }
                 if (isset($nodes[$index]['children'])) {
@@ -810,6 +811,30 @@ class MoodleController extends Controller
         ]);
         $content = $response->getBody()->getContents();
         $data = json_decode($content);
+        return $data;
+    }
+    public static function getCalifications($url_lms,$module_id,$module_modname){
+        // header('Access-Control-Allow-Origin: *');
+        $client = new Client([
+            'base_uri' => $url_lms . '/webservice/rest/server.php',
+            'timeout' => 20.0,
+        ]);
+        $response = $client->request('GET', '', [
+            'query' => [
+                'wstoken' => env('WSTOKEN'),
+                'wsfunction' => 'local_uniadaptive_get_module_data',
+                'moduleid' => $module_id,
+                'itemmodule' => $module_modname,
+                'moodlewsrestformat' => 'json'
+            ]
+        ]);
+        // if($module_modname == "quiz")
+        // dd($response->getBody());
+        $content = $response->getBody()->getContents();
+        $data = json_decode($content);
+        if(gettype($data) == 'string'){
+            $data = json_decode($data);
+        }
         return $data;
     }
 }

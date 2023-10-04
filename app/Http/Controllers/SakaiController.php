@@ -236,9 +236,8 @@ class SakaiController extends Controller
         }
         return $users;
     }
-    public static function getgroups($url_lms, $context_id, $session_id)
-    {
-        $dataGroups = SakaiController::createClient($url_lms . '/direct/site/' . $context_id . '/groups.json', $session_id);
+    public static function getGroups($url_lms, $context_id, $session_id){
+        $dataGroups = SakaiController::createClient($url_lms.'/direct/site/'.$context_id.'/groups.json',$session_id);
         $groups = [];
         foreach ($dataGroups as $group) {
             $groups[] = array(
@@ -249,32 +248,49 @@ class SakaiController extends Controller
         return $groups;
     }
 
-    public static function getModules($url_lms, $context_id, $session_id)
-    {
-        header('Access-Control-Allow-Origin: *');
+    public static function getModules($url_lms, $context_id, $session_id){
+        // header('Access-Control-Allow-Origin: *');
         // dd($url_lms.'/direct/lessons/lesson/'.$context_id.'.json');
         $modulesData = SakaiController::createClient($url_lms . '/direct/lessons/lesson/' . $context_id . '.json', $session_id);
         $modules = [];
         $section = 0;
-        dd($modulesData);
+        $column = 0;
+        $order = 1;
+        // dd($modulesData);
         foreach ($modulesData->contentsList as $index => $module) {
             $modulesData->contentsList[$index]->type = SakaiController::changeIdNameType($module->type);
-
-            if ($modulesData->contentsList[$index]->type == 'break') {
-                $section++;
-            } else if ($modulesData->contentsList[$index]->type != 'break' /*&& $modulesData->contentsList[$index]->type != 'generic'*/&& $modulesData->contentsList[$index]->type != 'page' && $modulesData->contentsList[$index]->type != 'text') {
+            
+            if($modulesData->contentsList[$index]->type == 'break'){
+                $format = isset($modulesData->contentsList[$index]->format);
+                if($format){
+                    switch ($modulesData->contentsList[$index]->format) {
+                        case 'section':
+                            $section++; 
+                            break;
+                        
+                        case 'column':
+                            $column++; 
+                            break;
+                    }
+                } else{
+                    $section++; 
+                }
+                $order = 1;
+            }
+            
+            else if($modulesData->contentsList[$index]->type != 'break' /*&& $modulesData->contentsList[$index]->type != 'generic'*/ && $modulesData->contentsList[$index]->type != 'page' && $modulesData->contentsList[$index]->type != 'text'){
                 // $modulesData->contentsList[$index]->section = $section;
-
-                array_push(
-                    $modules,
-                    [
-                        "id" => $modulesData->contentsList[$index]->id,
-                        "name" => $modulesData->contentsList[$index]->name,
-                        "type" => $modulesData->contentsList[$index]->type,
-                        "pageId" => $modulesData->contentsList[$index]->pageId,
-                        "section" => $section
-                    ]
-
+                
+                array_push($modules, [
+                    "sakaiId" => strval($modulesData->contentsList[$index]->id),
+                    "name" => $modulesData->contentsList[$index]->name,
+                    "modname" =>  $modulesData->contentsList[$index]->type,
+                    "pageId" => $modulesData->contentsList[$index]->pageId,
+                    "section" => $section,
+                    "indent" => $column,
+                    "order" => $order++
+                 ]
+                     
                 );
             }
         }
@@ -292,10 +308,10 @@ class SakaiController extends Controller
                 return 'page';
                 break;
             case 3:
-                return 'assignment';
+                return 'assign';
                 break;
             case 4:
-                return 'assessment';
+                return 'exam';
                 break;
             case 5:
                 return 'text';
@@ -310,7 +326,7 @@ class SakaiController extends Controller
                 return 'break';
                 break;
             case 20:
-                return 'resource_folder';
+                return 'folder';
                 break;
             default:
                 return 'generic';
@@ -380,6 +396,6 @@ class SakaiController extends Controller
         }
 
         header('Access-Control-Allow-Origin: *');
-        dd(json_encode($request));
+        dd($request->nodes);
     }
 }
