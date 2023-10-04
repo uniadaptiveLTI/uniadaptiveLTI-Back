@@ -397,7 +397,9 @@ class SakaiController extends Controller
     {
         //header('Access-Control-Allow-Origin: *');
         $nodes = $request->nodes;
-        //dd($nodes);
+        $nodesToUpdate = $request->nodes;
+        dd($nodesToUpdate);
+
         $firstNode = reset($nodes);
         $firstPageId = $firstNode['pageId'];
 
