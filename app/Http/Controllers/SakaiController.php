@@ -372,6 +372,7 @@ class SakaiController extends Controller
 
     public static function exportVersion(Request $request, $sessionData)
     {
+        header('Access-Control-Allow-Origin: *');
         $nodes = $request->nodes;
 
         $firstNode = reset($nodes);
@@ -385,17 +386,19 @@ class SakaiController extends Controller
                 break;
             }
         }
+        // dd($allHaveSamePageId);
 
         if ($allHaveSamePageId) {
             $pageId = $firstPageId;
+            // dd($pageId);
 
-            $conditionsDelete = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $pageId . '/conditions', $sessionData->session_id);
-            $lessonItemsDelete = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $pageId . '/items', $sessionData->session_id);
+            $conditionsDelete = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $pageId . '/conditions', $sessionData->session_id, 'DELETE');
+            $lessonItemsDelete = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $pageId . '/items', $sessionData->session_id, 'DELETE');
         } else {
             return response()->json(['ok' => false, 'errorType' => 'PAGE_EXPORT_ERROR', 'data' => '']);
         }
 
-        header('Access-Control-Allow-Origin: *');
+        // header('Access-Control-Allow-Origin: *');
         dd($request->nodes);
     }
 }

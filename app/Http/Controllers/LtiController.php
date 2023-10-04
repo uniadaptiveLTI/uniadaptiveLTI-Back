@@ -267,7 +267,7 @@ class LtiController extends Controller
                     return MoodleController::exportVersion($request);
                     break;
                 case 'sakai':
-                    return SakaiController::exportVersion($request);
+                    return SakaiController::exportVersion($request, $sessionData);
                     break;
                 default:
                     return response()->json(['ok' => false, 'error_type' => 'PLATFORM_NOT_SUPPORTED', 'data' => []]);
