@@ -236,8 +236,9 @@ class SakaiController extends Controller
         }
         return $users;
     }
-    public static function getGroups($url_lms, $context_id, $session_id){
-        $dataGroups = SakaiController::createClient($url_lms.'/direct/site/'.$context_id.'/groups.json',$session_id);
+    public static function getGroups($url_lms, $context_id, $session_id)
+    {
+        $dataGroups = SakaiController::createClient($url_lms . '/direct/site/' . $context_id . '/groups.json', $session_id);
         $groups = [];
         foreach ($dataGroups as $group) {
             $groups[] = array(
@@ -248,7 +249,8 @@ class SakaiController extends Controller
         return $groups;
     }
 
-    public static function getModules($url_lms, $context_id, $session_id){
+    public static function getModules($url_lms, $context_id, $session_id)
+    {
         // header('Access-Control-Allow-Origin: *');
         // dd($url_lms.'/direct/lessons/lesson/'.$context_id.'.json');
         $modulesData = SakaiController::createClient($url_lms . '/direct/lessons/lesson/' . $context_id . '.json', $session_id);
@@ -259,38 +261,38 @@ class SakaiController extends Controller
         // dd($modulesData);
         foreach ($modulesData->contentsList as $index => $module) {
             $modulesData->contentsList[$index]->type = SakaiController::changeIdNameType($module->type);
-            
-            if($modulesData->contentsList[$index]->type == 'break'){
+
+            if ($modulesData->contentsList[$index]->type == 'break') {
                 $format = isset($modulesData->contentsList[$index]->format);
-                if($format){
+                if ($format) {
                     switch ($modulesData->contentsList[$index]->format) {
                         case 'section':
-                            $section++; 
+                            $section++;
                             break;
-                        
+
                         case 'column':
-                            $column++; 
+                            $column++;
                             break;
                     }
-                } else{
-                    $section++; 
+                } else {
+                    $section++;
                 }
                 $order = 1;
-            }
-            
-            else if($modulesData->contentsList[$index]->type != 'break' /*&& $modulesData->contentsList[$index]->type != 'generic'*/ && $modulesData->contentsList[$index]->type != 'page' && $modulesData->contentsList[$index]->type != 'text'){
+            } else if ($modulesData->contentsList[$index]->type != 'break' /*&& $modulesData->contentsList[$index]->type != 'generic'*/&& $modulesData->contentsList[$index]->type != 'page' && $modulesData->contentsList[$index]->type != 'text') {
                 // $modulesData->contentsList[$index]->section = $section;
-                
-                array_push($modules, [
-                    "sakaiId" => strval($modulesData->contentsList[$index]->id),
-                    "name" => $modulesData->contentsList[$index]->name,
-                    "modname" =>  $modulesData->contentsList[$index]->type,
-                    "pageId" => $modulesData->contentsList[$index]->pageId,
-                    "section" => $section,
-                    "indent" => $column,
-                    "order" => $order++
-                 ]
-                     
+
+                array_push(
+                    $modules,
+                    [
+                        "sakaiId" => strval($modulesData->contentsList[$index]->id),
+                        "name" => $modulesData->contentsList[$index]->name,
+                        "modname" => $modulesData->contentsList[$index]->type,
+                        "pageId" => $modulesData->contentsList[$index]->pageId,
+                        "section" => $section,
+                        "indent" => $column,
+                        "order" => $order++
+                    ]
+
                 );
             }
         }
@@ -346,15 +348,36 @@ class SakaiController extends Controller
         return response()->json(['ok' => true, 'data' => $assesments]);
     }
 
-    public static function createClient($url, $session_id, $type = 'GET')
+    public static function createClient($url, $session_id, $type = 'GET', $bodyData)
     {
         $client = new Client();
 
-        $response = $client->request($type, $url, [
+        $options = [
             'headers' => [
                 'Cookie' => 'JSESSIONID=' . $session_id,
             ],
-        ]);
+        ];
+
+        switch ($type) {
+            case "GET":
+            case "DELETE":
+                // Both GET and DELETE share the same request options
+                $response = $client->request($type, $url, $options);
+
+                if ($type === "DELETE") {
+                    $statusCode = $response->getStatusCode();
+                    return $statusCode;
+                }
+                break;
+            case "POST":
+                $options['json'] = $bodyData;
+                $response = $client->post($url, $options);
+                break;
+            default:
+                // Handle unsupported request types here
+                return ['error' => 'Unsupported request type'];
+        }
+
         $content = $response->getBody()->getContents();
         $data = json_decode($content);
         return $data;
@@ -394,6 +417,12 @@ class SakaiController extends Controller
 
             $conditionsDelete = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $pageId . '/conditions', $sessionData->session_id, 'DELETE');
             $lessonItemsDelete = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $pageId . '/items', $sessionData->session_id, 'DELETE');
+
+            if ($conditionsDelete === 200 && $lessonItemsDelete === 200) {
+                $nodesBulkCreation = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $pageId . '/items/bulk', $sessionData->session_id, 'POST', $nodes);
+            } else {
+                return response()->json(['ok' => false, 'errorType' => 'LESSON_DELETE_ERROR', 'data' => '']);
+            }
         } else {
             return response()->json(['ok' => false, 'errorType' => 'PAGE_EXPORT_ERROR', 'data' => '']);
         }
