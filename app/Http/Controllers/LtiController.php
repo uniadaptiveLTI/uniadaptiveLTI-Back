@@ -13,13 +13,15 @@ use Illuminate\Support\Str;
 
 class LtiController extends Controller
 {
-    public function getJWKS() {
-        header('Access-Control-Allow-Origin: '. env('FRONT_URL'));
+    public function getJWKS()
+    {
+        header('Access-Control-Allow-Origin: ' . env('FRONT_URL'));
         $tool = LtiTool::getLtiTool();
         return $tool->getJWKS();
     }
     // Function that obtains data from the LMS, stores it in the database (TEMPORARY) and redirects to the front end.
-    public function saveSession(){
+    public function saveSession()
+    {
         if (env('APP_PROXY') != '') {
             $_SERVER['SERVER_NAME'] = env('APP_PROXY');
             $_SERVER['SERVER_PORT'] = env('APP_PROXY_PORT');
@@ -37,7 +39,7 @@ class LtiController extends Controller
             ['context_id', '=', $fire['context_id']],
             ['expires_at', '>=', intval(Carbon::now()->valueOf())]
         ])->first();
-        if($session){
+        if ($session) {
             switch ($fire['tool_consumer_info_product_family_code']) {
                 case 'moodle':
                     DB::table('lti_info')->where([
@@ -46,15 +48,18 @@ class LtiController extends Controller
                         ['context_id', '=', $fire['context_id']],
                         ['expires_at', '>=', intval(Carbon::now()->valueOf())]
                     ])->update([
-                        'profile_url' => MoodleController::getImgUser($fire['platform_id'],
-                        $fire['user_id']),'lis_person_name_full' => $fire['lis_person_name_full']
-                    ]);
+                                'profile_url' => MoodleController::getImgUser(
+                                    $fire['platform_id'],
+                                    $fire['user_id']
+                                ),
+                                'lis_person_name_full' => $fire['lis_person_name_full']
+                            ]);
                     break;
                 case 'sakai':
-                    default:
+                default:
                     break;
             }
-        }else{
+        } else {
             $currentDate = date('Y-m-d H:i:s');
             $expDate = intval(Carbon::now()->addSeconds(3000)->valueOf());
             $session = DB::table('lti_info')->where([
@@ -66,43 +71,43 @@ class LtiController extends Controller
                 case 'moodle':
                     DB::table('lti_info')->insert([
                         'tool_consumer_info_product_family_code' => $fire['tool_consumer_info_product_family_code'],
-                        'context_id' =>  $fire['context_id'],
-                        'context_title' => $fire['context_title'],//
-                        'launch_presentation_locale' => $fire['launch_presentation_locale'],//
+                        'context_id' => $fire['context_id'],
+                        'context_title' => $fire['context_title'], //
+                        'launch_presentation_locale' => $fire['launch_presentation_locale'], //
                         'platform_id' => $fire['platform_id'],
                         'token' => Str::uuid()->toString(),
                         'launch_presentation_return_url' => $fire['launch_presentation_return_url'],
-                        'user_id' =>  $fire['user_id'],
-                        'lis_person_name_full' => $fire['lis_person_name_full'],//
+                        'user_id' => $fire['user_id'],
+                        'lis_person_name_full' => $fire['lis_person_name_full'], //
                         'profile_url' => MoodleController::getImgUser($fire['platform_id'], $fire['user_id']),
-                        'roles' =>  $fire['roles'],//
+                        'roles' => $fire['roles'], //
                         'expires_at' => $expDate,
                         'created_at' => $currentDate,
-                        'updated_at' => $currentDate,//
+                        'updated_at' => $currentDate, //
                     ]);
                     break;
                 case 'sakai':
-                    
+
                     $jwtPayload = $jwt->getPayload();
                     $locale = $jwtPayload->locale;
                     $sakai_serverid = $jwtPayload->{'https://www.sakailms.org/spec/lti/claim/extension'}->sakai_serverid;
                     DB::table('lti_info')->insert([
                         'tool_consumer_info_product_family_code' => $fire['tool_consumer_info_product_family_code'],
-                        'context_id' =>  $fire['context_id'],
-                        'context_title' => $fire['context_title'],//
-                        'launch_presentation_locale' => $locale,//
+                        'context_id' => $fire['context_id'],
+                        'context_title' => $fire['context_title'], //
+                        'launch_presentation_locale' => $locale, //
                         'platform_id' => $fire['platform_id'],
                         'token' => Str::uuid()->toString(),
                         'ext_sakai_serverid' => $sakai_serverid,
-                        'session_id' =>  SakaiController::createSession($fire['platform_id'], $sakai_serverid),//
-                        'launch_presentation_return_url' => $fire['platform_id'] .'/portal/site/'.$fire['context_id'],
-                        'user_id' =>  $fire['user_id'],
-                        'lis_person_name_full' => $fire['lis_person_name_full'],//
+                        'session_id' => SakaiController::createSession($fire['platform_id'], $sakai_serverid), //
+                        'launch_presentation_return_url' => $fire['platform_id'] . '/portal/site/' . $fire['context_id'],
+                        'user_id' => $fire['user_id'],
+                        'lis_person_name_full' => $fire['lis_person_name_full'], //
                         'profile_url' => 'default',
-                        'roles' =>  $fire['roles'],//
+                        'roles' => $fire['roles'], //
                         'expires_at' => $expDate,
                         'created_at' => $currentDate,
-                        'updated_at' => $currentDate,//
+                        'updated_at' => $currentDate, //
                     ]);
                     break;
                 default:
@@ -119,7 +124,7 @@ class LtiController extends Controller
         $headers = @get_headers(env('FRONT_URL'));
         $canSee = false;
         foreach ($headers as $header) {
-            if(strpos($header, '200 OK')){
+            if (strpos($header, '200 OK')) {
                 $canSee = true;
                 break;
             }
@@ -136,7 +141,8 @@ class LtiController extends Controller
         }
     }
     // Function that returns the user and course data.
-    public function getSession(Request $request){
+    public function getSession(Request $request)
+    {
         if ($this->checkToken($request->token)) {
             $sessionData = DB::table('lti_info')
                 ->where('token', '=', $request->token)
@@ -158,7 +164,8 @@ class LtiController extends Controller
         }
     }
     // This function obtains data from a version of a map.
-    public function getVersion(Request $request){
+    public function getVersion(Request $request)
+    {
         if ($this->checkToken($request->token)) {
             return MoodleController::getVersion($request->version_id);
         } else {
@@ -166,7 +173,8 @@ class LtiController extends Controller
         }
     }
     // Function that returns ALL the modules of a course.
-    public function getModules(Request $request){
+    public function getModules(Request $request)
+    {
         if ($this->checkToken($request->token)) {
             $sessionData = DB::table('lti_info')
                 ->where('token', '=', $request->token)
@@ -176,9 +184,9 @@ class LtiController extends Controller
                     return MoodleController::getModules($sessionData->platform_id, $sessionData->context_id);
                     break;
                 case 'sakai':
-                    if(isset($request->lesson)){
+                    if (isset($request->lesson)) {
                         return SakaiController::getModules($sessionData->platform_id, $request->lesson, $sessionData->session_id);
-                    }else{
+                    } else {
                         return response()->json(['ok' => false, 'error_type' => 'LESSON_NOT_VALID', 'data' => []]);
                     }
                     break;
@@ -192,7 +200,8 @@ class LtiController extends Controller
         }
     }
     // Function that returns the modules with a specific type of a course.
-    public function getModulesByType(Request $request){
+    public function getModulesByType(Request $request)
+    {
         if ($this->checkToken($request->token)) {
             $sessionData = DB::table('lti_info')
                 ->where('token', '=', $request->token)
@@ -200,13 +209,13 @@ class LtiController extends Controller
             switch ($sessionData->tool_consumer_info_product_family_code) {
                 case 'moodle':
                     if ($request->type == 'unsupported') {
-                        return MoodleController::getModulesNotSupported($request,$sessionData);
+                        return MoodleController::getModulesNotSupported($request, $sessionData);
                     } else {
-                        return MoodleController::getModulesByType($request,$sessionData);
+                        return MoodleController::getModulesByType($request, $sessionData);
                     }
                     break;
                 case 'sakai':
-                    return SakaiController::getModulesByType($request,$sessionData);
+                    return SakaiController::getModulesByType($request, $sessionData);
                     break;
                 default:
                     error_log('The platform you are using is not supported.');
@@ -217,7 +226,8 @@ class LtiController extends Controller
         }
     }
     // This function saves a version of a map.
-    public function storeVersion(Request $request){
+    public function storeVersion(Request $request)
+    {
         if ($this->checkToken($request->token)) {
             $sessionData = DB::table('lti_info')
                 ->where('token', '=', $request->token)
@@ -225,12 +235,12 @@ class LtiController extends Controller
             $this->registerLog('storeVersion', $sessionData);
             switch ($sessionData->tool_consumer_info_product_family_code) {
                 case 'moodle':
-                    return MoodleController::storeVersion($request->saveData,$request->token);
+                    return MoodleController::storeVersion($request->saveData, $request->token);
                     break;
                 case 'sakai':
-                    if(isset($request->lesson)){
+                    if (isset($request->lesson)) {
                         // return SakaiController::storeVersion();
-                    }else{
+                    } else {
                         return response()->json(['ok' => false, 'error_type' => 'LESSON_NOT_VALID', 'data' => []]);
                     }
                     break;
@@ -239,13 +249,14 @@ class LtiController extends Controller
                     return response()->json(['ok' => false, 'error_type' => 'PLATFORM_NOT_SUPPORTED', 'data' => []]);
                     break;
             }
-            
+
         } else {
             return response()->json(['ok' => false, 'error_type' => 'INVALID_OR_EXPIRED_TOKEN', 'data' => []]);
         }
     }
     // This function exports a version of a map to a course of a learning platform.
-    public function exportVersion(Request $request){
+    public function exportVersion(Request $request)
+    {
         if ($this->checkToken($request->token)) {
             $sessionData = DB::table('lti_info')
                 ->where('token', '=', $request->token)
@@ -267,7 +278,8 @@ class LtiController extends Controller
         }
     }
     // This function deletes a version of a map.
-    public function deleteVersion(Request $request){
+    public function deleteVersion(Request $request)
+    {
         if ($this->checkToken($request->token)) {
             $sessionData = DB::table('lti_info')
                 ->where('token', '=', $request->token)
@@ -286,7 +298,8 @@ class LtiController extends Controller
         }
     }
     // This function deletes a map.
-    function deleteMap(Request $request){
+    function deleteMap(Request $request)
+    {
         if ($this->checkToken($request->token)) {
             $sessionData = DB::table('lti_info')
                 ->where('token', '=', $request->token)
@@ -306,7 +319,8 @@ class LtiController extends Controller
         }
     }
     // This function checks if a token is valid to access the data of a session.
-    function checkToken($token){
+    function checkToken($token)
+    {
         $nowDate = intval(Carbon::now()->valueOf());
         $sessionData = DB::table('lti_info')
             ->where('token', '=', $token)
@@ -319,7 +333,8 @@ class LtiController extends Controller
         }
     }
     // Define the function that gets the data from the database.
-    function registerLog($case , $userData) {
+    function registerLog($case, $userData)
+    {
         // Obtain the current date in the format d-m-Y.
         $date = date("Y-m-d");
         $date2 = date("H:i:s");
@@ -331,13 +346,13 @@ class LtiController extends Controller
             mkdir($file, 0777, true);
         }
         // Create the file name with the date.
-        $name = $file . "/".$date.".log";
+        $name = $file . "/" . $date . ".log";
         // Open the file in append mode.
         $archive = fopen($name, "a");
         $message = '';
         switch ($case) {
             case 'getSession':
-                    $message = 'User ID: '.$userData->user_id.' ("'.$userData->lis_person_name_full.'") from LMS: "'.$userData->platform_id.'" has accessed UNIAdaptive through course ID: '.$userData->context_id.' ("'.$userData->context_title.'")';
+                $message = 'User ID: ' . $userData->user_id . ' ("' . $userData->lis_person_name_full . '") from LMS: "' . $userData->platform_id . '" has accessed UNIAdaptive through course ID: ' . $userData->context_id . ' ("' . $userData->context_title . '")';
                 break;
             // case 'getVersion':
             //         $message = 'User ID: '.$userData->user_id.' ("'.$userData->lis_person_name_full.'") from LMS: "'.$userData->platform_id.'" has made a request to obtain the versions of course ID: '.$userData->context_id.' ("'.$userData->context_title.'")';
@@ -349,26 +364,27 @@ class LtiController extends Controller
             //         $message = 'User ID: '.$userData->user_id.' ("'.$userData->lis_person_name_full.'") from LMS: "'.$userData->platform_id.'" has made a request to obtain the modules list of course ID: '.$userData->context_id.' ("'.$userData->context_title.'")';
             //     break;
             case 'storeVersion':
-                    $message = 'User ID: '.$userData->user_id.' ("'.$userData->lis_person_name_full.'") from LMS: "'.$userData->platform_id.'" has made a request to store version of course ID: '.$userData->context_id.' ("'.$userData->context_title.'")';
+                $message = 'User ID: ' . $userData->user_id . ' ("' . $userData->lis_person_name_full . '") from LMS: "' . $userData->platform_id . '" has made a request to store version of course ID: ' . $userData->context_id . ' ("' . $userData->context_title . '")';
                 break;
             case 'exportVersion':
-                    $message = 'User ID: '.$userData->user_id.' ("'.$userData->lis_person_name_full.'") from LMS: "'.$userData->platform_id.'" has made a request to export version of course ID: '.$userData->context_id.' ("'.$userData->context_title.'")';
+                $message = 'User ID: ' . $userData->user_id . ' ("' . $userData->lis_person_name_full . '") from LMS: "' . $userData->platform_id . '" has made a request to export version of course ID: ' . $userData->context_id . ' ("' . $userData->context_title . '")';
                 break;
             case 'deleteVersion':
-                    $message = 'User ID: '.$userData->user_id.' ("'.$userData->lis_person_name_full.'") from LMS: "'.$userData->platform_id.'" has made a request to delete version of course ID: '.$userData->context_id.' ("'.$userData->context_title.'")';
+                $message = 'User ID: ' . $userData->user_id . ' ("' . $userData->lis_person_name_full . '") from LMS: "' . $userData->platform_id . '" has made a request to delete version of course ID: ' . $userData->context_id . ' ("' . $userData->context_title . '")';
                 break;
             case 'deleteMap':
-                    $message = 'User ID: '.$userData->user_id.' ("'.$userData->lis_person_name_full.'") from LMS: "'.$userData->platform_id.'" has made a request to delete map of course ID: '.$userData->context_id.' ("'.$userData->context_title.'")';
+                $message = 'User ID: ' . $userData->user_id . ' ("' . $userData->lis_person_name_full . '") from LMS: "' . $userData->platform_id . '" has made a request to delete map of course ID: ' . $userData->context_id . ' ("' . $userData->context_title . '")';
                 break;
             default:
                 # code...
                 break;
         }
-        fwrite($archive, "[" . $date . " " . $date2 . "] ".$message." \n");
+        fwrite($archive, "[" . $date . " " . $date2 . "] " . $message . " \n");
         fclose($archive);
     }
     // This function obtains the current date and time.
-    public function getDate($token){
+    public function getDate($token)
+    {
         if ($this->checkToken($token)) {
             return response()->json(['ok' => true, 'data' => date('Y-m-d\TH:i')]);
         } else {
@@ -378,7 +394,8 @@ class LtiController extends Controller
 
     //front backend configuration
     // This function authenticates the user as administrator.
-    public function auth(Request $request){
+    public function auth(Request $request)
+    {
         $password = $request->password;
         $adminPassword = env('ADMIN_PASSWORD');
 
@@ -393,7 +410,8 @@ class LtiController extends Controller
         }
     }
     // This function obtains resource usage data from the server.
-    public function getResource(){
+    public function getResource()
+    {
         header('Content-Type: application/json');
         try {
             return response()->json(['ok' => true, 'data' => getrusage()]);
@@ -402,7 +420,8 @@ class LtiController extends Controller
         }
     }
     // This function obtains the server's start date and time.
-    public function getServerInfo(){
+    public function getServerInfo()
+    {
         header('Content-Type: application/json');
         try {
             return response()->json(['ok' => true, 'data' => Carbon::createFromTimestamp(filemtime('/proc/uptime'))->toDateTimeString()]);
@@ -410,5 +429,5 @@ class LtiController extends Controller
             return response()->json(['ok' => false, 'error_type' => 'CANT_CONNECT_TO_SERVER']);
         }
     }
-    
+
 }
