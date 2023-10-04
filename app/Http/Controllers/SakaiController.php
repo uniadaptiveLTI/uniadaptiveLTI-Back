@@ -348,7 +348,7 @@ class SakaiController extends Controller
         return response()->json(['ok' => true, 'data' => $assesments]);
     }
 
-    public static function createClient($url, $session_id, $type = 'GET', $bodyData)
+    public static function createClient($url, $session_id, $type = 'GET', $bodyData = [])
     {
         $client = new Client();
 
@@ -395,9 +395,9 @@ class SakaiController extends Controller
 
     public static function exportVersion(Request $request, $sessionData)
     {
-        header('Access-Control-Allow-Origin: *');
+        //header('Access-Control-Allow-Origin: *');
         $nodes = $request->nodes;
-
+        //dd($nodes);
         $firstNode = reset($nodes);
         $firstPageId = $firstNode['pageId'];
 
@@ -428,6 +428,6 @@ class SakaiController extends Controller
         }
 
         // header('Access-Control-Allow-Origin: *');
-        dd($request->nodes);
+        // dd($request->nodes);
     }
 }
