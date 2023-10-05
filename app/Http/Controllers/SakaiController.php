@@ -354,8 +354,7 @@ class SakaiController extends Controller
         $client = new Client();
         $options = [
             'headers' => [
-                'Cookie' => 'JSESSIONID=' . $session_id,
-                'Content-Type' => 'application/json'
+                'Cookie' => 'JSESSIONID=' . $session_id
             ],
         ];
         switch ($type) {
@@ -371,6 +370,7 @@ class SakaiController extends Controller
             case "POST":
                 // Convert the $bodyData array to JSON
                 $options['json'] = $bodyData;
+                $options['headers']['Content-Type'] = 'application/json';
                 $response = $client->post($url, $options);
                 break;
             case "BATCH":
