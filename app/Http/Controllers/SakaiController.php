@@ -354,7 +354,8 @@ class SakaiController extends Controller
         $client = new Client();
         $options = [
             'headers' => [
-                'Cookie' => 'JSESSIONID=06026c86-1134-4171-8bcb-95e1a80b2a1c.DESKTOP-U647DB8'
+                'Cookie' => 'JSESSIONID=' . $session_id,
+                'Content-Type' => 'application/json'
             ],
         ];
         switch ($type) {
@@ -398,7 +399,7 @@ class SakaiController extends Controller
         //header('Access-Control-Allow-Origin: *');
         $nodes = $request->nodes;
 
-        $nodes = array_map(function($item) {
+        $nodes = array_map(function ($item) {
             if ($item['title'] === null) {
                 $item['title'] = "";
             }
@@ -424,11 +425,12 @@ class SakaiController extends Controller
             $pageId = $firstPageId;
             // dd($pageId);
 
-            $conditionsDelete = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . 72 . '/conditions', $sessionData->session_id, 'DELETE');
-            $lessonItemsDelete = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . 72 . '/items', $sessionData->session_id, 'DELETE');
+            $conditionsDelete = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/conditions', $sessionData->session_id, 'DELETE');
+            $lessonItemsDelete = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/items', $sessionData->session_id, 'DELETE');
 
             if ($conditionsDelete === 200 && $lessonItemsDelete === 200) {
-                $nodesBulkCreation = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . 72 . '/items/bulk', $sessionData->session_id, 'POST', $nodes);
+                //$nodesBulkCreation = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/entities', $sessionData->session_id, 'BATCH', $nodesToUpdate);
+                $nodesBulkCreation = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/items/bulk', $sessionData->session_id, 'POST', $nodes);
             } else {
                 return response()->json(['ok' => false, 'errorType' => 'LESSON_DELETE_ERROR', 'data' => '']);
             }
