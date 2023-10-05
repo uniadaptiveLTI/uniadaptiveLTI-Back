@@ -367,13 +367,13 @@ class SakaiController extends Controller
                     return $statusCode;
                 }
                 break;
+
+            case "BATCH":
             case "POST":
                 // Convert the $bodyData array to JSON
                 $options['json'] = $bodyData;
                 $options['headers']['Content-Type'] = 'application/json';
                 $response = $client->post($url, $options);
-                break;
-            case "BATCH":
                 break;
             default:
                 // Handle unsupported request types here
@@ -429,7 +429,7 @@ class SakaiController extends Controller
             $lessonItemsDelete = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/items', $sessionData->session_id, 'DELETE');
 
             if ($conditionsDelete === 200 && $lessonItemsDelete === 200) {
-                //$nodesBulkCreation = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/entities', $sessionData->session_id, 'BATCH', $nodesToUpdate);
+                $nodesBulkCreation = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/entities', $sessionData->session_id, 'BATCH', $nodesToUpdate);
                 $nodesBulkCreation = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/items/bulk', $sessionData->session_id, 'POST', $nodes);
             } else {
                 return response()->json(['ok' => false, 'errorType' => 'LESSON_DELETE_ERROR', 'data' => '']);
