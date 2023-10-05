@@ -68,7 +68,7 @@ class SakaiController extends Controller
     public static function getSession(object $lastInserted)
     {
         // header('Access-Control-Allow-Origin: *');
-        // dd($lastInserted);
+        // dd($lastInserted->platform_id, $lastInserted->context_id, $lastInserted->session_id);
         $data = [
             [
                 'user_id' => SakaiController::getId($lastInserted->user_id),
@@ -94,6 +94,7 @@ class SakaiController extends Controller
                 $lastInserted->platform_id
             )
         ];
+        // dd($data);
         return response()->json(['ok' => true, 'data' => $data]);
     }
 
@@ -351,33 +352,32 @@ class SakaiController extends Controller
     public static function createClient($url, $session_id, $type = 'GET', $bodyData = [])
     {
         $client = new Client();
-
         $options = [
             'headers' => [
-                'Cookie' => 'JSESSIONID=' . $session_id,
+                'Cookie' => 'JSESSIONID=06026c86-1134-4171-8bcb-95e1a80b2a1c.DESKTOP-U647DB8'
             ],
         ];
-
         switch ($type) {
             case "GET":
             case "DELETE":
                 // Both GET and DELETE share the same request options
                 $response = $client->request($type, $url, $options);
-
                 if ($type === "DELETE") {
                     $statusCode = $response->getStatusCode();
                     return $statusCode;
                 }
                 break;
             case "POST":
+                // Convert the $bodyData array to JSON
                 $options['json'] = $bodyData;
                 $response = $client->post($url, $options);
+                break;
+            case "BATCH":
                 break;
             default:
                 // Handle unsupported request types here
                 return ['error' => 'Unsupported request type'];
         }
-
         $content = $response->getBody()->getContents();
         $data = json_decode($content);
         return $data;
@@ -397,8 +397,15 @@ class SakaiController extends Controller
     {
         //header('Access-Control-Allow-Origin: *');
         $nodes = $request->nodes;
-        $nodesToUpdate = $request->nodes;
-        dd($nodesToUpdate);
+
+        $nodes = array_map(function($item) {
+            if ($item['title'] === null) {
+                $item['title'] = "";
+            }
+            return $item;
+        }, $nodes);
+
+        $nodesToUpdate = $request->nodesToUpdate;
 
         $firstNode = reset($nodes);
         $firstPageId = $firstNode['pageId'];
@@ -417,11 +424,11 @@ class SakaiController extends Controller
             $pageId = $firstPageId;
             // dd($pageId);
 
-            $conditionsDelete = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $pageId . '/conditions', $sessionData->session_id, 'DELETE');
-            $lessonItemsDelete = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $pageId . '/items', $sessionData->session_id, 'DELETE');
+            $conditionsDelete = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . 72 . '/conditions', $sessionData->session_id, 'DELETE');
+            $lessonItemsDelete = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . 72 . '/items', $sessionData->session_id, 'DELETE');
 
             if ($conditionsDelete === 200 && $lessonItemsDelete === 200) {
-                $nodesBulkCreation = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $pageId . '/items/bulk', $sessionData->session_id, 'POST', $nodes);
+                $nodesBulkCreation = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . 72 . '/items/bulk', $sessionData->session_id, 'POST', $nodes);
             } else {
                 return response()->json(['ok' => false, 'errorType' => 'LESSON_DELETE_ERROR', 'data' => '']);
             }

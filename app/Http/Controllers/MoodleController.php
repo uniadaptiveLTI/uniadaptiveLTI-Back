@@ -471,7 +471,7 @@ class MoodleController extends Controller
                     unset($nodes[$index]['c']['type']);
                 }
                 if(isset($nodes[$index]['g'])){
-                    // dd($nodes[$index]);
+                    dd($nodes[$index]['g']);
                     unset($nodes[$index]['g']);
                 }
                 if (isset($nodes[$index]['children'])) {
@@ -786,6 +786,7 @@ class MoodleController extends Controller
     // This function updates a Moodle course.
     public static function updateCourse($instance, $sections, $modules, $badges)
     {
+        // header('Access-Control-Allow-Origin: *');
         foreach ($modules as &$module) {
             if (isset($module['c'])) {
                 $module['c'] = json_encode($module['c']);

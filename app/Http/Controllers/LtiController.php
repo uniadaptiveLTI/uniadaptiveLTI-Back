@@ -48,12 +48,12 @@ class LtiController extends Controller
                         ['context_id', '=', $fire['context_id']],
                         ['expires_at', '>=', intval(Carbon::now()->valueOf())]
                     ])->update([
-                                'profile_url' => MoodleController::getImgUser(
-                                    $fire['platform_id'],
-                                    $fire['user_id']
-                                ),
-                                'lis_person_name_full' => $fire['lis_person_name_full']
-                            ]);
+                        'profile_url' => MoodleController::getImgUser(
+                            $fire['platform_id'],
+                            $fire['user_id']
+                        ),
+                        'lis_person_name_full' => $fire['lis_person_name_full']
+                    ]);
                     break;
                 case 'sakai':
                 default:
