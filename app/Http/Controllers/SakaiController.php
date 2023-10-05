@@ -354,7 +354,7 @@ class SakaiController extends Controller
         $client = new Client();
         $options = [
             'headers' => [
-                'Cookie' => 'JSESSIONID=06026c86-1134-4171-8bcb-95e1a80b2a1c.DESKTOP-U647DB8'
+                'Cookie' => 'JSESSIONID=' . $session_id
             ],
         ];
         switch ($type) {

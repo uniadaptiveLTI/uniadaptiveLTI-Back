@@ -22,6 +22,8 @@ class LtiController extends Controller
     // Function that obtains data from the LMS, stores it in the database (TEMPORARY) and redirects to the front end.
     public function saveSession()
     {
+        header('Access-Control-Allow-Origin: ' . env('FRONT_URL'));
+        // dd('hla');
         if (env('APP_PROXY') != '') {
             $_SERVER['SERVER_NAME'] = env('APP_PROXY');
             $_SERVER['SERVER_PORT'] = env('APP_PROXY_PORT');
@@ -40,6 +42,7 @@ class LtiController extends Controller
             ['expires_at', '>=', intval(Carbon::now()->valueOf())]
         ])->first();
         if ($session) {
+            // dd($session);
             switch ($fire['tool_consumer_info_product_family_code']) {
                 case 'moodle':
                     DB::table('lti_info')->where([
@@ -56,6 +59,19 @@ class LtiController extends Controller
                     ]);
                     break;
                 case 'sakai':
+                    $jwtPayload = $jwt->getPayload();
+                    $sakai_serverid = $jwtPayload->{'https://www.sakailms.org/spec/lti/claim/extension'}->sakai_serverid;
+                    DB::table('lti_info')->where([
+                        ['user_id', '=', $fire['user_id']],
+                        ['platform_id', '=', $fire['platform_id']],
+                        ['context_id', '=', $fire['context_id']],
+                        ['expires_at', '>=', intval(Carbon::now()->valueOf())]
+                    ])->update([
+                        'profile_url' => SakaiController::getUrl($fire['platform_id'], $fire['context_id'], SakaiController::getId($fire['user_id'])),
+                        'lis_person_name_full' => $fire['lis_person_name_full'],
+                        'session_id' => SakaiController::createSession($fire['platform_id'], $sakai_serverid)
+                    ]);
+                    // dd($session);
                 default:
                     break;
             }
@@ -91,6 +107,7 @@ class LtiController extends Controller
                     $jwtPayload = $jwt->getPayload();
                     $locale = $jwtPayload->locale;
                     $sakai_serverid = $jwtPayload->{'https://www.sakailms.org/spec/lti/claim/extension'}->sakai_serverid;
+                    // dd($sakai_serverid);
                     DB::table('lti_info')->insert([
                         'tool_consumer_info_product_family_code' => $fire['tool_consumer_info_product_family_code'],
                         'context_id' => $fire['context_id'],
@@ -103,7 +120,7 @@ class LtiController extends Controller
                         'launch_presentation_return_url' => $fire['platform_id'] . '/portal/site/' . $fire['context_id'],
                         'user_id' => $fire['user_id'],
                         'lis_person_name_full' => $fire['lis_person_name_full'], //
-                        'profile_url' => 'default',
+                        'profile_url' => SakaiController::getUrl($fire['platform_id'], $fire['context_id'], SakaiController::getId($fire['user_id'])),
                         'roles' => $fire['roles'], //
                         'expires_at' => $expDate,
                         'created_at' => $currentDate,
