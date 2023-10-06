@@ -429,8 +429,13 @@ class SakaiController extends Controller
             $lessonItemsDelete = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/items', $sessionData->session_id, 'DELETE');
 
             if ($conditionsDelete === 200 && $lessonItemsDelete === 200) {
-                $nodesBulkCreation = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/entities', $sessionData->session_id, 'BATCH', $nodesToUpdate);
+                $nodesBulkUpdate = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/entities', $sessionData->session_id, 'BATCH', $nodesToUpdate);
                 $nodesBulkCreation = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/items/bulk', $sessionData->session_id, 'POST', $nodes);
+                if ($nodesBulkCreation === 200) {
+                    /*$conditionsParsedList;
+                    $nodesBulkCreation = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/conditions/bulk', $sessionData->session_id, 'POST', $conditionsParsedList);*/
+                    return response()->json(['ok' => true, 'errorType' => 'EXPORTACIÓN_CON_EXITO', 'data' => '']);
+                }
             } else {
                 return response()->json(['ok' => false, 'errorType' => 'LESSON_DELETE_ERROR', 'data' => '']);
             }
