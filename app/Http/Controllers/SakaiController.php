@@ -434,7 +434,7 @@ class SakaiController extends Controller
                 if ($nodesBulkCreation === 200) {
                     /*$conditionsParsedList;
                     $nodesBulkCreation = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/conditions/bulk', $sessionData->session_id, 'POST', $conditionsParsedList);*/
-                    return response()->json(['ok' => true, 'errorType' => 'EXPORTACIÓN_CON_EXITO', 'data' => '']);
+                    return response()->json(['ok' => true, 'errorType' => 'EXPORTACION_CON_EXITO', 'data' => '']);
                 }
             } else {
                 return response()->json(['ok' => false, 'errorType' => 'LESSON_DELETE_ERROR', 'data' => '']);
