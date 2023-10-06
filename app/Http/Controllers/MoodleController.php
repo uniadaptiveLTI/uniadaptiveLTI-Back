@@ -228,7 +228,7 @@ class MoodleController extends Controller
                     'modname' => e($module->modname),
                     'id' => e($module->id),
                     'has_califications' => $has_grades,
-                    'g' => MoodleController::getCalifications($url_lms,$module->id,$module->modname),
+                    'g' => MoodleController::getCalifications($url_lms, $module->id, $module->modname),
                     'order' => $indexM,
                     'section' => $indexS,
                     'indent' => $module->indent,
@@ -252,39 +252,57 @@ class MoodleController extends Controller
             'base_uri' => $sessionData->platform_id . '/webservice/rest/server.php',
             'timeout' => 20.0,
         ]);
-        $response = $client->request('GET', '', [
-            'query' => [
-                'wstoken' => env('WSTOKEN'),
-                'wsfunction' => 'core_course_get_contents',
-                'courseid' => $sessionData->context_id,
-                'options' => [
-                    [
-                        'name' => 'modname',
-                        'value' => $request->type,
-                    ]
-                ],
-                'moodlewsrestformat' => 'json'
-            ]
-        ]);
-        $content = $response->getBody()->getContents();
-        $data = json_decode($content);
-        $module_grades = MoodleController::getCoursegrades($sessionData->platform_id, $sessionData->context_id);
-        $modules = [];
-        foreach ($data as $indexM => $section) {
-            foreach ($section->modules as $module) {
-                $has_grades = in_array($module->name, $module_grades->module_grades);
-                array_push($modules, [
-                    'id' => htmlspecialchars($module->id),
-                    'name' => htmlspecialchars($module->name),
-                    'section' => htmlspecialchars($indexM),
-                    'has_grades' => $has_grades
-                ]);
+
+        if ($request->type === "badge") {
+            $badges = MoodleController::getBadges($sessionData->platform_id, $sessionData->context_id);
+            if ($badges != null && count($badges) >= 1) {
+                foreach ($badges as $badge) {
+                    if (property_exists($badge, 'params')) {
+                        unset($badge->params);
+                        $badge->section = -1;
+                        $badge->has_grades = false;
+                    }
+                }
             }
+
+            $milliseconds = round(microtime(true) * 1000);
+            error_log('Finalización de petición: ' . date('Y-m-d H:i:s', $milliseconds / 1000) . substr((string) $milliseconds, -3));
+            return response()->json(['ok' => true, 'data' => $badges]);
+        } else {
+            $response = $client->request('GET', '', [
+                'query' => [
+                    'wstoken' => env('WSTOKEN'),
+                    'wsfunction' => 'core_course_get_contents',
+                    'courseid' => $sessionData->context_id,
+                    'options' => [
+                        [
+                            'name' => 'modname',
+                            'value' => $request->type,
+                        ]
+                    ],
+                    'moodlewsrestformat' => 'json'
+                ]
+            ]);
+            $content = $response->getBody()->getContents();
+            $data = json_decode($content);
+            $module_grades = MoodleController::getCoursegrades($sessionData->platform_id, $sessionData->context_id);
+            $modules = [];
+            foreach ($data as $indexM => $section) {
+                foreach ($section->modules as $module) {
+                    $has_grades = in_array($module->name, $module_grades->module_grades);
+                    array_push($modules, [
+                        'id' => htmlspecialchars($module->id),
+                        'name' => htmlspecialchars($module->name),
+                        'section' => htmlspecialchars($indexM),
+                        'has_grades' => $has_grades
+                    ]);
+                }
+            }
+            $modules;
+            $milliseconds = round(microtime(true) * 1000);
+            error_log('Finalización de petición: ' . date('Y-m-d H:i:s', $milliseconds / 1000) . substr((string) $milliseconds, -3));
+            return response()->json(['ok' => true, 'data' => $modules]);
         }
-        $modules;
-        $milliseconds = round(microtime(true) * 1000);
-        error_log('Finalización de petición: ' . date('Y-m-d H:i:s', $milliseconds / 1000) . substr((string) $milliseconds, -3));
-        return response()->json(['ok' => true, 'data' => $modules]);
     }
     // Function that returns the groups of a course.
     public static function getGroups($url_lms, $course_id)
@@ -431,7 +449,7 @@ class MoodleController extends Controller
         // dd('hola');
         $sections = MoodleController::getModulesListBySectionsCourse($request->instance, $request->course);
         $nodes = $request->nodes;
-        // dd($nodes);
+
         $badges = [];
         usort($nodes, function ($a, $b) {
             if (isset($a['section']) && isset($b['section'])) {
@@ -450,9 +468,11 @@ class MoodleController extends Controller
         foreach ($nodes as $index => $data) {
             if (isset($nodes[$index]['actionType'])) {
                 unset($nodes[$index]['actionType']);
-                foreach ($nodes[$index]['conditions'] as $key => $condition) {
-                    if ($condition['description'] === null) {
-                        $nodes[$index]['conditions'][$key]['description'] = "";
+                if (isset($nodes[$index]['conditions']) && is_array($nodes[$index]['conditions']) && count($nodes[$index]['conditions']) >= 1) {
+                    foreach ($nodes[$index]['conditions'] as $key => $condition) {
+                        if ($condition['description'] === null) {
+                            $nodes[$index]['conditions'][$key]['description'] = "";
+                        }
                     }
                 }
                 array_push($badges, $nodes[$index]);
@@ -471,8 +491,7 @@ class MoodleController extends Controller
                 if (isset($nodes[$index]['c']['type'])) {
                     unset($nodes[$index]['c']['type']);
                 }
-                if(isset($nodes[$index]['g'])){
-                    // dd($nodes[$index]['g']);
+                if (isset($nodes[$index]['g'])) {
                     unset($nodes[$index]['g']);
                 }
                 if (isset($nodes[$index]['children'])) {
@@ -815,7 +834,8 @@ class MoodleController extends Controller
         $data = json_decode($content);
         return $data;
     }
-    public static function getCalifications($url_lms,$module_id,$module_modname){
+    public static function getCalifications($url_lms, $module_id, $module_modname)
+    {
         // header('Access-Control-Allow-Origin: *');
         $client = new Client([
             'base_uri' => $url_lms . '/webservice/rest/server.php',
@@ -834,7 +854,7 @@ class MoodleController extends Controller
         // dd($response->getBody());
         $content = $response->getBody()->getContents();
         $data = json_decode($content);
-        if(gettype($data) == 'string'){
+        if (gettype($data) == 'string') {
             $data = json_decode($data);
         }
         return $data;
