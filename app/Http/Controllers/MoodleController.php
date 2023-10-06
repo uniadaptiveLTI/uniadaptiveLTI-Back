@@ -427,10 +427,11 @@ class MoodleController extends Controller
     // This function creates a Moodle version of the course with the request data.
     public static function exportVersion(Request $request)
     {
-        header('Access-Control-Allow-Origin: *');
-
+        // header('Access-Control-Allow-Origin: *');
+        // dd('hola');
         $sections = MoodleController::getModulesListBySectionsCourse($request->instance, $request->course);
         $nodes = $request->nodes;
+        // dd($nodes);
         $badges = [];
         usort($nodes, function ($a, $b) {
             if (isset($a['section']) && isset($b['section'])) {
@@ -471,7 +472,7 @@ class MoodleController extends Controller
                     unset($nodes[$index]['c']['type']);
                 }
                 if(isset($nodes[$index]['g'])){
-                    dd($nodes[$index]['g']);
+                    // dd($nodes[$index]['g']);
                     unset($nodes[$index]['g']);
                 }
                 if (isset($nodes[$index]['children'])) {

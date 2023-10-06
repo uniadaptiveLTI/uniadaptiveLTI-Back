@@ -86,7 +86,7 @@ class SakaiController extends Controller
                 'lms_url' => $lastInserted->platform_id,
                 'return_url' => $lastInserted->launch_presentation_return_url,
                 'user_members' => SakaiController::getUserMembers($lastInserted->platform_id, $lastInserted->context_id, $lastInserted->session_id),
-                'groups' => SakaiController::getGroups($lastInserted->platform_id, $lastInserted->context_id, $lastInserted->session_id)
+                'sakai_groups' => SakaiController::getGroups($lastInserted->platform_id, $lastInserted->context_id, $lastInserted->session_id)
             ],
             SakaiController::getCourse(
                 $lastInserted->context_id,
@@ -243,7 +243,7 @@ class SakaiController extends Controller
         $groups = [];
         foreach ($dataGroups as $group) {
             $groups[] = array(
-                'id' => $group->id,
+                'id' => $group->reference,
                 'name' => $group->title
             );
         }
@@ -259,46 +259,65 @@ class SakaiController extends Controller
         $section = 0;
         $column = 0;
         $order = 1;
-        // dd($modulesData);
-        foreach ($modulesData->contentsList as $index => $module) {
-            $modulesData->contentsList[$index]->type = SakaiController::changeIdNameType($module->type);
-
-            if ($modulesData->contentsList[$index]->type == 'break') {
-                $format = isset($modulesData->contentsList[$index]->format);
-                if ($format) {
-                    switch ($modulesData->contentsList[$index]->format) {
-                        case 'section':
-                            $section++;
+        
+        if($modulesData->contentsList != null){
+            foreach ($modulesData->contentsList as $index => $module) {
+                $modulesData->contentsList[$index]->type = SakaiController::changeIdNameType($module->type);
+    
+                if ($modulesData->contentsList[$index]->type == 'break') {
+                    $format = isset($modulesData->contentsList[$index]->format);
+                    if ($format) {
+                        switch ($modulesData->contentsList[$index]->format) {
+                            case 'section':
+                                $section++;
+                                break;
+    
+                            case 'column':
+                                $column++;
+                                break;
+                        }
+                    } else {
+                        $section++;
+                    }
+                    $order = 1;
+                } else if ($modulesData->contentsList[$index]->type != 'break' /*&& $modulesData->contentsList[$index]->type != 'generic'*/&& $modulesData->contentsList[$index]->type != 'page' && $modulesData->contentsList[$index]->type != 'text') {
+                    // $modulesData->contentsList[$index]->section = $section;
+                    switch ($modulesData->contentsList[$index]->type) {
+                        case 'exam':
+                        case 'assign':
+                        case 'forum':
+                            $a = substr($modulesData->contentsList[$index]->sakaiId, 1);
+                            $dataSakaiId = explode('/',$a);
+                            $sakaiId = end($dataSakaiId);
                             break;
-
-                        case 'column':
-                            $column++;
+                        case 'break':
+                            break;
+                        default:
+                            $sakaiId = $modulesData->contentsList[$index]->sakaiId;
                             break;
                     }
-                } else {
-                    $section++;
+                    
+                    array_push(
+                        $modules,
+                        [
+                            "sakaiId" => $sakaiId,
+                            "name" => $modulesData->contentsList[$index]->name,
+                            "modname" => $modulesData->contentsList[$index]->type,
+                            "pageId" => $modulesData->contentsList[$index]->pageId,
+                            "section" => $section,
+                            "indent" => $column,
+                            "order" => $order++
+                        ]
+    
+                    );
                 }
-                $order = 1;
-            } else if ($modulesData->contentsList[$index]->type != 'break' /*&& $modulesData->contentsList[$index]->type != 'generic'*/&& $modulesData->contentsList[$index]->type != 'page' && $modulesData->contentsList[$index]->type != 'text') {
-                // $modulesData->contentsList[$index]->section = $section;
-
-                array_push(
-                    $modules,
-                    [
-                        "sakaiId" => strval($modulesData->contentsList[$index]->id),
-                        "name" => $modulesData->contentsList[$index]->name,
-                        "modname" => $modulesData->contentsList[$index]->type,
-                        "pageId" => $modulesData->contentsList[$index]->pageId,
-                        "section" => $section,
-                        "indent" => $column,
-                        "order" => $order++
-                    ]
-
-                );
             }
+            // dd($modules);
+            return response()->json(['ok' => true, 'data' => $modules]);
         }
+        return response()->json(['ok' => false, 'data' => '', 'errorType' => 'DONT_CONTAINS_MODULES']);
         // dd( $modules);
-        return response()->json(['ok' => true, 'data' => $modules]);
+        
     }
 
     public static function changeIdNameType($type)
@@ -373,7 +392,11 @@ class SakaiController extends Controller
                 // Convert the $bodyData array to JSON
                 $options['json'] = $bodyData;
                 $options['headers']['Content-Type'] = 'application/json';
-                $response = $client->post($url, $options);
+                if($type === "POST"){
+                    $response = $client->post($url, $options);
+                } else {
+                    $response = $client->patch($url, $options);
+                }
                 break;
             default:
                 // Handle unsupported request types here
@@ -422,15 +445,16 @@ class SakaiController extends Controller
         // dd($allHaveSamePageId);
 
         if ($allHaveSamePageId) {
-            $pageId = $firstPageId;
+            // $pageId = $firstPageId;
             // dd($pageId);
 
             $conditionsDelete = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/conditions', $sessionData->session_id, 'DELETE');
             $lessonItemsDelete = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/items', $sessionData->session_id, 'DELETE');
-
             if ($conditionsDelete === 200 && $lessonItemsDelete === 200) {
                 $nodesBulkUpdate = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/entities', $sessionData->session_id, 'BATCH', $nodesToUpdate);
                 $nodesBulkCreation = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/items/bulk', $sessionData->session_id, 'POST', $nodes);
+                
+                return response()->json(['ok' => true, 'data' => '']);
                 if ($nodesBulkCreation === 200) {
                     /*$conditionsParsedList;
                     $nodesBulkCreation = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/conditions/bulk', $sessionData->session_id, 'POST', $conditionsParsedList);*/

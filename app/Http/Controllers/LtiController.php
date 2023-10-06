@@ -77,7 +77,7 @@ class LtiController extends Controller
             }
         } else {
             $currentDate = date('Y-m-d H:i:s');
-            $expDate = intval(Carbon::now()->addSeconds(3000)->valueOf());
+            $expDate = intval(Carbon::now()->addSeconds(30000)->valueOf());
             $session = DB::table('lti_info')->where([
                 ['user_id', '=', $fire['user_id']],
                 ['platform_id', '=', $fire['platform_id']],
