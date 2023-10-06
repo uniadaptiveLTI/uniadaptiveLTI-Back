@@ -259,11 +259,11 @@ class SakaiController extends Controller
         $section = 0;
         $column = 0;
         $order = 1;
-        
-        if($modulesData->contentsList != null){
+
+        if ($modulesData->contentsList != null) {
             foreach ($modulesData->contentsList as $index => $module) {
                 $modulesData->contentsList[$index]->type = SakaiController::changeIdNameType($module->type);
-    
+
                 if ($modulesData->contentsList[$index]->type == 'break') {
                     $format = isset($modulesData->contentsList[$index]->format);
                     if ($format) {
@@ -271,7 +271,7 @@ class SakaiController extends Controller
                             case 'section':
                                 $section++;
                                 break;
-    
+
                             case 'column':
                                 $column++;
                                 break;
@@ -287,7 +287,7 @@ class SakaiController extends Controller
                         case 'assign':
                         case 'forum':
                             $a = substr($modulesData->contentsList[$index]->sakaiId, 1);
-                            $dataSakaiId = explode('/',$a);
+                            $dataSakaiId = explode('/', $a);
                             $sakaiId = end($dataSakaiId);
                             break;
                         case 'break':
@@ -296,7 +296,7 @@ class SakaiController extends Controller
                             $sakaiId = $modulesData->contentsList[$index]->sakaiId;
                             break;
                     }
-                    
+
                     array_push(
                         $modules,
                         [
@@ -308,7 +308,7 @@ class SakaiController extends Controller
                             "indent" => $column,
                             "order" => $order++
                         ]
-    
+
                     );
                 }
             }
@@ -317,7 +317,7 @@ class SakaiController extends Controller
         }
         return response()->json(['ok' => false, 'data' => '', 'errorType' => 'DONT_CONTAINS_MODULES']);
         // dd( $modules);
-        
+
     }
 
     public static function changeIdNameType($type)
@@ -392,7 +392,7 @@ class SakaiController extends Controller
                 // Convert the $bodyData array to JSON
                 $options['json'] = $bodyData;
                 $options['headers']['Content-Type'] = 'application/json';
-                if($type === "POST"){
+                if ($type === "POST") {
                     $response = $client->post($url, $options);
                 } else {
                     $response = $client->patch($url, $options);
@@ -451,9 +451,13 @@ class SakaiController extends Controller
             $conditionsDelete = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/conditions', $sessionData->session_id, 'DELETE');
             $lessonItemsDelete = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/items', $sessionData->session_id, 'DELETE');
             if ($conditionsDelete === 200 && $lessonItemsDelete === 200) {
-                $nodesBulkUpdate = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/entities', $sessionData->session_id, 'BATCH', $nodesToUpdate);
+                if (count($nodesToUpdate) >= 1) {
+                    $nodesBulkUpdate = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/entities', $sessionData->session_id, 'BATCH', $nodesToUpdate);
+
+                }
+
                 $nodesBulkCreation = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/items/bulk', $sessionData->session_id, 'POST', $nodes);
-                
+
                 return response()->json(['ok' => true, 'data' => '']);
                 if ($nodesBulkCreation === 200) {
                     /*$conditionsParsedList;
