@@ -60,7 +60,7 @@ class MoodleController extends Controller
                 'return_url' => $lastInserted->launch_presentation_return_url,
                 'sections' => MoodleController::getSections($lastInserted->platform_id, $lastInserted->context_id),
                 'groups' => MoodleController::getGroups($lastInserted->platform_id, $lastInserted->context_id),
-                'grupings' => MoodleController::getGrupings($lastInserted->platform_id, $lastInserted->context_id),
+                'groupings' => MoodleController::getGrupings($lastInserted->platform_id, $lastInserted->context_id),
                 'badges' => MoodleController::getBadges($lastInserted->platform_id, $lastInserted->context_id),
                 'grades' => MoodleController::getIdCoursegrades($lastInserted->platform_id, $lastInserted->context_id),
                 'role_list' => MoodleController::getRoles($lastInserted->platform_id, $lastInserted->context_id),
