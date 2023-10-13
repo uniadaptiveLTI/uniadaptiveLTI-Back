@@ -196,21 +196,40 @@ class SakaiController extends Controller
     {
         $dataContents = SakaiController::createClient($url_lms . '/direct/content/resources/group/' . $context_id . '.json?depth=3', $session_id);
         $resources = [];
+
+        function decode_unicode($str) {
+            $str = preg_replace_callback('/\\\\u([0-9a-fA-F]{4})/', function ($match) {
+                return mb_convert_encoding(pack('H*', $match[1]), 'UTF-8', 'UCS-2BE');
+            }, $str);
+            return $str;
+        }
+
         if ($type === 'resource') {
-            foreach ($dataContents->content_collection[0]->resourceChildren as $resource) {
+            function process_resource($resource, &$resources) {
+                $id = decode_unicode(str_replace('\/', '/', $resource->resourceId));
+        
                 switch ($resource->mimeType) {
-                    case 'text/plain':
                     case 'text/html':
                     case 'text/url':
                     case null:
                         break;
                     default:
                         array_push($resources, [
-                            'id' => htmlspecialchars($resource->resourceId),
+                            'id' => htmlspecialchars($id),
                             'name' => htmlspecialchars($resource->name)
                         ]);
                         break;
                 }
+                error_log("223 " . print_r($resource, true));
+                if (count($resource->resourceChildren) >= 1) {
+                    foreach ($resource->resourceChildren as $child) {
+                        process_resource($child, $resources);
+                    }
+                }
+            }
+        
+            foreach ($dataContents->content_collection[0]->resourceChildren as $resource) {
+                process_resource($resource, $resources);
             }
             return response()->json(['ok' => true, 'data' => $resources]);
         } else {
@@ -417,6 +436,10 @@ class SakaiController extends Controller
         return ($url_lms . '/direct/profile/' . $user_id . '/image/thumb?siteId=' . $context_id);
     }
 
+    public static function find($array, $callback) {
+        return current(array_filter($array, $callback));
+    }
+
     public static function exportVersion(Request $request, $sessionData)
     {
         //header('Access-Control-Allow-Origin: *');
@@ -430,6 +453,7 @@ class SakaiController extends Controller
         }, $nodes);
 
         $nodesToUpdate = $request->nodesToUpdate;
+        $conditionList = $request->conditionList;
 
         $firstNode = reset($nodes);
         $firstPageId = $firstNode['pageId'];
@@ -442,11 +466,8 @@ class SakaiController extends Controller
                 break;
             }
         }
-        // dd($allHaveSamePageId);
 
         if ($allHaveSamePageId) {
-            // $pageId = $firstPageId;
-            // dd($pageId);
 
             $conditionsDelete = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/conditions', $sessionData->session_id, 'DELETE');
             $lessonItemsDelete = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/items', $sessionData->session_id, 'DELETE');
@@ -455,15 +476,66 @@ class SakaiController extends Controller
                     $nodesBulkUpdate = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/entities', $sessionData->session_id, 'BATCH', $nodesToUpdate);
 
                 }
-
+                
                 $nodesBulkCreation = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/items/bulk', $sessionData->session_id, 'POST', $nodes);
+                
+                /*
+                if ($nodesBulkCreation) {
+                    $nodesIdList = [];
 
-                return response()->json(['ok' => true, 'data' => '']);
-                if ($nodesBulkCreation === 200) {
-                    /*$conditionsParsedList;
-                    $nodesBulkCreation = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/conditions/bulk', $sessionData->session_id, 'POST', $conditionsParsedList);*/
+                    foreach ($nodesBulkCreation as $node) {
+                        if (isset($node->type) && $node->type !== 14) {
+                            $nodeJson = json_encode(['id' => $node->id, 'contentRef' => $node->contentRef]);
+                            array_push($nodesIdList, $nodeJson);
+                        }
+                    }
+
+                    $filteredArray = array_filter($conditionList, function ($condition) use ($nodesIdList) {
+                        foreach ($nodesIdList as $idObject) {
+                            $idObject = json_decode($idObject, true);
+                            if (isset($condition['itemId']) && $condition['itemId'] === $idObject['contentRef']) {
+                                error_log(print_r($idObject['id'], true));
+                                return true;
+                            }
+                        }
+                        return false;
+                    });
+
+                    foreach ($filteredArray as &$root) {
+                        foreach ($nodesIdList as $idObject) {
+                            $idObject = json_decode($idObject, true);
+                            if ($root['itemId'] == $idObject['contentRef']) {
+                                $root['itemId'] = $idObject['id'];
+                                break;
+                            }
+                        }
+
+                        if (isset($root['subConditions'])) {
+                            foreach ($root['subConditions'] as &$parent) {
+                                error_log(print_r($parent, true));
+                                if (isset($parent['subConditions']) && count($parent['subConditions']) >= 1) {
+                                    foreach ($parent['subConditions'] as &$childCondition) {
+                                        foreach ($nodesIdList as $idObject) {
+                                            $idObject = json_decode($idObject, true);
+                                            if ($childCondition['itemId'] == $idObject['contentRef']) {
+                                                $childCondition['itemId'] = $idObject['id'];
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    unset($root, $subCondition, $childCondition);
+                    
+                    $conditionsParsedList = array_values($filteredArray);
+                    error_log(print_r($conditionsParsedList, true));
+
+                    $nodesBulkCreation = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/conditions/bulk', $sessionData->session_id, 'POST', $conditionsParsedList);
                     return response()->json(['ok' => true, 'errorType' => 'EXPORTACION_CON_EXITO', 'data' => '']);
-                }
+                }*/
+                return response()->json(['ok' => true, 'data' => '']);
             } else {
                 return response()->json(['ok' => false, 'errorType' => 'LESSON_DELETE_ERROR', 'data' => '']);
             }

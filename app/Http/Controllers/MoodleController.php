@@ -445,8 +445,8 @@ class MoodleController extends Controller
     // This function creates a Moodle version of the course with the request data.
     public static function exportVersion(Request $request)
     {
-        // header('Access-Control-Allow-Origin: *');
-        // dd('hola');
+        //header('Access-Control-Allow-Origin: *');
+
         $sections = MoodleController::getModulesListBySectionsCourse($request->instance, $request->course);
         $nodes = $request->nodes;
 
@@ -516,6 +516,7 @@ class MoodleController extends Controller
                 }
             }
         }
+        
         $statusUpdate = MoodleController::updateCourse($request->instance, $sections->sections, $nodes, $badges);
         return response()->json(['ok' => $statusUpdate->status, 'errorType' => $statusUpdate->error]);
     }
@@ -533,7 +534,13 @@ class MoodleController extends Controller
             case isset($data->type):
                 switch ($data->type) {
                     case 'grade':
-                        $data->id = MoodleController::getGradeModule($url_lms, $data->id);
+                        $grade_module = MoodleController::getGradeModule($url_lms, $data->id);
+                        if(isset($grade_module->itemtype) && $grade_module->itemtype === "course"){
+                            $data->courseId = "$grade_module->itemid";
+                            $data->type = "courseGrade";
+                        }
+
+                        $data->id = $grade_module->itemid;
                         return $data;
                         break;
                     default:
@@ -669,21 +676,26 @@ class MoodleController extends Controller
     // This function gets the id of the Moodle course grade.
     public static function getIdCourseGrade($instance, $course_id)
     {
+        error_log(print_r(gettype(intval($course_id)), true));
+        error_log((MoodleController::getURLLMS($instance) . '/webservice/rest/server.php'));
         $client = new Client([
             'base_uri' => MoodleController::getURLLMS($instance) . '/webservice/rest/server.php',
             'timeout' => 20.0,
         ]);
-        $response = $client->request('GET', '', [
+        $response = $client->request('POST', '', [
             'query' => [
                 'wstoken' => env('WSTOKEN'),
-                'wsfunction' => 'local_uniadaptive_get_course_grade',
-                'courseid' => $course_id,
+                'wsfunction' => 'local_uniadaptive_get_course_grade_id',
+                'courseid' => intval($course_id),
                 'moodlewsrestformat' => 'json'
             ]
         ]);
-        $content = $response->getBody()->getContents();
-        $data = json_decode($content);
-        return $data->grade_id;
+
+        $data = json_decode($response->getBody());
+        error_log(print_r($response->getBody()->getContents(), true));
+        // Access the course_grade_id
+
+        return $data->course_grade_id;
     }
     // This function obtains the list of modules by sections of a Moodle course.
     public static function getModulesListBySectionsCourse($instance, $course_id)
@@ -760,7 +772,7 @@ class MoodleController extends Controller
         ]);
         $content = $response->getBody()->getContents();
         $data = json_decode($content);
-        return $data->itemid;
+        return $data;
     }
     // This function gets the assignable roles from a Moodle course.
     public static function getRoles($url_lms, $course_id)
@@ -806,16 +818,20 @@ class MoodleController extends Controller
     // This function updates a Moodle course.
     public static function updateCourse($instance, $sections, $modules, $badges)
     {
-        // header('Access-Control-Allow-Origin: *');
-        foreach ($modules as &$module) {
-            if (isset($module['c'])) {
-                $module['c'] = json_encode($module['c']);
+        //header('Access-Control-Allow-Origin: *');
+        if($modules !== null && is_array($modules) && count($modules) > 0){
+            foreach ($modules as &$module) {
+                if (isset($module['c'])) {
+                    $module['c'] = json_encode($module['c']);
+                }
             }
         }
+        //dd($instance, $sections, $modules, $badges);
         $client = new Client([
             'base_uri' => MoodleController::getURLLMS($instance) . '/webservice/rest/server.php',
             'timeout' => 20.0,
         ]);
+        //dd(json_decode(json_encode($sections)), $modules, $badges);
         $response = $client->request('POST', '', [
             'query' => [
                 'wstoken' => env('WSTOKEN'),
