@@ -110,23 +110,32 @@ class SakaiController extends Controller
     public static function getLessons($url_lms, $context_id, $session_id)
     {
         // header('Access-Control-Allow-Origin: *');
-        $data = SakaiController::createClient($url_lms . '/direct/lessons/site/' . $context_id . '.json', $session_id);
+        $request = SakaiController::createClient($url_lms . '/direct/lessons/site/' . $context_id . '.json', $session_id);
+
+        $data = $request['requestBody'];
+        $statusCode = $request['statusCode'];
 
         $lessons = [];
-        foreach ($data->lessons_collection as $Lesson) {
-            array_push($lessons, [
-                'id' => $Lesson->id,
-                'name' => $Lesson->lessonTitle,
-                'page_id' => SakaiController::getPageIdLesson($url_lms, $Lesson->id, $session_id)
-            ]);
+        if ($statusCode == 200) {
+            foreach ($data->lessons_collection as $Lesson) {
+                array_push($lessons, [
+                    'id' => $Lesson->id,
+                    'name' => $Lesson->lessonTitle,
+                    'page_id' => SakaiController::getPageIdLesson($url_lms, $Lesson->id, $session_id)
+                ]);
+            }
         }
         return $lessons;
     }
 
     public static function getPageIdLesson($url_lms, $context_id, $session_id)
     {
-        $data = SakaiController::createClient($url_lms . '/direct/lessons/lesson/' . $context_id . '.json', $session_id);
-        return $data->sakaiId;
+        $request = SakaiController::createClient($url_lms . '/direct/lessons/lesson/' . $context_id . '.json', $session_id);
+        $data = $request['requestBody'];
+        $statusCode = $request['statusCode'];
+        if ($statusCode == 200) {
+            return $data->sakaiId;
+        }
     }
 
     // Función que devuelve los modulos con tipo en concreto de un curso
@@ -166,13 +175,19 @@ class SakaiController extends Controller
     // Función que devuelve los foros de un curso de Sakai
     public static function getForums($url_lms, $context_id, $session_id)
     {
-        $dataForums = SakaiController::createClient($url_lms . '/direct/forums/site/' . $context_id . '.json', $session_id);
+        $request = SakaiController::createClient($url_lms . '/direct/forums/site/' . $context_id . '.json', $session_id);
+
+        $dataForums = $request['requestBody'];
+        $statusCode = $request['statusCode'];
+
         $forums = [];
-        foreach ($dataForums->forums_collection as $forum) {
-            $forums[] = array(
-                'id' => $forum->entityId,
-                'name' => $forum->title
-            );
+        if ($statusCode == 200) {
+            foreach ($dataForums->forums_collection as $forum) {
+                $forums[] = array(
+                    'id' => $forum->entityId,
+                    'name' => $forum->title
+                );
+            }
         }
         return response()->json(['ok' => true, 'data' => $forums]);
     }
@@ -180,13 +195,19 @@ class SakaiController extends Controller
     // Función que devuelve las tareas de un curso de Sakai
     public static function getAssignments($url_lms, $context_id, $session_id)
     {
-        $dataAssignments = SakaiController::createClient($url_lms . '/direct/assignment/site/' . $context_id . '.json', $session_id);
+        $request = SakaiController::createClient($url_lms . '/direct/assignment/site/' . $context_id . '.json', $session_id);
+
+        $dataAssignments = $request['requestBody'];
+        $statusCode = $request['statusCode'];
+
         $assignments = [];
-        foreach ($dataAssignments->assignment_collection as $assignment) {
-            $assignments[] = array(
-                'id' => $assignment->entityId,
-                'name' => $assignment->title
-            );
+        if ($statusCode == 200) {
+            foreach ($dataAssignments->assignment_collection as $assignment) {
+                $assignments[] = array(
+                    'id' => $assignment->entityId,
+                    'name' => $assignment->title
+                );
+            }
         }
         return response()->json(['ok' => true, 'data' => $assignments]);
     }
@@ -194,59 +215,73 @@ class SakaiController extends Controller
     // Función que devuelve los recursos de un curso de Sakai dependiendo de su tipo
     public static function getResources($url_lms, $context_id, $session_id, $type)
     {
-        $dataContents = SakaiController::createClient($url_lms . '/direct/content/resources/group/' . $context_id . '.json?depth=3', $session_id);
+        $request = SakaiController::createClient($url_lms . '/direct/content/resources/group/' . $context_id . '.json?depth=3', $session_id);
+
+        $dataContents = $request['requestBody'];
+        $statusCode = $request['statusCode'];
+
         $resources = [];
 
-        function decode_unicode($str) {
-            $str = preg_replace_callback('/\\\\u([0-9a-fA-F]{4})/', function ($match) {
-                return mb_convert_encoding(pack('H*', $match[1]), 'UTF-8', 'UCS-2BE');
-            }, $str);
-            return $str;
-        }
+        if ($statusCode == 200) {
+            function decode_unicode($str)
+            {
+                $str = preg_replace_callback('/\\\\u([0-9a-fA-F]{4})/', function ($match) {
+                    return mb_convert_encoding(pack('H*', $match[1]), 'UTF-8', 'UCS-2BE');
+                }, $str);
+                return $str;
+            }
 
-        if ($type === 'resource') {
-            function process_resource($resource, &$resources) {
-                $id = decode_unicode(str_replace('\/', '/', $resource->resourceId));
-        
-                switch ($resource->mimeType) {
-                    case 'text/html':
-                    case 'text/url':
-                    case null:
-                        break;
-                    default:
-                        array_push($resources, [
-                            'id' => htmlspecialchars($id),
-                            'name' => htmlspecialchars($resource->name)
-                        ]);
-                        break;
-                }
-                error_log("223 " . print_r($resource, true));
-                if (count($resource->resourceChildren) >= 1) {
-                    foreach ($resource->resourceChildren as $child) {
-                        process_resource($child, $resources);
+            if ($type === 'resource') {
+                function process_resource($resource, &$resources)
+                {
+                    $id = decode_unicode(str_replace('\/', '/', $resource->resourceId));
+
+                    switch ($resource->mimeType) {
+                        case 'text/html':
+                        case 'text/url':
+                        case null:
+                            break;
+                        default:
+                            array_push($resources, [
+                                'id' => htmlspecialchars($id),
+                                'name' => htmlspecialchars($resource->name)
+                            ]);
+                            break;
+                    }
+                    error_log("223 " . print_r($resource, true));
+                    if (count($resource->resourceChildren) >= 1) {
+                        foreach ($resource->resourceChildren as $child) {
+                            process_resource($child, $resources);
+                        }
                     }
                 }
-            }
-        
-            foreach ($dataContents->content_collection[0]->resourceChildren as $resource) {
-                process_resource($resource, $resources);
-            }
-            return response()->json(['ok' => true, 'data' => $resources]);
-        } else {
-            foreach ($dataContents->content_collection[0]->resourceChildren as $resource) {
-                if ($resource->mimeType === $type) {
-                    array_push($resources, [
-                        'id' => htmlspecialchars($resource->resourceId),
-                        'name' => htmlspecialchars($resource->name)
-                    ]);
+
+                foreach ($dataContents->content_collection[0]->resourceChildren as $resource) {
+                    process_resource($resource, $resources);
                 }
+                return response()->json(['ok' => true, 'data' => $resources]);
+            } else {
+                foreach ($dataContents->content_collection[0]->resourceChildren as $resource) {
+                    if ($resource->mimeType === $type) {
+                        array_push($resources, [
+                            'id' => htmlspecialchars($resource->resourceId),
+                            'name' => htmlspecialchars($resource->name)
+                        ]);
+                    }
+                }
+                return response()->json(['ok' => true, 'data' => $resources]);
             }
+        } else {
             return response()->json(['ok' => true, 'data' => $resources]);
         }
     }
     public static function getUserMembers($url_lms, $context_id, $session_id)
     {
-        $dataUsers = SakaiController::createClient($url_lms . '/direct/site/' . $context_id . '/memberships.json', $session_id);
+        $request = SakaiController::createClient($url_lms . '/direct/site/' . $context_id . '/memberships.json', $session_id);
+
+        $dataUsers = $request['requestBody'];
+        $statusCode = $request['statusCode'];
+
         $users = [];
         foreach ($dataUsers->membership_collection as $user) {
             $users[] = array(
@@ -258,7 +293,11 @@ class SakaiController extends Controller
     }
     public static function getGroups($url_lms, $context_id, $session_id)
     {
-        $dataGroups = SakaiController::createClient($url_lms . '/direct/site/' . $context_id . '/groups.json', $session_id);
+        $request = SakaiController::createClient($url_lms . '/direct/site/' . $context_id . '/groups.json', $session_id);
+
+        $dataGroups = $request['requestBody'];
+        $statusCode = $request['statusCode'];
+
         $groups = [];
         foreach ($dataGroups as $group) {
             $groups[] = array(
@@ -273,70 +312,124 @@ class SakaiController extends Controller
     {
         // header('Access-Control-Allow-Origin: *');
         // dd($url_lms.'/direct/lessons/lesson/'.$context_id.'.json');
-        $modulesData = SakaiController::createClient($url_lms . '/direct/lessons/lesson/' . $context_id . '.json', $session_id);
+        $lessonGetRequest = SakaiController::createClient($url_lms . '/direct/lessons/lesson/' . $context_id . '.json', $session_id);
+
+        $modulesData = $lessonGetRequest['requestBody'];
+        $modulesRequestStatus = $lessonGetRequest['statusCode'];
+
         $modules = [];
         $section = 0;
         $column = 0;
         $order = 1;
 
-        if ($modulesData->contentsList != null) {
-            foreach ($modulesData->contentsList as $index => $module) {
-                $modulesData->contentsList[$index]->type = SakaiController::changeIdNameType($module->type);
+        if ($modulesRequestStatus == 200) {
+            if ($modulesData->contentsList != null && count($modulesData) >= 1) {
+                foreach ($modulesData->contentsList as $index => $module) {
+                    $modulesData->contentsList[$index]->type = SakaiController::changeIdNameType($module->type);
 
-                if ($modulesData->contentsList[$index]->type == 'break') {
-                    $format = isset($modulesData->contentsList[$index]->format);
-                    if ($format) {
-                        switch ($modulesData->contentsList[$index]->format) {
-                            case 'section':
-                                $section++;
+                    if ($modulesData->contentsList[$index]->type == 'break') {
+                        $format = isset($modulesData->contentsList[$index]->format);
+                        if ($format) {
+                            switch ($modulesData->contentsList[$index]->format) {
+                                case 'section':
+                                    $section++;
+                                    break;
+
+                                case 'column':
+                                    $column++;
+                                    break;
+                            }
+                        } else {
+                            $section++;
+                        }
+                        $order = 1;
+                    } else if ($modulesData->contentsList[$index]->type != 'break' /*&& $modulesData->contentsList[$index]->type != 'generic'*/&& $modulesData->contentsList[$index]->type != 'page' && $modulesData->contentsList[$index]->type != 'text') {
+                        // $modulesData->contentsList[$index]->section = $section;
+                        switch ($modulesData->contentsList[$index]->type) {
+                            case 'exam':
+                            case 'assign':
+                            case 'forum':
+                                $a = substr($modulesData->contentsList[$index]->sakaiId, 1);
+                                $dataSakaiId = explode('/', $a);
+                                $sakaiId = end($dataSakaiId);
                                 break;
-
-                            case 'column':
-                                $column++;
+                            case 'break':
+                                break;
+                            default:
+                                $sakaiId = $modulesData->contentsList[$index]->sakaiId;
                                 break;
                         }
-                    } else {
-                        $section++;
-                    }
-                    $order = 1;
-                } else if ($modulesData->contentsList[$index]->type != 'break' /*&& $modulesData->contentsList[$index]->type != 'generic'*/&& $modulesData->contentsList[$index]->type != 'page' && $modulesData->contentsList[$index]->type != 'text') {
-                    // $modulesData->contentsList[$index]->section = $section;
-                    switch ($modulesData->contentsList[$index]->type) {
-                        case 'exam':
-                        case 'assign':
-                        case 'forum':
-                            $a = substr($modulesData->contentsList[$index]->sakaiId, 1);
-                            $dataSakaiId = explode('/', $a);
-                            $sakaiId = end($dataSakaiId);
-                            break;
-                        case 'break':
-                            break;
-                        default:
-                            $sakaiId = $modulesData->contentsList[$index]->sakaiId;
-                            break;
-                    }
 
-                    array_push(
-                        $modules,
-                        [
-                            "sakaiId" => $sakaiId,
-                            "name" => $modulesData->contentsList[$index]->name,
-                            "modname" => $modulesData->contentsList[$index]->type,
-                            "pageId" => $modulesData->contentsList[$index]->pageId,
-                            "section" => $section,
-                            "indent" => $column,
-                            "order" => $order++
-                        ]
+                        array_push(
+                            $modules,
+                            [
+                                "id" => $modulesData->contentsList[$index]->id,
+                                "sakaiId" => $sakaiId,
+                                "name" => $modulesData->contentsList[$index]->name,
+                                "modname" => $modulesData->contentsList[$index]->type,
+                                "pageId" => $modulesData->contentsList[$index]->pageId,
+                                "section" => $section,
+                                "indent" => $column,
+                                "order" => $order++
+                            ]
 
-                    );
+                        );
+                    }
+                }
+
+                $conditionGetRequest = SakaiController::createClient($url_lms . '/api/sites/' . $context_id . '/conditions', $session_id);
+
+                $conditionsData = $conditionGetRequest['requestBody'];
+                $conditionsRequestStatus = $conditionGetRequest['statusCode'];
+
+                if ($conditionsRequestStatus == 200 || ($conditionsData != null && count($conditionsData) >= 1)) {
+                    $parsedModules = SakaiController::linkConditionToLessonItem($modules, $conditionsData);
+                    return response()->json(['ok' => true, 'data' => $parsedModules]);
+                } else {
+                    return response()->json(['ok' => true, 'data' => $modules, 'extraInfo' => 'conditions_not']);
+                }
+            } else {
+                return response()->json(['ok' => true, 'data' => []]);
+            }
+        } else {
+            return response()->json(['ok' => false, 'errorType' => 'MODULES_ERROR']);
+        }
+    }
+
+    public static function linkConditionToLessonItem($modules, $conditions, $assign = true)
+    {
+        if ($assign == true) {
+            foreach ($modules as &$module) {
+                if ($conditions != null && count($conditions) >= 1) {
+                    foreach ($conditions as $condition) {
+                        if ($condition['type'] == "ROOT" && $condition['toolId'] == "sakai.lessonbuildertool") {
+                            if ($condition['itemId'] === $module['id']) {
+                                $module['gradeRequisites'] = $condition;
+                                break;
+                            }
+                        }
+                    }
                 }
             }
-            // dd($modules);
-            return response()->json(['ok' => true, 'data' => $modules]);
-        }
-        return response()->json(['ok' => false, 'data' => '', 'errorType' => 'DONT_CONTAINS_MODULES']);
-        // dd( $modules);
+            unset($module);
 
+            return $modules;
+        } else {
+            $conditionLessonList = [];
+            if ($conditions != null && count($conditions) >= 1) {
+                foreach ($conditions as &$condition) {
+                    if ($condition['type'] == "ROOT" && $condition['toolId'] == "sakai.lessonbuildertool") {
+                        foreach ($modules as &$module) {
+                            if ($condition['itemId'] === $module['id']) {
+                                array_push($conditionLessonList, $condition);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            return $conditionLessonList;
+        }
     }
 
     public static function changeIdNameType($type)
@@ -376,13 +469,19 @@ class SakaiController extends Controller
     }
     public static function getAssessments($url_lms, $context_id, $session_id)
     {
-        $modules = SakaiController::createClient($url_lms . '/api/sites/' . $context_id . '/entities/assessments', $session_id);
+        $request = SakaiController::createClient($url_lms . '/api/sites/' . $context_id . '/entities/assessments', $session_id);
+
+        $modules = $request['requestBody'];
+        $statusCode = $request['statusCode'];
+
         $assesments = [];
-        foreach ($modules as $assesment) {
-            $assesments[] = array(
-                'id' => $assesment->id,
-                'name' => $assesment->title
-            );
+        if ($statusCode == 200) {
+            foreach ($modules as $assesment) {
+                $assesments[] = array(
+                    'id' => $assesment->id,
+                    'name' => $assesment->title
+                );
+            }
         }
         return response()->json(['ok' => true, 'data' => $assesments]);
     }
@@ -422,8 +521,14 @@ class SakaiController extends Controller
                 return ['error' => 'Unsupported request type'];
         }
         $content = $response->getBody()->getContents();
-        $data = json_decode($content);
-        return $data;
+        $statusCode = $response->getStatusCode();
+
+        $responseData = [
+            'requestBody' => $content,
+            'statusCode' => $statusCode,
+        ];
+
+        return $responseData;
     }
     public static function getId($user_id)
     {
@@ -436,7 +541,8 @@ class SakaiController extends Controller
         return ($url_lms . '/direct/profile/' . $user_id . '/image/thumb?siteId=' . $context_id);
     }
 
-    public static function find($array, $callback) {
+    public static function find($array, $callback)
+    {
         return current(array_filter($array, $callback));
     }
 
@@ -468,82 +574,130 @@ class SakaiController extends Controller
         }
 
         if ($allHaveSamePageId) {
+            $lessonCopyRequest = SakaiController::createClient($sessionData->platform_id . '/direct/lessons/lesson/' . $request->lessonId . '.json', $sessionData->session_id);
+            $lessonCopy = $lessonCopyRequest['requestBody'];
+            $lessonStatusCode = $lessonCopyRequest['statusCode'];
 
-            $conditionsDelete = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/conditions', $sessionData->session_id, 'DELETE');
-            $lessonItemsDelete = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/items', $sessionData->session_id, 'DELETE');
-            if ($conditionsDelete === 200 && $lessonItemsDelete === 200) {
+            $conditionsCopyRequest = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/conditions', $sessionData->session_id);
+            $conditionsCopy = $conditionsCopyRequest['requestBody'];
+            $conditionsStatusCode = $conditionsCopyRequest['statusCode'];
+
+            if ($lessonStatusCode == 200 && $conditionsStatusCode == 200) {
                 if (count($nodesToUpdate) >= 1) {
-                    $nodesBulkUpdate = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/entities', $sessionData->session_id, 'BATCH', $nodesToUpdate);
+                    $nodesUpdateRequest = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/entities', $sessionData->session_id, 'BATCH', $nodesToUpdate);
+                    $nodesUpdateStatusCode = $nodesUpdateRequest['statusCode'];
 
+                    if ($nodesUpdateStatusCode !== 200) {
+                        return response()->json(['ok' => false, 'errorType' => 'NODE_UPDATE_ERROR', 'data' => '']);
+                    }
                 }
-                
-                $nodesBulkCreation = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/items/bulk', $sessionData->session_id, 'POST', $nodes);
-                
-                /*
-                if ($nodesBulkCreation) {
-                    $nodesIdList = [];
 
-                    foreach ($nodesBulkCreation as $node) {
-                        if (isset($node->type) && $node->type !== 14) {
-                            $nodeJson = json_encode(['id' => $node->id, 'contentRef' => $node->contentRef]);
-                            array_push($nodesIdList, $nodeJson);
+                $conditionsDelete = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/conditions', $sessionData->session_id, 'DELETE');
+                $conditionsDeleteStatusCode = $conditionsDelete['statusCode'];
+
+                $lessonItemsDelete = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/items', $sessionData->session_id, 'DELETE');
+                $lessonItemsDeleteStatusCode = $lessonItemsDelete['statusCode'];
+
+                if ($conditionsDeleteStatusCode === 200 && $lessonItemsDeleteStatusCode === 200) {
+                    $nodesCreationRequest = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/items/bulk', $sessionData->session_id, 'POST', $nodes);
+                    $nodesCreated = $nodesCreationRequest['requestBody'];
+                    $nodesCreationStatusCode = $nodesCreationRequest['statusCode'];
+
+                    if ($nodesCreationStatusCode == 200) {
+                        if (($conditionList != null && count($conditionList) >= 1)) {
+                            $filteredArray = SakaiController::conditionIdParse($nodesCreated, $conditionList);
+
+                            $conditionsParsedList = array_values($filteredArray);
+                            error_log(print_r($conditionsParsedList, true));
+
+                            $conditionsCreationRequest = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/conditions/bulk', $sessionData->session_id, 'POST', $conditionsParsedList);
+                            $conditionsCreationStatusCode = $conditionsCreationRequest['statusCode'];
+
+                            if ($conditionsCreationStatusCode == 200) {
+                                return response()->json(['ok' => true, 'errorType' => 'EXPORTACION_CON_EXITO', 'data' => '']);
+                            } else {
+                                return response()->json(['ok' => true, 'errorType' => 'EXPORTACION_CON_EXITO', 'data' => '', 'extraInfo' => 'conditions_not']);
+                            }
+                        } else {
+                            return response()->json(['ok' => true, 'errorType' => 'EXPORTACION_CON_EXITO', 'data' => '', 'extraInfo' => 'conditions_not']);
+                        }
+                    } else {
+                        $parsedConditions = SakaiController::linkConditionToLessonItem($lessonCopy, $conditionsCopy, false);
+
+                        $nodesCopyCreationRequest = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/items/bulk', $sessionData->session_id, 'POST', $lessonCopy);
+                        $nodesCopyCreationStatusCode = $nodesCopyCreationRequest['statusCode'];
+
+                        $filteredArray = SakaiController::conditionIdParse($nodesCreated, $parsedConditions);
+
+                        $conditionsCopyCreationRequest = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/conditions/bulk', $sessionData->session_id, 'POST', $filteredArray);
+                        $conditionsCopyCreationStatusCode = $conditionsCopyCreationRequest['statusCode'];
+
+                        if ($nodesCopyCreationStatusCode == 200 && $conditionsCopyCreationStatusCode == 200) {
+                            return response()->json(['ok' => false, 'errorType' => 'LESSON_ITEMS_CREATION_ERROR', 'data' => '']);
+                        } else {
+                            return response()->json(['ok' => false, 'errorType' => 'FATAL_ERROR', 'data' => '']);
                         }
                     }
-
-                    $filteredArray = array_filter($conditionList, function ($condition) use ($nodesIdList) {
-                        foreach ($nodesIdList as $idObject) {
-                            $idObject = json_decode($idObject, true);
-                            if (isset($condition['itemId']) && $condition['itemId'] === $idObject['contentRef']) {
-                                error_log(print_r($idObject['id'], true));
-                                return true;
-                            }
-                        }
-                        return false;
-                    });
-
-                    foreach ($filteredArray as &$root) {
-                        foreach ($nodesIdList as $idObject) {
-                            $idObject = json_decode($idObject, true);
-                            if ($root['itemId'] == $idObject['contentRef']) {
-                                $root['itemId'] = $idObject['id'];
-                                break;
-                            }
-                        }
-
-                        if (isset($root['subConditions'])) {
-                            foreach ($root['subConditions'] as &$parent) {
-                                error_log(print_r($parent, true));
-                                if (isset($parent['subConditions']) && count($parent['subConditions']) >= 1) {
-                                    foreach ($parent['subConditions'] as &$childCondition) {
-                                        foreach ($nodesIdList as $idObject) {
-                                            $idObject = json_decode($idObject, true);
-                                            if ($childCondition['itemId'] == $idObject['contentRef']) {
-                                                $childCondition['itemId'] = $idObject['id'];
-                                                break;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    unset($root, $subCondition, $childCondition);
-                    
-                    $conditionsParsedList = array_values($filteredArray);
-                    error_log(print_r($conditionsParsedList, true));
-
-                    $nodesBulkCreation = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/conditions/bulk', $sessionData->session_id, 'POST', $conditionsParsedList);
-                    return response()->json(['ok' => true, 'errorType' => 'EXPORTACION_CON_EXITO', 'data' => '']);
-                }*/
-                return response()->json(['ok' => true, 'data' => '']);
+                } else {
+                    return response()->json(['ok' => false, 'errorType' => 'LESSON_DELETE_ERROR', 'data' => '']);
+                }
             } else {
-                return response()->json(['ok' => false, 'errorType' => 'LESSON_DELETE_ERROR', 'data' => '']);
+                return response()->json(['ok' => false, 'errorType' => 'LESSON_COPY_ERROR', 'data' => '']);
             }
         } else {
             return response()->json(['ok' => false, 'errorType' => 'PAGE_EXPORT_ERROR', 'data' => '']);
         }
+    }
 
-        // header('Access-Control-Allow-Origin: *');
-        // dd($request->nodes);
+    public static function conditionIdParse($nodesCreated, $conditionList)
+    {
+        $nodesIdList = [];
+        foreach ($nodesCreated as $node) {
+            if (isset($node->type) && $node->type !== 14) {
+                $nodeJson = json_encode(['id' => $node->id, 'contentRef' => $node->contentRef]);
+                array_push($nodesIdList, $nodeJson);
+            }
+        }
+
+        $filteredArray = array_filter($conditionList, function ($condition) use ($nodesIdList) {
+            foreach ($nodesIdList as $idObject) {
+                $idObject = json_decode($idObject, true);
+                if (isset($condition['itemId']) && $condition['itemId'] === $idObject['contentRef']) {
+                    error_log(print_r($idObject['id'], true));
+                    return true;
+                }
+            }
+            return false;
+        });
+
+        foreach ($filteredArray as &$root) {
+            foreach ($nodesIdList as $idObject) {
+                $idObject = json_decode($idObject, true);
+                if ($root['itemId'] == $idObject['contentRef']) {
+                    $root['itemId'] = $idObject['id'];
+                    break;
+                }
+            }
+
+            if (isset($root['subConditions'])) {
+                foreach ($root['subConditions'] as &$parent) {
+                    error_log(print_r($parent, true));
+                    if (isset($parent['subConditions']) && count($parent['subConditions']) >= 1) {
+                        foreach ($parent['subConditions'] as &$childCondition) {
+                            foreach ($nodesIdList as $idObject) {
+                                $idObject = json_decode($idObject, true);
+                                if ($childCondition['itemId'] == $idObject['contentRef']) {
+                                    $childCondition['itemId'] = $idObject['id'];
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        unset($root, $subCondition, $childCondition);
+
+        return $filteredArray;
     }
 }
