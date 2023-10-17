@@ -642,23 +642,24 @@ class SakaiController extends Controller
                     return response()->json(['ok' => false, 'errorType' => 'LESSON_DELETE_ERROR', 'data' => '']);
                 }*/
 
-                        $parsedConditions = SakaiController::linkConditionToLessonItem(($lessonCopy), json_decode($conditionsCopy), false);
-                        error_log(print_r($lessonCopy->contentsList, true));
+                $parsedConditions = SakaiController::linkConditionToLessonItem(($lessonCopy), json_decode($conditionsCopy), false);
+                $parsedNodes = SakaiController::parseSakaiLessonCopy($lessonCopy->contentsList);
+                error_log(print_r($parsedNodes, true));
 
-                        $nodesCopyCreationRequest = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/items/bulk', $sessionData->session_id, 'POST', $lessonCopy);
-                        $nodesCopyCreation = $nodesCopyCreationRequest['statusCode'];
-                        $nodesCopyCreationStatusCode = $nodesCopyCreationRequest['statusCode'];
+                $nodesCopyCreationRequest = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/items/bulk', $sessionData->session_id, 'POST', $parsedNodes);
+                $nodesCopyCreation = $nodesCopyCreationRequest['statusCode'];
+                $nodesCopyCreationStatusCode = $nodesCopyCreationRequest['statusCode'];
 
-                        $filteredArray = SakaiController::conditionIdParse($nodesCopyCreation, $parsedConditions);
+                $filteredArray = SakaiController::conditionIdParse($nodesCopyCreation, $parsedConditions);
 
-                        $conditionsCopyCreationRequest = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/conditions/bulk', $sessionData->session_id, 'POST', $filteredArray);
-                        $conditionsCopyCreationStatusCode = $conditionsCopyCreationRequest['statusCode'];
+                $conditionsCopyCreationRequest = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/conditions/bulk', $sessionData->session_id, 'POST', $filteredArray);
+                $conditionsCopyCreationStatusCode = $conditionsCopyCreationRequest['statusCode'];
 
-                        if ($nodesCopyCreationStatusCode == 200 && $conditionsCopyCreationStatusCode == 200) {
-                            return response()->json(['ok' => false, 'errorType' => 'LESSON_ITEMS_CREATION_ERROR', 'data' => '']);
-                        } else {
-                            return response()->json(['ok' => false, 'errorType' => 'FATAL_ERROR', 'data' => '']);
-                        }
+                if ($nodesCopyCreationStatusCode == 200 && $conditionsCopyCreationStatusCode == 200) {
+                    return response()->json(['ok' => false, 'errorType' => 'LESSON_ITEMS_CREATION_ERROR', 'data' => '']);
+                } else {
+                    return response()->json(['ok' => false, 'errorType' => 'FATAL_ERROR', 'data' => '']);
+                }
             } else {
                 return response()->json(['ok' => false, 'errorType' => 'LESSON_COPY_ERROR', 'data' => '']);
             }
@@ -718,5 +719,31 @@ class SakaiController extends Controller
         unset($root, $subCondition, $childCondition);
 
         return $filteredArray;
+    }
+
+    public static function parseSakaiLessonCopy($contentsList)
+    {
+        foreach ($contentsList as $content) {
+            unset($root->description);
+            unset($root->html);
+            unset($root->id);
+
+            $content->title = $content->name;
+            unset($root->name);
+
+            unset($root->url);
+            unset($root->prerequisite);
+            unset($root->required);
+
+            if ($content->type == 14) {
+                unset($root->sakaiId);
+            } else {
+                unset($root->format);
+                $content->contentRef = $content->sakaiId;
+                unset($root->sakaiId);
+            }
+        }
+
+        return $contentsList;
     }
 }
