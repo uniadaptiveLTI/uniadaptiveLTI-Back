@@ -316,9 +316,6 @@ class SakaiController extends Controller
 
         $modulesData = json_decode($lessonGetRequest['requestBody']);
         $modulesRequestStatus = $lessonGetRequest['statusCode'];
-        error_log("YIEEYIEYE");
-        error_log(print_r($modulesData, true));
-
 
         $modules = [];
         $section = 0;
@@ -383,6 +380,7 @@ class SakaiController extends Controller
                 $conditionGetRequest = SakaiController::createClient($url_lms . '/api/sites/73c92f2b-99c3-453c-afc5-2d2c570b85cf/conditions', $session_id);
 
                 $conditionsData = json_decode($conditionGetRequest['requestBody']);
+
                 $conditionsRequestStatus = $conditionGetRequest['statusCode'];
 
                 if ($conditionsRequestStatus == 200 || ($conditionsData != null && count($conditionsData) >= 1)) {
@@ -406,8 +404,8 @@ class SakaiController extends Controller
                 if ($conditions != null && count($conditions) >= 1) {
                     foreach ($conditions as $condition) {
                         if ($condition->type == "ROOT" && $condition->toolId == "sakai.lessonbuildertool") {
-                            if ($condition->itemId === $module['id']) {
-                                $module['gradeRequisites'] = $condition;
+                            if ($condition->itemId == $module['id']) {
+                                $module['gradeRequisites'] = json_decode(json_encode($condition));
                                 break;
                             }
                         }
@@ -415,7 +413,6 @@ class SakaiController extends Controller
                 }
             }
             unset($module);
-
             return $modules;
         } else {
             $conditionLessonList = [];
