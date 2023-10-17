@@ -308,11 +308,11 @@ class SakaiController extends Controller
         return $groups;
     }
 
-    public static function getModules($url_lms, $context_id, $session_id)
+    public static function getModules($url_lms, $lesson_id, $session_id, $context_id)
     {
         // header('Access-Control-Allow-Origin: *');
         // dd($url_lms.'/direct/lessons/lesson/'.$context_id.'.json');
-        $lessonGetRequest = SakaiController::createClient($url_lms . '/direct/lessons/lesson/' . $context_id . '.json', $session_id);
+        $lessonGetRequest = SakaiController::createClient($url_lms . '/direct/lessons/lesson/' . $lesson_id . '.json', $session_id);
 
         $modulesData = json_decode($lessonGetRequest['requestBody']);
         $modulesRequestStatus = $lessonGetRequest['statusCode'];
@@ -377,10 +377,11 @@ class SakaiController extends Controller
                     }
                 }
 
-                $conditionGetRequest = SakaiController::createClient($url_lms . '/api/sites/73c92f2b-99c3-453c-afc5-2d2c570b85cf/conditions', $session_id);
+                $conditionGetRequest = SakaiController::createClient($url_lms . '/api/sites/' . $context_id . '/conditions', $session_id);
 
                 $conditionsData = json_decode($conditionGetRequest['requestBody']);
 
+                error_log(print_r($conditionsData, true));
                 $conditionsRequestStatus = $conditionGetRequest['statusCode'];
 
                 if ($conditionsRequestStatus == 200 || ($conditionsData != null && count($conditionsData) >= 1)) {

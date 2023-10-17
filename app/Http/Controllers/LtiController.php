@@ -51,12 +51,12 @@ class LtiController extends Controller
                         ['context_id', '=', $fire['context_id']],
                         ['expires_at', '>=', intval(Carbon::now()->valueOf())]
                     ])->update([
-                        'profile_url' => MoodleController::getImgUser(
-                            $fire['platform_id'],
-                            $fire['user_id']
-                        ),
-                        'lis_person_name_full' => $fire['lis_person_name_full']
-                    ]);
+                                'profile_url' => MoodleController::getImgUser(
+                                    $fire['platform_id'],
+                                    $fire['user_id']
+                                ),
+                                'lis_person_name_full' => $fire['lis_person_name_full']
+                            ]);
                     break;
                 case 'sakai':
                     $jwtPayload = $jwt->getPayload();
@@ -67,11 +67,11 @@ class LtiController extends Controller
                         ['context_id', '=', $fire['context_id']],
                         ['expires_at', '>=', intval(Carbon::now()->valueOf())]
                     ])->update([
-                        'profile_url' => SakaiController::getUrl($fire['platform_id'], $fire['context_id'], SakaiController::getId($fire['user_id'])),
-                        'lis_person_name_full' => $fire['lis_person_name_full'],
-                        'session_id' => SakaiController::createSession($fire['platform_id'], $sakai_serverid)
-                    ]);
-                    // dd($session);
+                                'profile_url' => SakaiController::getUrl($fire['platform_id'], $fire['context_id'], SakaiController::getId($fire['user_id'])),
+                                'lis_person_name_full' => $fire['lis_person_name_full'],
+                                'session_id' => SakaiController::createSession($fire['platform_id'], $sakai_serverid)
+                            ]);
+                // dd($session);
                 default:
                     break;
             }
@@ -88,18 +88,23 @@ class LtiController extends Controller
                     DB::table('lti_info')->insert([
                         'tool_consumer_info_product_family_code' => $fire['tool_consumer_info_product_family_code'],
                         'context_id' => $fire['context_id'],
-                        'context_title' => $fire['context_title'], //
-                        'launch_presentation_locale' => $fire['launch_presentation_locale'], //
+                        'context_title' => $fire['context_title'],
+                        //
+                        'launch_presentation_locale' => $fire['launch_presentation_locale'],
+                        //
                         'platform_id' => $fire['platform_id'],
                         'token' => Str::uuid()->toString(),
                         'launch_presentation_return_url' => $fire['launch_presentation_return_url'],
                         'user_id' => $fire['user_id'],
-                        'lis_person_name_full' => $fire['lis_person_name_full'], //
+                        'lis_person_name_full' => $fire['lis_person_name_full'],
+                        //
                         'profile_url' => MoodleController::getImgUser($fire['platform_id'], $fire['user_id']),
-                        'roles' => $fire['roles'], //
+                        'roles' => $fire['roles'],
+                        //
                         'expires_at' => $expDate,
                         'created_at' => $currentDate,
-                        'updated_at' => $currentDate, //
+                        'updated_at' => $currentDate,
+                        //
                     ]);
                     break;
                 case 'sakai':
@@ -111,20 +116,26 @@ class LtiController extends Controller
                     DB::table('lti_info')->insert([
                         'tool_consumer_info_product_family_code' => $fire['tool_consumer_info_product_family_code'],
                         'context_id' => $fire['context_id'],
-                        'context_title' => $fire['context_title'], //
-                        'launch_presentation_locale' => $locale, //
+                        'context_title' => $fire['context_title'],
+                        //
+                        'launch_presentation_locale' => $locale,
+                        //
                         'platform_id' => $fire['platform_id'],
                         'token' => Str::uuid()->toString(),
                         'ext_sakai_serverid' => $sakai_serverid,
-                        'session_id' => SakaiController::createSession($fire['platform_id'], $sakai_serverid), //
+                        'session_id' => SakaiController::createSession($fire['platform_id'], $sakai_serverid),
+                        //
                         'launch_presentation_return_url' => $fire['platform_id'] . '/portal/site/' . $fire['context_id'],
                         'user_id' => $fire['user_id'],
-                        'lis_person_name_full' => $fire['lis_person_name_full'], //
+                        'lis_person_name_full' => $fire['lis_person_name_full'],
+                        //
                         'profile_url' => SakaiController::getUrl($fire['platform_id'], $fire['context_id'], SakaiController::getId($fire['user_id'])),
-                        'roles' => $fire['roles'], //
+                        'roles' => $fire['roles'],
+                        //
                         'expires_at' => $expDate,
                         'created_at' => $currentDate,
-                        'updated_at' => $currentDate, //
+                        'updated_at' => $currentDate,
+                        //
                     ]);
                     break;
                 default:
@@ -202,7 +213,7 @@ class LtiController extends Controller
                     break;
                 case 'sakai':
                     if (isset($request->lesson)) {
-                        return SakaiController::getModules($sessionData->platform_id, $request->lesson, $sessionData->session_id);
+                        return SakaiController::getModules($sessionData->platform_id, $request->lesson, $sessionData->session_id, $sessionData->context_id);
                     } else {
                         return response()->json(['ok' => false, 'error_type' => 'LESSON_NOT_VALID', 'data' => []]);
                     }
