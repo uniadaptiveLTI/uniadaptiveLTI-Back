@@ -228,12 +228,23 @@ class MoodleController extends Controller
                     'modname' => e($module->modname),
                     'id' => e($module->id),
                     'has_califications' => $has_grades,
-                    'g' => MoodleController::getCalifications($url_lms, $module->id, $module->modname),
+                    // 'g' => MoodleController::getCalifications($url_lms, $module->id, $module->modname),
                     'order' => $indexM,
                     'section' => $indexS,
                     'indent' => $module->indent,
                     'visible' => ($module->visible >= 1) ? 'show_unconditionally' : 'hidden'
                 ];
+                // switch ($module->modname) {
+                //     case 'quiz':
+                //     case 'assign':
+                //     case 'forum':
+                //     case 'workshop':
+                //         $module_data['g'] = MoodleController::getCalifications($url_lms, $module->id, $module->modname);
+                //         break;
+                    
+                //     default:
+                //         break;
+                // }
                 if ($module->availability != null) {
                     $module_data['availability'] = MoodleController::importRecursiveConditionsChange($url_lms, json_decode($module->availability));
                 }
@@ -445,9 +456,10 @@ class MoodleController extends Controller
     // This function creates a Moodle version of the course with the request data.
     public static function exportVersion(Request $request)
     {
-        //header('Access-Control-Allow-Origin: *');
+        // header('Access-Control-Allow-Origin: *');
 
         $sections = MoodleController::getModulesListBySectionsCourse($request->instance, $request->course);
+        // dd($sections);
         $nodes = $request->nodes;
 
         $badges = [];
@@ -491,9 +503,10 @@ class MoodleController extends Controller
                 if (isset($nodes[$index]['c']['type'])) {
                     unset($nodes[$index]['c']['type']);
                 }
-                if (isset($nodes[$index]['g'])) {
-                    unset($nodes[$index]['g']);
-                }
+                // if (isset($nodes[$index]['g'])) {
+                //     // dd($nodes[$index]);
+                //     unset($nodes[$index]['g']);
+                // }
                 if (isset($nodes[$index]['children'])) {
                     unset($nodes[$index]['children']);
                 }
@@ -503,10 +516,13 @@ class MoodleController extends Controller
                     $nodes[$index]['c'] = null;
                 }
                 foreach ($sections->sections as $index => $section) {
-                    $key = array_search($data['id'], $section->sequence);
-                    if ($key !== false) {
-                        unset($section->sequence[$key]);
-                        $sections->sections[$index]->sequence = array_values($section->sequence);
+                    
+                    if (!empty($section->sequence)) {
+                        $key = array_search($data['id'], $section->sequence);
+                        if ($key !== false) {
+                            unset($section->sequence[$key]);
+                            $sections->sections[$index]->sequence = array_values($section->sequence);
+                        }
                     }
                 }
                 foreach ($sections->sections as $index => $section) {
@@ -515,8 +531,14 @@ class MoodleController extends Controller
                     }
                 }
             }
+            
         }
-        
+        foreach ($sections->sections as $index => $section) {
+           if(count($section->sequence) == 0){
+            unset($section->sequence);
+           }
+        }
+        // dd($sections);
         $statusUpdate = MoodleController::updateCourse($request->instance, $sections->sections, $nodes, $badges);
         return response()->json(['ok' => $statusUpdate->status, 'errorType' => $statusUpdate->error]);
     }
@@ -714,6 +736,7 @@ class MoodleController extends Controller
         ]);
         $content = $response->getBody()->getContents();
         $data = json_decode($content);
+        // dd($data);
         return $data;
     }
     // This function gets the modules of a Moodle course that are not compatible with the type of map you want to create.
@@ -818,7 +841,7 @@ class MoodleController extends Controller
     // This function updates a Moodle course.
     public static function updateCourse($instance, $sections, $modules, $badges)
     {
-        //header('Access-Control-Allow-Origin: *');
+        header('Access-Control-Allow-Origin: *');
         if($modules !== null && is_array($modules) && count($modules) > 0){
             foreach ($modules as &$module) {
                 if (isset($module['c'])) {
@@ -831,13 +854,13 @@ class MoodleController extends Controller
             'base_uri' => MoodleController::getURLLMS($instance) . '/webservice/rest/server.php',
             'timeout' => 20.0,
         ]);
-        //dd(json_decode(json_encode($sections)), $modules, $badges);
+        // dd(json_decode(json_encode($sections)), $sections);
         $response = $client->request('POST', '', [
             'query' => [
                 'wstoken' => env('WSTOKEN'),
                 'wsfunction' => 'local_uniadaptive_update_course',
                 'data' => [
-                    'sections' => json_decode(json_encode($sections)),
+                    'sections' => $sections,
                     'modules' => $modules,
                     'badges' => $badges
                 ],
@@ -848,11 +871,13 @@ class MoodleController extends Controller
         ]);
         $content = $response->getBody()->getContents();
         $data = json_decode($content);
+        dd($data);
         return $data;
     }
     public static function getCalifications($url_lms, $module_id, $module_modname)
     {
         // header('Access-Control-Allow-Origin: *');
+        // dd($module_id, $module_modname);
         $client = new Client([
             'base_uri' => $url_lms . '/webservice/rest/server.php',
             'timeout' => 20.0,
@@ -867,12 +892,14 @@ class MoodleController extends Controller
             ]
         ]);
         // if($module_modname == "quiz")
-        // dd($response->getBody());
+        
         $content = $response->getBody()->getContents();
         $data = json_decode($content);
-        if (gettype($data) == 'string') {
-            $data = json_decode($data);
-        }
-        return $data;
+        // dd();
+        // if (gettype($data) == 'string') {
+        //     $data = json_decode($data);
+            
+        // }
+        return $data->data;
     }
 }

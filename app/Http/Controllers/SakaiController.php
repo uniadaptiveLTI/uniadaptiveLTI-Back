@@ -214,6 +214,7 @@ class SakaiController extends Controller
         $request = SakaiController::createClient($url_lms . '/direct/assignment/site/' . $context_id . '.json', $session_id);
 
         $dataAssignments = json_decode($request['requestBody']);
+        error_log(json_encode($dataAssignments));
         $statusCode = $request['statusCode'];
 
         $assignments = [];
@@ -310,7 +311,7 @@ class SakaiController extends Controller
 
     public static function getResourceById($url_lms, $context_id, $session_id, $resourceId)
     {
-        $request = SakaiController::createClient($url_lms . '/api/sites/' . $context_id . '/entities/assessments', $session_id);
+        $request = SakaiController::createClient($url_lms . '/api/sites/' . $context_id . '/entities/resources', $session_id);
 
         $modules = json_decode($request['requestBody']);
         $statusCode = $request['statusCode'];
@@ -426,6 +427,8 @@ class SakaiController extends Controller
                                     $module['closeDate'] = $closeDate;
                                 }
 
+                                $updatedModule = SakaiController::parseItemDates($module);
+
                                 break;
                             case 'assign':
                                 $sakaiId = SakaiController::parseSakaiId($modulesData->contentsList[$index]);
@@ -448,6 +451,8 @@ class SakaiController extends Controller
                                     $module['closeDate'] = $closeDate;
                                 }
 
+                                $updatedModule = SakaiController::parseItemDates($module);
+
                                 break;
                             case 'forum':
                                 $sakaiId = SakaiController::parseSakaiId($modulesData->contentsList[$index]);
@@ -461,9 +466,11 @@ class SakaiController extends Controller
                                 }
 
                                 if (isset($forumFounded) && isset($forumFounded->closeDate)) {
-                                    $closeDate = date('Y-m-d\TH:i', $assignmentFounded->closeDate);
-                                    $module['openDate'] = $closeDate;
+                                    $closeDate = date('Y-m-d\TH:i', $forumFounded->closeDate);
+                                    $module['dueDate'] = $closeDate;
                                 }
+
+                                $updatedModule = SakaiController::parseItemDates($module);
 
                                 break;
                             case 'break':
@@ -481,13 +488,13 @@ class SakaiController extends Controller
 
                                 if (isset($resourceFounded) && isset($resourceFounded->closeDate)) {
                                     $closeDate = date('Y-m-d\TH:i', $resourceFounded->closeDate);
-                                    $module['openDate'] = $closeDate;
+                                    $module['dueDate'] = $closeDate;
                                 }
+
+                                $updatedModule = SakaiController::parseItemDates($module);
 
                                 break;
                         }
-
-                        $updatedModule = SakaiController::parseItemDates($module);
 
                         array_push(
                             $modules,
@@ -495,6 +502,7 @@ class SakaiController extends Controller
                         );
                     }
                 }
+                error_log(print_r($modules, true));
 
                 $conditionGetRequest = SakaiController::createClient($url_lms . '/api/sites/' . $context_id . '/conditions', $session_id);
 
@@ -530,7 +538,7 @@ class SakaiController extends Controller
             $module['dueDate'] = $newDueDate;
         }
 
-        if ($module->modname == "assign" || $module->modname == "exam") {
+        if ($module['modname'] == "assign" || $module['modname'] == "exam") {
             if (isset($module['openDate']) && isset($module['dueDate']) && !isset($module['closeDate'])) {
                 $timestamp = strtotime($module['dueDate']);
                 $oneWeekLater = strtotime('+1 week', $timestamp);
@@ -570,8 +578,6 @@ class SakaiController extends Controller
             return $modules;
         } else {
             $conditionLessonList = [];
-            error_log(print_r($conditions, true));
-            error_log(print_r($modules, true));
             if ($conditions != null && count($conditions) >= 1) {
                 foreach ($conditions as &$condition) {
                     if ($condition->type == "ROOT" && $condition->toolId == "sakai.lessonbuildertool") {

@@ -425,10 +425,11 @@ class LtiController extends Controller
     public function auth(Request $request)
     {
         $password = $request->password;
+        
         $adminPassword = env('ADMIN_PASSWORD');
 
         try {
-            if ($adminPassword == $password || $adminPassword == '') {
+            if ($adminPassword == $password) {
                 return response()->json(['ok' => true]);
             } else {
                 return response()->json(['ok' => false, 'error_type' => 'INVALID_PASSWORD']);
