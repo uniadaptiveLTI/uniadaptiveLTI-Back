@@ -146,7 +146,7 @@ class SakaiController extends Controller
                 return SakaiController::getForums($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id);
                 break;
             case 'exam':
-                return SakaiController::getAssessments($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id);
+                return SakaiController::getAssesments($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id);
                 break;
             case 'assign':
                 return SakaiController::getAssignments($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id);
@@ -192,6 +192,22 @@ class SakaiController extends Controller
         return response()->json(['ok' => true, 'data' => $forums]);
     }
 
+    public static function getForumById($url_lms, $context_id, $session_id, $forumId)
+    {
+        $request = SakaiController::createClient($url_lms . '/direct/forums/site/' . $context_id . '.json', $session_id);
+
+        $dataForums = json_decode($request['requestBody']);
+        $statusCode = $request['statusCode'];
+
+        if ($statusCode == 200) {
+            foreach ($dataForums->forums_collection as $forum) {
+                if ($forum->id == $forumId) {
+                    return $forum;
+                }
+            }
+        }
+    }
+
     // Función que devuelve las tareas de un curso de Sakai
     public static function getAssignments($url_lms, $context_id, $session_id)
     {
@@ -210,6 +226,22 @@ class SakaiController extends Controller
             }
         }
         return response()->json(['ok' => true, 'data' => $assignments]);
+    }
+
+    public static function getAssignmentById($url_lms, $context_id, $session_id, $assignmentId)
+    {
+        $request = SakaiController::createClient($url_lms . '/direct/assignment/site/' . $context_id . '.json', $session_id);
+
+        $dataAssignments = json_decode($request['requestBody']);
+        $statusCode = $request['statusCode'];
+
+        if ($statusCode == 200) {
+            foreach ($dataAssignments->assignment_collection as $assignment) {
+                if ($assignment->id == $assignmentId) {
+                    return $assignment;
+                }
+            }
+        }
     }
 
     // Función que devuelve los recursos de un curso de Sakai dependiendo de su tipo
@@ -275,6 +307,23 @@ class SakaiController extends Controller
             return response()->json(['ok' => true, 'data' => $resources]);
         }
     }
+
+    public static function getResourceById($url_lms, $context_id, $session_id, $resourceId)
+    {
+        $request = SakaiController::createClient($url_lms . '/api/sites/' . $context_id . '/entities/assessments', $session_id);
+
+        $modules = json_decode($request['requestBody']);
+        $statusCode = $request['statusCode'];
+
+        if ($statusCode == 200) {
+            foreach ($modules as $resource) {
+                if ($resource->id == $resourceId) {
+                    return $resource;
+                }
+            }
+        }
+    }
+
     public static function getUserMembers($url_lms, $context_id, $session_id)
     {
         $request = SakaiController::createClient($url_lms . '/direct/site/' . $context_id . '/memberships.json', $session_id);
@@ -345,34 +394,104 @@ class SakaiController extends Controller
                         $order = 1;
                     } else if ($modulesData->contentsList[$index]->type != 'break' /*&& $modulesData->contentsList[$index]->type != 'generic'*/&& $modulesData->contentsList[$index]->type != 'page' && $modulesData->contentsList[$index]->type != 'text') {
                         // $modulesData->contentsList[$index]->section = $section;
+                        $module = [
+                            "id" => $modulesData->contentsList[$index]->id,
+                            "name" => $modulesData->contentsList[$index]->name,
+                            "modname" => $modulesData->contentsList[$index]->type,
+                            "pageId" => $modulesData->contentsList[$index]->pageId,
+                            "section" => $section,
+                            "indent" => $column,
+                            "order" => $order++,
+                        ];
+
                         switch ($modulesData->contentsList[$index]->type) {
                             case 'exam':
+                                $sakaiId = SakaiController::parseSakaiId($modulesData->contentsList[$index]);
+                                $module['sakaiId'] = $sakaiId;
+
+                                $examFounded = SakaiController::getAssesmentById($url_lms, $context_id, $session_id, $sakaiId);
+
+                                if (isset($examFounded) && isset($examFounded->openDate)) {
+                                    $openDate = date('Y-m-d\TH:i', $examFounded->openDate);
+                                    $module['openDate'] = $openDate;
+                                }
+
+                                if (isset($examFounded) && isset($examFounded->dueDate)) {
+                                    $dueDate = date('Y-m-d\TH:i', $examFounded->dueDate);
+                                    $module['dueDate'] = $dueDate;
+                                }
+
+                                if (isset($examFounded) && isset($examFounded->closeDate)) {
+                                    $closeDate = date('Y-m-d\TH:i', $examFounded->closeDate);
+                                    $module['closeDate'] = $closeDate;
+                                }
+
+                                break;
                             case 'assign':
+                                $sakaiId = SakaiController::parseSakaiId($modulesData->contentsList[$index]);
+                                $module['sakaiId'] = $sakaiId;
+
+                                $assignmentFounded = SakaiController::getAssignmentById($url_lms, $context_id, $session_id, $sakaiId);
+
+                                if (isset($assignmentFounded) && isset($assignmentFounded->openTime) && isset($assignmentFounded->openTime->epochSecond)) {
+                                    $openDate = date('Y-m-d\TH:i', $assignmentFounded->openTime->epochSecond);
+                                    $module['openDate'] = $openDate;
+                                }
+
+                                if (isset($assignmentFounded) && isset($assignmentFounded->dueTime) && isset($assignmentFounded->dueTime->epochSecond)) {
+                                    $dueDate = date('Y-m-d\TH:i', $assignmentFounded->dueTime->epochSecond);
+                                    $module['dueDate'] = $dueDate;
+                                }
+
+                                if (isset($assignmentFounded) && isset($assignmentFounded->closeTime) && isset($assignmentFounded->closeTime->epochSecond)) {
+                                    $closeDate = date('Y-m-d\TH:i', $assignmentFounded->closeTime->epochSecond);
+                                    $module['closeDate'] = $closeDate;
+                                }
+
+                                break;
                             case 'forum':
-                                $a = substr($modulesData->contentsList[$index]->sakaiId, 1);
-                                $dataSakaiId = explode('/', $a);
-                                $sakaiId = end($dataSakaiId);
+                                $sakaiId = SakaiController::parseSakaiId($modulesData->contentsList[$index]);
+                                $module['sakaiId'] = $sakaiId;
+
+                                $forumFounded = SakaiController::getForumById($url_lms, $context_id, $session_id, $sakaiId);
+
+                                if (isset($forumFounded) && isset($forumFounded->openDate)) {
+                                    $openDate = date('Y-m-d\TH:i', $forumFounded->openDate);
+                                    $module['openDate'] = $openDate;
+                                }
+
+                                if (isset($forumFounded) && isset($forumFounded->closeDate)) {
+                                    $closeDate = date('Y-m-d\TH:i', $assignmentFounded->closeDate);
+                                    $module['openDate'] = $closeDate;
+                                }
+
                                 break;
                             case 'break':
-                                break;
+                                break 2;
                             default:
                                 $sakaiId = $modulesData->contentsList[$index]->sakaiId;
+                                $module['sakaiId'] = $sakaiId;
+
+                                $resourceFounded = SakaiController::getResourceById($url_lms, $context_id, $session_id, $sakaiId);
+
+                                if (isset($resourceFounded) && isset($resourceFounded->openDate)) {
+                                    $openDate = date('Y-m-d\TH:i', $resourceFounded->openDate);
+                                    $module['openDate'] = $openDate;
+                                }
+
+                                if (isset($resourceFounded) && isset($resourceFounded->closeDate)) {
+                                    $closeDate = date('Y-m-d\TH:i', $resourceFounded->closeDate);
+                                    $module['openDate'] = $closeDate;
+                                }
+
                                 break;
                         }
 
+                        $updatedModule = SakaiController::parseItemDates($module);
+
                         array_push(
                             $modules,
-                            [
-                                "id" => $modulesData->contentsList[$index]->id,
-                                "sakaiId" => $sakaiId,
-                                "name" => $modulesData->contentsList[$index]->name,
-                                "modname" => $modulesData->contentsList[$index]->type,
-                                "pageId" => $modulesData->contentsList[$index]->pageId,
-                                "section" => $section,
-                                "indent" => $column,
-                                "order" => $order++
-                            ]
-
+                            $updatedModule
                         );
                     }
                 }
@@ -394,6 +513,42 @@ class SakaiController extends Controller
         } else {
             return response()->json(['ok' => false, 'errorType' => 'MODULES_ERROR']);
         }
+    }
+
+    public static function parseItemDates($module)
+    {
+        if (!isset($module['openDate'])) {
+            $newOpenDate = date('Y-m-d\TH:i', time());
+            $module['openDate'] = $newOpenDate;
+        }
+
+        if (isset($module['openDate']) && !isset($module['dueDate'])) {
+            $timestamp = strtotime($module['openDate']);
+            $oneWeekLater = strtotime('+1 week', $timestamp);
+
+            $newDueDate = date('Y-m-d\TH:i', $oneWeekLater);
+            $module['dueDate'] = $newDueDate;
+        }
+
+        if ($module->modname == "assign" || $module->modname == "exam") {
+            if (isset($module['openDate']) && isset($module['dueDate']) && !isset($module['closeDate'])) {
+                $timestamp = strtotime($module['dueDate']);
+                $oneWeekLater = strtotime('+1 week', $timestamp);
+
+                $newCloseDate = date('Y-m-d\TH:i', $oneWeekLater);
+                $module['closeDate'] = $newCloseDate;
+            }
+        }
+
+        return $module;
+    }
+
+    public static function parseSakaiId($contentListIndex)
+    {
+        $a = substr($contentListIndex->sakaiId, 1);
+        $dataSakaiId = explode('/', $a);
+        $sakaiId = end($dataSakaiId);
+        return $sakaiId;
     }
 
     public static function linkConditionToLessonItem($modules, $conditions, $assign = true)
@@ -469,7 +624,7 @@ class SakaiController extends Controller
                 break;
         }
     }
-    public static function getAssessments($url_lms, $context_id, $session_id)
+    public static function getAssesments($url_lms, $context_id, $session_id)
     {
         $request = SakaiController::createClient($url_lms . '/api/sites/' . $context_id . '/entities/assessments', $session_id);
 
@@ -486,6 +641,22 @@ class SakaiController extends Controller
             }
         }
         return response()->json(['ok' => true, 'data' => $assesments]);
+    }
+
+    public static function getAssesmentById($url_lms, $context_id, $session_id, $assesmentId)
+    {
+        $request = SakaiController::createClient($url_lms . '/api/sites/' . $context_id . '/entities/assessments', $session_id);
+
+        $modules = json_decode($request['requestBody']);
+        $statusCode = $request['statusCode'];
+
+        if ($statusCode == 200) {
+            foreach ($modules as $assesment) {
+                if ($assesment->id == $assesmentId) {
+                    return $assesment;
+                }
+            }
+        }
     }
 
     public static function createClient($url, $session_id, $type = 'GET', $bodyData = [])
@@ -607,7 +778,7 @@ class SakaiController extends Controller
                         if (($conditionList != null && count($conditionList) >= 1)) {
                             error_log("ENTRO A MEJORAR");
                             $filteredArray = SakaiController::conditionIdParse(json_decode($nodesCreated), $conditionList);
-                            
+
                             $conditionsParsedList = (array_values($filteredArray));
 
                             $conditionsCreationRequest = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/conditions/bulk', $sessionData->session_id, 'POST', $conditionsParsedList);
@@ -627,15 +798,15 @@ class SakaiController extends Controller
                         $nodesCopyCreationRequest = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/items/bulk', $sessionData->session_id, 'POST', $parsedNodes);
                         $nodesCopyCreation = json_decode($nodesCopyCreationRequest['requestBody']);
                         $nodesCopyCreationStatusCode = $nodesCopyCreationRequest['statusCode'];
-        
+
                         $parsedConditions = SakaiController::linkConditionToLessonItem(($nodesCopyCreation), json_decode($conditionsCopy), false);
                         error_log(print_r($parsedConditions, true));
-        
+
                         $filteredArray = SakaiController::conditionIdParse($nodesCopyCreation, $parsedConditions);
-        
+
                         $conditionsCopyCreationRequest = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/conditions/bulk', $sessionData->session_id, 'POST', $filteredArray);
                         $conditionsCopyCreationStatusCode = $conditionsCopyCreationRequest['statusCode'];
-        
+
                         if ($nodesCopyCreationStatusCode == 200 && $conditionsCopyCreationStatusCode == 200) {
                             return response()->json(['ok' => false, 'errorType' => 'LESSON_ITEMS_CREATION_ERROR', 'data' => '']);
                         } else {
