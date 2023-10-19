@@ -841,7 +841,6 @@ class MoodleController extends Controller
     // This function updates a Moodle course.
     public static function updateCourse($instance, $sections, $modules, $badges)
     {
-        header('Access-Control-Allow-Origin: *');
         if($modules !== null && is_array($modules) && count($modules) > 0){
             foreach ($modules as &$module) {
                 if (isset($module['c'])) {
@@ -871,7 +870,6 @@ class MoodleController extends Controller
         ]);
         $content = $response->getBody()->getContents();
         $data = json_decode($content);
-        dd($data);
         return $data;
     }
     public static function getCalifications($url_lms, $module_id, $module_modname)
