@@ -1,0 +1,23 @@
+<?php
+
+return [
+    'lms_data' => [
+        'LMS1' => [
+            'url' => 'http://moodle1.com',
+            'token' => 'yourlmstoken1',
+        ],
+        'LMS2' => [
+            'url' => 'http://moodle2.com',
+            'token' => 'yourlmstoken2',
+        ],
+        'LMS3' => [
+            'url' => 'http://sakai1.com',
+            'user' => 'usersakai',
+            'token' => 'tokensakai'
+        ],
+        /* Add more instances as needed.
+         * It is important that when you add the names of the LMS these are not repeated.
+         * One way is to increment the name by 1, for example LMS1, LMS2, LMS3, LMS4...
+        */
+    ],
+];
