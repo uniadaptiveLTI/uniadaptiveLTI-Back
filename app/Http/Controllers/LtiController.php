@@ -151,12 +151,16 @@ class LtiController extends Controller
         // dd($session);
         $headers = @get_headers(env('FRONT_URL'));
         $canSee = false;
-        foreach ($headers as $header) {
-            if (strpos($header, '200 OK')) {
-                $canSee = true;
-                break;
+        
+       if ($headers) {
+            foreach ($headers as $header) {
+                if (strpos($header, '200 OK')) {
+                    $canSee = true;
+                    break;
+                }
             }
         }
+        
         if ($canSee) {
             // URL is available
             // Generate redirect response
