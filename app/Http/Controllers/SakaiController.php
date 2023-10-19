@@ -214,15 +214,14 @@ class SakaiController extends Controller
         $request = SakaiController::createClient($url_lms . '/direct/assignment/site/' . $context_id . '.json', $session_id);
 
         $dataAssignments = json_decode($request['requestBody']);
-        error_log(json_encode($dataAssignments));
         $statusCode = $request['statusCode'];
-
         $assignments = [];
         if ($statusCode == 200) {
             foreach ($dataAssignments->assignment_collection as $assignment) {
+                error_log(print_r($assignment, true));
                 $assignments[] = array(
                     'id' => $assignment->entityId,
-                    'name' => $assignment->title
+                    'name' => $assignment->entityTitle
                 );
             }
         }
@@ -502,7 +501,6 @@ class SakaiController extends Controller
                         );
                     }
                 }
-                error_log(print_r($modules, true));
 
                 $conditionGetRequest = SakaiController::createClient($url_lms . '/api/sites/' . $context_id . '/conditions', $session_id);
 
@@ -583,7 +581,6 @@ class SakaiController extends Controller
                     if ($condition->type == "ROOT" && $condition->toolId == "sakai.lessonbuildertool") {
                         foreach ($modules as &$module) {
                             if ($condition->itemId === $module->id) {
-                                error_log("ENTRROOOOO");
                                 array_push($conditionLessonList, $condition);
                                 break;
                             }
@@ -782,7 +779,6 @@ class SakaiController extends Controller
 
                     if ($nodesCreationStatusCode == 200) {
                         if (($conditionList != null && count($conditionList) >= 1)) {
-                            error_log("ENTRO A MEJORAR");
                             $filteredArray = SakaiController::conditionIdParse(json_decode($nodesCreated), $conditionList);
 
                             $conditionsParsedList = (array_values($filteredArray));
@@ -806,7 +802,6 @@ class SakaiController extends Controller
                         $nodesCopyCreationStatusCode = $nodesCopyCreationRequest['statusCode'];
 
                         $parsedConditions = SakaiController::linkConditionToLessonItem(($nodesCopyCreation), json_decode($conditionsCopy), false);
-                        error_log(print_r($parsedConditions, true));
 
                         $filteredArray = SakaiController::conditionIdParse($nodesCopyCreation, $parsedConditions);
 
