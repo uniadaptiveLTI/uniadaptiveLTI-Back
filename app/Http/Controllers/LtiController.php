@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use GuzzleHttp\Client;
 
 class LtiController extends Controller
 {
@@ -35,6 +36,13 @@ class LtiController extends Controller
         $tool->handleRequest();
         $jwt = $tool->getJWT();
         $fire = $tool->getMessageParameters();
+
+        $platform = $fire['tool_consumer_info_product_family_code'];
+        $token_request = LtiController::getLmsToken($fire['platform_id'], $platform);
+        if (!$token_request['ok']) {
+            return response()->json(['ok' => false, 'data' => $token_request['data'], 'error' => $token_request['error']]);
+        }
+
         $session = DB::table('lti_info')->where([
             ['user_id', '=', $fire['user_id']],
             ['platform_id', '=', $fire['platform_id']],
@@ -151,12 +159,16 @@ class LtiController extends Controller
         // dd($session);
         $headers = @get_headers(env('FRONT_URL'));
         $canSee = false;
-        foreach ($headers as $header) {
-            if (strpos($header, '200 OK')) {
-                $canSee = true;
-                break;
+        
+       if ($headers) {
+            foreach ($headers as $header) {
+                if (strpos($header, '200 OK')) {
+                    $canSee = true;
+                    break;
+                }
             }
         }
+        
         if ($canSee) {
             // URL is available
             // Generate redirect response
@@ -459,4 +471,99 @@ class LtiController extends Controller
         }
     }
 
+    // Function that returns the token (if it exists) of the url added in the function
+    public static function getLmsToken($url_lms, $platform, $validated = null)
+    {
+        if ($platform == 'moodle') {
+            if (!config()->has('multiple_lms_config')) {
+                $return = [
+                    'ok' => false,
+                    'data' => "[TokenNotConfigured]",
+                    'error' => "A token has not been configured for this LMS, you must add the token generated in ({$url_lms}) in the configuration file."
+                ];
+                return $return;
+            }
+            // Obtains from the multiple_lms_config.php configuration the lms_data that contains all the LMS grouped by url and token
+            $multiple_lms_config = config('multiple_lms_config.lms_data');
+
+            foreach ($multiple_lms_config as $lms_data) {
+                if ($lms_data['url'] == $url_lms) {
+
+                    if ($validated) {
+                        $token = trim($lms_data['token']);
+
+                        if (!$token) {
+                            $return = [
+                                'ok' => false,
+                                'data' => "[TokenNotConfigured]",
+                                'error' => "A token has not been configured for this LMS, you must add the token generated in ({$url_lms}) in the configuration file."
+                            ];
+                            return $return;
+                        }
+                        $return = [
+                            'ok' => true,
+                            'data' => $token
+                        ];
+                        return $return;
+                    }
+
+                    $token = trim($lms_data['token']);
+
+                    if (!$token) {
+                        break;
+                    }
+
+                    $client = new Client([
+                        'base_uri' => $url_lms . '/webservice/rest/server.php',
+                        'timeout' => 20.0,
+                    ]);
+                    $response = $client->request('GET', '', [
+                        'query' => [
+                            'wstoken' => $token,
+                            'wsfunction' => 'local_uniadaptive_get_assignable_roles',
+                            'contextid' => 0,
+                            'moodlewsrestformat' => 'json'
+                        ]
+                    ]);
+
+                    $content = $response->getBody()->getContents();
+                    $data = json_decode($content);
+
+                    if (isset($data->exception)) {
+                        $return = [
+                            'ok' => false,
+                            'data' => "[$data->errorcode]",
+                            'error' => "$data->message"
+                        ];
+                        return $return;
+                    }
+
+                    $return = [
+                        'ok' => true,
+                        'data' => $token
+                    ];
+                    return $return;
+                }
+            }
+
+            $return = [
+                'ok' => false,
+                'data' => "[TokenNotConfigured]",
+                'error' => "A token has not been configured for this LMS, you must add the token generated in ({$url_lms}) in the configuration file."
+            ];
+            return $return;
+        }
+
+        if ($platform == 'sakai') {
+            // TODO
+            if (!config()->has('multiple_lms_config')) {
+                $return = [
+                    'ok' => false,
+                    'data' => "[TokenNotConfigured]",
+                    'error' => "A token has not been configured for this LMS, you must add the token generated in ({$url_lms}) in the configuration file."
+                ];
+                return $return;
+            }
+        }
+    }
 }
