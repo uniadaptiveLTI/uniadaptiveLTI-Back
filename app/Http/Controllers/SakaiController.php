@@ -98,13 +98,15 @@ class SakaiController extends Controller
         return response()->json(['ok' => true, 'data' => $data]);
     }
 
-    public static function createSession($url_lms, $sakaiServerId)
-    {
+    public static function createSession($url_lms, $sakaiServerId, $data)
+    {   
+
         $client = new Client();
-        $response = $client->request('GET', $url_lms . '/sakai-ws/rest/login/login?id=' . env('SAKAI_USER') . '&pw=' . env('SAKAI_PASSWORD'));
+        $response = $client->request('GET', $url_lms . '/sakai-ws/rest/login/login?id=' . $data['user'] . '&pw=' . $data['password']);
         $content = $response->getBody()->getContents();
         $user_id = $content . '.' . $sakaiServerId;
         return $user_id;
+
     }
 
     public static function getLessons($url_lms, $context_id, $session_id)
@@ -434,6 +436,7 @@ class SakaiController extends Controller
                                     ) {
                                         $module['timeExceptions'] = [];
                                         foreach ($examFounded->timeExceptions as $exception) {
+                                            error_log(print_r($exception, true));
                                             if (isset($exception->forEntityRef)) {
                                                 $exceptionData = [];
 
@@ -598,41 +601,40 @@ class SakaiController extends Controller
 
     public static function parseItemExceptionDates($module)
     {
-        if ($module->modname == "exam") {
+        if ($module['modname'] == "exam") {
             if (
-                isset($module->timeExceptions) &&
-                is_array($module->timeExceptions) && count($module->timeExceptions) > 0
+                isset($module['timeExceptions']) &&
+                is_array($module['timeExceptions']) && count($module['timeExceptions']) > 0
             ) {
-                foreach ($module->timeExceptions as $exception) {
-                    if (!isset($exception->openDate)) {
+                foreach ($module['timeExceptions'] as &$exception) {
+                    if (!isset($exception['openDate'])) {
                         $newOpenDate = date('Y-m-d\TH:i', time());
-                        $exception->openDate = $newOpenDate;
+                        $exception['openDate'] = $newOpenDate;
                     }
 
-                    if (isset($exception->openDate) && !isset($exception->dueDate)) {
-                        $timestamp = strtotime($exception->openDate);
+                    if (isset($exception['openDate']) && !isset($exception['dueDate'])) {
+                        $timestamp = strtotime($exception['openDate']);
                         $oneWeekLater = strtotime('+1 week', $timestamp);
 
                         $newDueDate = date('Y-m-d\TH:i', $oneWeekLater);
-                        $exception->dueDate = $newDueDate;
+                        $exception['dueDate'] = $newDueDate;
                     }
 
-                    if (isset($exception->closeDate) && !isset($exception->closeDate)) {
-                        $timestamp = strtotime($exception->dueDate);
+                    if (isset($exception['dueDate']) && !isset($exception['closeDate'])) {
+                        $timestamp = strtotime($exception['dueDate']);
                         $oneWeekLater = strtotime('+1 week', $timestamp);
 
                         $newCloseDate = date('Y-m-d\TH:i', $oneWeekLater);
-                        $exception->closeDate = $newCloseDate;
+                        error_log(print_r($newCloseDate, true));
+                        $exception['closeDate'] = $newCloseDate;
                     }
                 }
             }
         }
 
-        return $module;
-    }
+        unset($exception);
 
-    public static function parseItemGroups($module)
-    {
+        return $module;
     }
 
     public static function parseSakaiId($contentListIndex)
@@ -737,6 +739,7 @@ class SakaiController extends Controller
         $request = SakaiController::createClient($url_lms . '/api/sites/' . $context_id . '/entities/assessments', $session_id);
 
         $modules = json_decode($request['requestBody']);
+        error_log(print_r($modules, true));
         $statusCode = $request['statusCode'];
 
         if ($statusCode == 200) {
