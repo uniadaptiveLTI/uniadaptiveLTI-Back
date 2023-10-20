@@ -411,22 +411,57 @@ class SakaiController extends Controller
 
                                 $examFounded = SakaiController::getAssesmentById($url_lms, $context_id, $session_id, $sakaiId);
 
-                                if (isset($examFounded) && isset($examFounded->openDate)) {
-                                    $openDate = date('Y-m-d\TH:i', $examFounded->openDate);
-                                    $module['openDate'] = $openDate;
-                                }
+                                if (isset($examFounded)) {
+                                    if (isset($examFounded->openDate)) {
+                                        $openDate = date('Y-m-d\TH:i', $examFounded->openDate);
+                                        $module['openDate'] = $openDate;
+                                    }
 
-                                if (isset($examFounded) && isset($examFounded->dueDate)) {
-                                    $dueDate = date('Y-m-d\TH:i', $examFounded->dueDate);
-                                    $module['dueDate'] = $dueDate;
-                                }
+                                    if (isset($examFounded->dueDate)) {
+                                        $dueDate = date('Y-m-d\TH:i', $examFounded->dueDate);
+                                        $module['dueDate'] = $dueDate;
+                                    }
 
-                                if (isset($examFounded) && isset($examFounded->closeDate)) {
-                                    $closeDate = date('Y-m-d\TH:i', $examFounded->closeDate);
-                                    $module['closeDate'] = $closeDate;
-                                }
+                                    if (isset($examFounded->closeDate)) {
+                                        $closeDate = date('Y-m-d\TH:i', $examFounded->closeDate);
+                                        $module['closeDate'] = $closeDate;
+                                    }
 
-                                $updatedModule = SakaiController::parseItemDates($module);
+                                    if (
+                                        isset($examFounded->timeExceptions) &&
+                                        is_array($examFounded->timeExceptions) && count($examFounded->timeExceptions) > 0
+                                    ) {
+                                        $module['timeExceptions'] = [];
+                                        foreach ($examFounded->timeExceptions as $exception) {
+                                            if (isset($exception->forEntityRef)) {
+                                                $exceptionData = [];
+
+                                                $exceptionData['forEntityRef'] = $exception->forEntityRef;
+
+                                                if (isset($exception->openDate)) {
+                                                    $exceptionData['openDate'] = date('Y-m-d\TH:i', $exception->openDate);
+                                                }
+
+                                                if (isset($exception->dueDate)) {
+                                                    $exceptionData['dueDate'] = date('Y-m-d\TH:i', $exception->dueDate);
+                                                }
+
+                                                if (isset($exception->closeDate)) {
+                                                    $exceptionData['closeDate'] = date('Y-m-d\TH:i', $exception->closeDate);
+                                                }
+
+                                                $module['timeExceptions'][] = $exceptionData;
+                                            }
+                                        }
+                                    }
+
+                                    if (
+                                        isset($examFounded->groupRefs) &&
+                                        is_array($examFounded->groupRefs) && count($examFounded->groupRefs) > 0
+                                    ) {
+                                        $module['groups'] = $examFounded->groupRefs;
+                                    }
+                                }
 
                                 break;
                             case 'assign':
@@ -450,7 +485,12 @@ class SakaiController extends Controller
                                     $module['closeDate'] = $closeDate;
                                 }
 
-                                $updatedModule = SakaiController::parseItemDates($module);
+                                if (
+                                    isset($assignmentFounded->groups) &&
+                                    is_array($assignmentFounded->groups) && count($assignmentFounded->groups) > 0
+                                ) {
+                                    $module['groups'] = $assignmentFounded->groups;
+                                }
 
                                 break;
                             case 'forum':
@@ -468,8 +508,6 @@ class SakaiController extends Controller
                                     $closeDate = date('Y-m-d\TH:i', $forumFounded->closeDate);
                                     $module['dueDate'] = $closeDate;
                                 }
-
-                                $updatedModule = SakaiController::parseItemDates($module);
 
                                 break;
                             case 'break':
@@ -490,14 +528,22 @@ class SakaiController extends Controller
                                     $module['dueDate'] = $closeDate;
                                 }
 
-                                $updatedModule = SakaiController::parseItemDates($module);
+                                if (
+                                    isset($resourceFounded->groupRefs) &&
+                                    is_array($resourceFounded->groupRefs) && count($resourceFounded->groupRefs) > 0
+                                ) {
+                                    $module['groups'] = $resourceFounded->groupRefs;
+                                }
 
                                 break;
                         }
 
+                        $updatedModuleWithDates = SakaiController::parseItemDates($module);
+                        $updatedModuleWithExceptionDates = SakaiController::parseItemExceptionDates($updatedModuleWithDates);
+
                         array_push(
                             $modules,
-                            $updatedModule
+                            $updatedModuleWithExceptionDates
                         );
                     }
                 }
@@ -547,6 +593,45 @@ class SakaiController extends Controller
         }
 
         return $module;
+    }
+
+    public static function parseItemExceptionDates($module)
+    {
+        if ($module->modname == "exam") {
+            if (
+                isset($module->timeExceptions) &&
+                is_array($module->timeExceptions) && count($module->timeExceptions) > 0
+            ) {
+                foreach ($module->timeExceptions as $exception) {
+                    if (!isset($exception->openDate)) {
+                        $newOpenDate = date('Y-m-d\TH:i', time());
+                        $exception->openDate = $newOpenDate;
+                    }
+
+                    if (isset($exception->openDate) && !isset($exception->dueDate)) {
+                        $timestamp = strtotime($exception->openDate);
+                        $oneWeekLater = strtotime('+1 week', $timestamp);
+
+                        $newDueDate = date('Y-m-d\TH:i', $oneWeekLater);
+                        $exception->dueDate = $newDueDate;
+                    }
+
+                    if (isset($exception->closeDate) && !isset($exception->closeDate)) {
+                        $timestamp = strtotime($exception->dueDate);
+                        $oneWeekLater = strtotime('+1 week', $timestamp);
+
+                        $newCloseDate = date('Y-m-d\TH:i', $oneWeekLater);
+                        $exception->closeDate = $newCloseDate;
+                    }
+                }
+            }
+        }
+
+        return $module;
+    }
+
+    public static function parseItemGroups($module)
+    {
     }
 
     public static function parseSakaiId($contentListIndex)
