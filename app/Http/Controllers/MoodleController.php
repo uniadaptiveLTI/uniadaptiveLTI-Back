@@ -516,10 +516,6 @@ class MoodleController extends Controller
                 //     // dd($nodes[$index]);
                 //     unset($nodes[$index]['g']);
                 // }
-                // if (isset($nodes[$index]['g'])) {
-                //     // dd($nodes[$index]);
-                //     unset($nodes[$index]['g']);
-                // }
                 if (isset($nodes[$index]['children'])) {
                     unset($nodes[$index]['children']);
                 }

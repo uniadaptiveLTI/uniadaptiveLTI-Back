@@ -19,3 +19,4 @@ yarn-error.log
 storage/keys/*
 storage/logs/*
 logs/*
+config/multiple_lms_config.php
