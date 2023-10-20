@@ -214,6 +214,7 @@ class SakaiController extends Controller
         $request = SakaiController::createClient($url_lms . '/direct/assignment/site/' . $context_id . '.json', $session_id);
 
         $dataAssignments = json_decode($request['requestBody']);
+        // error_log(json_encode($dataAssignments));
         $statusCode = $request['statusCode'];
         $assignments = [];
         if ($statusCode == 200) {

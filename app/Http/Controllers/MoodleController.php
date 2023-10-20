@@ -516,6 +516,10 @@ class MoodleController extends Controller
                 //     // dd($nodes[$index]);
                 //     unset($nodes[$index]['g']);
                 // }
+                // if (isset($nodes[$index]['g'])) {
+                //     // dd($nodes[$index]);
+                //     unset($nodes[$index]['g']);
+                // }
                 if (isset($nodes[$index]['children'])) {
                     unset($nodes[$index]['children']);
                 }
@@ -546,6 +550,12 @@ class MoodleController extends Controller
             if (count($section->sequence) == 0) {
                 unset($section->sequence);
             }
+            
+        }
+        foreach ($sections->sections as $index => $section) {
+           if(count($section->sequence) == 0){
+            unset($section->sequence);
+           }
         }
         // dd($sections);
         $statusUpdate = MoodleController::updateCourse($request->instance, $sections->sections, $nodes, $badges);
@@ -901,6 +911,7 @@ class MoodleController extends Controller
         ]);
         $content = $response->getBody()->getContents();
         $data = json_decode($content);
+        dd($data);
         return $data;
     }
     public static function getCalifications($url_lms, $module_id, $module_modname)
