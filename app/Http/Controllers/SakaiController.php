@@ -841,7 +841,6 @@ class SakaiController extends Controller
 
         $nodesToUpdate = $request->nodesToUpdate;
         $conditionList = $request->conditionList;
-        error_log(print_r($conditionList, true));
 
         $firstNode = reset($nodes);
         $firstPageId = $firstNode['pageId'];
@@ -881,7 +880,7 @@ class SakaiController extends Controller
                 $lessonItemsDeleteStatusCode = $lessonItemsDelete;
 
                 if ($conditionsDeleteStatusCode === 200 && $lessonItemsDeleteStatusCode === 200) {
-                    $nodesCreationRequest = SakaiController::createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/items/bulk', $sessionData->session_id, 'POST', $nodes);
+                    /*$nodesCreationRequest = SakaiController::createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/items/bulk', $sessionData->session_id, 'POST', $nodes);
                     $nodesCreated = $nodesCreationRequest['requestBody'];
                     $nodesCreationStatusCode = $nodesCreationRequest['statusCode'];
 
@@ -902,17 +901,16 @@ class SakaiController extends Controller
                         } else {
                             return response()->json(['ok' => true, 'errorType' => 'EXPORTACION_CON_EXITO', 'data' => '', 'extraInfo' => 'conditions_not']);
                         }
-                    } else {
+                    } else {*/
                         $parsedNodes = SakaiController::parseSakaiLessonCopy($lessonCopy->contentsList);
-                        error_log(print_r($parsedNodes, true));
                         $nodesCopyCreationRequest = SakaiController::createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/items/bulk', $sessionData->session_id, 'POST', $parsedNodes);
                         $nodesCopyCreation = json_decode($nodesCopyCreationRequest['requestBody']);
                         $nodesCopyCreationStatusCode = $nodesCopyCreationRequest['statusCode'];
-
+                        error_log("AYA PACA");
                         $parsedConditions = SakaiController::conditionItemIdAdder($parsedNodes, json_decode($conditionsCopy));
-
+                        error_log(print_r($parsedConditions, true));
                         $filteredArray = SakaiController::conditionIdParse($nodesCopyCreation, $parsedConditions);
-
+                        error_log(print_r($filteredArray, true));
                         $conditionsCopyCreationRequest = SakaiController::createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/conditions/bulk', $sessionData->session_id, 'POST', $filteredArray);
                         $conditionsCopyCreationStatusCode = $conditionsCopyCreationRequest['statusCode'];
 
@@ -921,7 +919,7 @@ class SakaiController extends Controller
                         } else {
                             return response()->json(['ok' => false, 'errorType' => 'FATAL_ERROR', 'data' => '']);
                         }
-                    }
+                    
                 } else {
                     return response()->json(['ok' => false, 'errorType' => 'LESSON_DELETE_ERROR', 'data' => '']);
                 }
@@ -935,13 +933,16 @@ class SakaiController extends Controller
 
     public static function conditionItemIdAdder($nodes, $conditionList)
     {
+        error_log(print_r($nodes, true));
         $nodesIdList = [];
         foreach ($nodes as $node) {
-            if (isset($node->type) && $node->type !== 14) {
+            $node = json_decode(json_encode($node));
+            if (isset($node->type) && $node->type != 14) {
                 $nodeJson = json_encode(['id' => $node->id, 'contentRef' => $node->contentRef]);
                 array_push($nodesIdList, $nodeJson);
             }
         }
+
 
         $filteredConditions = array_filter($conditionList, function ($condition) use ($nodesIdList) {
             foreach ($nodesIdList as $idObject) {

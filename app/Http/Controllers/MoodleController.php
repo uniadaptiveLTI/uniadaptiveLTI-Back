@@ -913,7 +913,7 @@ class MoodleController extends Controller
     public static function getCalifications($url_lms, $module_id, $module_modname)
     {
         
-        header('Access-Control-Allow-Origin: *');
+        // header('Access-Control-Allow-Origin: *');
         $token_request = LtiController::getLmsToken($url_lms, 'moodle', true);
         // dd($token_request['data']);
         // dd($module_id, $module_modname);
@@ -935,9 +935,9 @@ class MoodleController extends Controller
 
         $content = $response->getBody()->getContents();
         $data = json_decode($content);
-        $data->data->data->min = (float) $data->data->data->min;
-        $data->data->data->max = (float) $data->data->data->max; 
-        dd($data->data);
+        $data->data->data->min = (float) number_format($data->data->data->min, 5);
+        $data->data->data->max = (float) number_format($data->data->data->max, 5);
+        // error_log(json_encode($data));
         return $data->data;
     }
 }
