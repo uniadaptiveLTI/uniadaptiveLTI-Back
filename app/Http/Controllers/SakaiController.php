@@ -67,8 +67,27 @@ class SakaiController extends Controller
     // Función que devuelve los datos del usuario y del curso
     public static function getSession(object $lastInserted)
     {
-        // header('Access-Control-Allow-Origin: *');
-        // dd($lastInserted->platform_id, $lastInserted->context_id, $lastInserted->session_id);
+        $lessonGetRequest = SakaiController::getLessons($lastInserted->platform_id, $lastInserted->context_id, $lastInserted->session_id);
+        if (isset($lessonGetRequest['data']) && isset($lessonGetRequest['data']['status_code']) && $lessonGetRequest['data']['status_code'] == 200) {
+            $lessons = $lessonGetRequest['data']['lessons'];
+        } else {
+            return response()->json($lessonGetRequest);
+        }
+
+        $userMembersGetRequest = SakaiController::getUserMembers($lastInserted->platform_id, $lastInserted->context_id, $lastInserted->session_id);
+        if (isset($userMembersGetRequest['data']) && isset($userMembersGetRequest['data']['status_code']) && $userMembersGetRequest['data']['status_code'] == 200) {
+            $userMembers = $userMembersGetRequest['data']['users'];
+        } else {
+            return response()->json($userMembersGetRequest);
+        }
+
+        $groupsGetRequest = SakaiController::getGroups($lastInserted->platform_id, $lastInserted->context_id, $lastInserted->session_id);
+        if (isset($groupsGetRequest['data']) && isset($groupsGetRequest['data']['status_code']) && $groupsGetRequest['data']['status_code'] == 200) {
+            $groups = $groupsGetRequest['data']['groups'];
+        } else {
+            return response()->json($groupsGetRequest);
+        }
+
         $data = [
             [
                 'user_id' => SakaiController::getId($lastInserted->user_id),
@@ -79,14 +98,14 @@ class SakaiController extends Controller
             [
                 'name' => $lastInserted->context_title,
                 // 'instance_id' => $this->getinstance($lastInserted->tool_consumer_info_product_family_code, $lastInserted->platform_id),
-                'lessons' => SakaiController::getLessons($lastInserted->platform_id, $lastInserted->context_id, $lastInserted->session_id),
+                'lessons' => $lessons,
                 'course_id' => $lastInserted->context_id,
                 'session_id' => $lastInserted->session_id,
                 'platform' => $lastInserted->tool_consumer_info_product_family_code,
                 'lms_url' => $lastInserted->platform_id,
                 'return_url' => $lastInserted->launch_presentation_return_url,
-                'user_members' => SakaiController::getUserMembers($lastInserted->platform_id, $lastInserted->context_id, $lastInserted->session_id),
-                'sakai_groups' => SakaiController::getGroups($lastInserted->platform_id, $lastInserted->context_id, $lastInserted->session_id)
+                'user_members' => $userMembers,
+                'sakai_groups' => $groups
             ],
             SakaiController::getCourse(
                 $lastInserted->context_id,
@@ -121,17 +140,25 @@ class SakaiController extends Controller
         $statusCode = $request['statusCode'];
 
         $lessons = [];
+
         if ($statusCode == 200) {
             $data = json_decode(($request['requestBody']));
             foreach ($data->lessons_collection as $Lesson) {
-                array_push($lessons, [
-                    'id' => $Lesson->id,
-                    'name' => $Lesson->lessonTitle,
-                    'page_id' => SakaiController::getPageIdLesson($url_lms, $Lesson->id, $session_id)
-                ]);
+                $pageIdGetRequest = SakaiController::getPageIdLesson($url_lms, $Lesson->id, $session_id);
+                if (isset($pageIdGetRequest['data']) && isset($pageIdGetRequest['data']['status_code']) && $pageIdGetRequest['data']['status_code'] == 200) {
+                    array_push($lessons, [
+                        'id' => $Lesson->id,
+                        'name' => $Lesson->lessonTitle,
+                        'page_id' => $pageIdGetRequest['data']['page_id']
+                    ]);
+                } else {
+                    return ['ok' => false, 'data' => ['lessons' => $lessons, 'status_code' => $statusCode]];
+                }
             }
+            return ['ok' => true, 'data' => ['lessons' => $lessons, 'status_code' => $statusCode]];
+        } else {
+            return ['ok' => false, 'data' => ['lessons' => $lessons, 'status_code' => $statusCode]];
         }
-        return $lessons;
     }
 
     public static function getPageIdLesson($url_lms, $context_id, $session_id)
@@ -141,7 +168,11 @@ class SakaiController extends Controller
         $statusCode = $request['statusCode'];
         if ($statusCode == 200) {
             $data = json_decode($request['requestBody']);
-            return $data->sakaiId;
+            $pageId = $data->sakaiId;
+
+            return ['ok' => true, 'data' => ['page_id' => $pageId, 'status_code' => $statusCode]];
+        } else {
+            return ['ok' => false, 'data' => ['pageId' => 0, 'status_code' => $statusCode]];
         }
     }
 
@@ -345,8 +376,10 @@ class SakaiController extends Controller
                     'name' => $user->userDisplayName
                 );
             }
+            return ['ok' => true, 'data' => ['users' => $users, 'status_code' => $statusCode]];
+        } else {
+            return ['ok' => false, 'data' => ['users' => $users, 'status_code' => $statusCode]];
         }
-        return $users;
     }
     public static function getGroups($url_lms, $context_id, $session_id)
     {
@@ -363,8 +396,10 @@ class SakaiController extends Controller
                     'name' => $group->title
                 );
             }
+            return ['ok' => true, 'data' => ['groups' => $groups, 'status_code' => $statusCode]];
+        } else {
+            return ['ok' => true, 'data' => ['groups' => $groups, 'status_code' => $statusCode]];
         }
-        return $groups;
     }
 
     public static function getModules($url_lms, $lesson_id, $session_id, $context_id)
@@ -776,7 +811,7 @@ class SakaiController extends Controller
                 'Cookie' => $cookieName . '=' . $session_id
             ],
         ];
-        
+
         switch ($type) {
             case "GET":
             case "DELETE":
@@ -902,24 +937,26 @@ class SakaiController extends Controller
                             return response()->json(['ok' => true, 'errorType' => 'EXPORTACION_CON_EXITO', 'data' => '', 'extraInfo' => 'conditions_not']);
                         }
                     } else {*/
-                        $parsedNodes = SakaiController::parseSakaiLessonCopy($lessonCopy->contentsList);
-                        $nodesCopyCreationRequest = SakaiController::createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/items/bulk', $sessionData->session_id, 'POST', $parsedNodes);
-                        $nodesCopyCreation = json_decode($nodesCopyCreationRequest['requestBody']);
-                        $nodesCopyCreationStatusCode = $nodesCopyCreationRequest['statusCode'];
-                        error_log("AYA PACA");
-                        $parsedConditions = SakaiController::conditionItemIdAdder($parsedNodes, json_decode($conditionsCopy));
-                        error_log(print_r($parsedConditions, true));
-                        $filteredArray = SakaiController::conditionIdParse($nodesCopyCreation, $parsedConditions);
-                        error_log(print_r($filteredArray, true));
-                        $conditionsCopyCreationRequest = SakaiController::createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/conditions/bulk', $sessionData->session_id, 'POST', $filteredArray);
-                        $conditionsCopyCreationStatusCode = $conditionsCopyCreationRequest['statusCode'];
+                    $parsedNodes = SakaiController::parseSakaiLessonCopy($lessonCopy->contentsList);
+                    $parsedNodesWithId = SakaiController::parseSakaiLessonCopy($lessonCopy->contentsList, true);
 
-                        if ($nodesCopyCreationStatusCode == 200 && $conditionsCopyCreationStatusCode == 200) {
-                            return response()->json(['ok' => false, 'errorType' => 'LESSON_ITEMS_CREATION_ERROR', 'data' => '']);
-                        } else {
-                            return response()->json(['ok' => false, 'errorType' => 'FATAL_ERROR', 'data' => '']);
-                        }
-                    
+                    $nodesCopyCreationRequest = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/items/bulk', $sessionData->session_id, 'POST', $parsedNodes);
+                    $nodesCopyCreation = json_decode($nodesCopyCreationRequest['requestBody']);
+                    $nodesCopyCreationStatusCode = $nodesCopyCreationRequest['statusCode'];
+                    error_log("AYA PACA");
+                    $parsedConditions = SakaiController::conditionItemIdAdder($parsedNodes, json_decode($conditionsCopy));
+                    error_log(print_r($parsedConditions, true));
+                    $filteredArray = SakaiController::conditionIdParse($nodesCopyCreation, $parsedConditions);
+                    error_log(print_r($filteredArray, true));
+                    $conditionsCopyCreationRequest = SakaiController::createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/conditions/bulk', $sessionData->session_id, 'POST', $filteredArray);
+                    $conditionsCopyCreationStatusCode = $conditionsCopyCreationRequest['statusCode'];
+
+                    if ($nodesCopyCreationStatusCode == 200 && $conditionsCopyCreationStatusCode == 200) {
+                        return response()->json(['ok' => false, 'errorType' => 'LESSON_ITEMS_CREATION_ERROR', 'data' => '']);
+                    } else {
+                        return response()->json(['ok' => false, 'errorType' => 'FATAL_ERROR', 'data' => '']);
+                    }
+
                 } else {
                     return response()->json(['ok' => false, 'errorType' => 'LESSON_DELETE_ERROR', 'data' => '']);
                 }
@@ -1020,12 +1057,15 @@ class SakaiController extends Controller
         return $filteredArray;
     }
 
-    public static function parseSakaiLessonCopy($contentsList)
+    public static function parseSakaiLessonCopy($contentsList, $idAdder = false)
     {
         $parsedSakaiLessonCopy = [];
 
         foreach ($contentsList as $content) {
             $parsedContent = [];
+            if ($idAdder == true) {
+                $parsedContent['id'] = $content->id;
+            }
             $parsedContent['title'] = $content->name;
             $parsedContent['pageId'] = $content->pageId;
             $parsedContent['type'] = $content->type;

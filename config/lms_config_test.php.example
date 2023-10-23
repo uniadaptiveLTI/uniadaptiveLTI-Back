@@ -4,4 +4,5 @@ return [
     'url' => 'http://localhost:8443',
     'user' => 'admin',
     'password' => 'admin'
+    'site_id' => '123123213131'
 ];
