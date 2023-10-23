@@ -228,7 +228,7 @@ class MoodleController extends Controller
                     'modname' => e($module->modname),
                     'id' => e($module->id),
                     'has_califications' => $has_grades,
-                    // 'g' => MoodleController::getCalifications($url_lms, $module->id, $module->modname),
+                    'g' => MoodleController::getCalifications($url_lms, $module->id, $module->modname),
                     'order' => $indexM,
                     'section' => $indexS,
                     'indent' => $module->indent,
@@ -912,10 +912,12 @@ class MoodleController extends Controller
     }
     public static function getCalifications($url_lms, $module_id, $module_modname)
     {
-        // header('Access-Control-Allow-Origin: *');
+        
+        header('Access-Control-Allow-Origin: *');
+        $token_request = LtiController::getLmsToken($url_lms, 'moodle', true);
+        // dd($token_request['data']);
         // dd($module_id, $module_modname);
 
-        $token_request = LtiController::getLmsToken($url_lms, MOODLE_PLATFORM, true);
         $client = new Client([
             'base_uri' => $url_lms . '/webservice/rest/server.php',
             'timeout' => 20.0,
@@ -933,11 +935,9 @@ class MoodleController extends Controller
 
         $content = $response->getBody()->getContents();
         $data = json_decode($content);
-        // dd();
-        // if (gettype($data) == 'string') {
-        //     $data = json_decode($data);
-
-        // }
+        $data->data->data->min = (float) $data->data->data->min;
+        $data->data->data->max = (float) $data->data->data->max; 
+        dd($data->data);
         return $data->data;
     }
 }

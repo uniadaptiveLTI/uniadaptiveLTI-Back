@@ -116,7 +116,7 @@ class SakaiController extends Controller
     public static function getLessons($url_lms, $context_id, $session_id)
     {
         // header('Access-Control-Allow-Origin: *');
-        $request = SakaiController::createClient($url_lms . '/direct/lessons/site/' . $context_id . '.json', $session_id);
+        $request = SakaiController::createClient($url_lms, $url_lms . '/direct/lessons/site/' . $context_id . '.json', $session_id);
 
         $statusCode = $request['statusCode'];
 
@@ -136,7 +136,8 @@ class SakaiController extends Controller
 
     public static function getPageIdLesson($url_lms, $context_id, $session_id)
     {
-        $request = SakaiController::createClient($url_lms . '/direct/lessons/lesson/' . $context_id . '.json', $session_id);
+        $request = SakaiController::createClient($url_lms, $url_lms . '/direct/lessons/lesson/' . $context_id . '.json', $session_id);
+        $data = json_decode($request['requestBody']);
         $statusCode = $request['statusCode'];
         if ($statusCode == 200) {
             $data = json_decode($request['requestBody']);
@@ -181,7 +182,7 @@ class SakaiController extends Controller
     // Función que devuelve los foros de un curso de Sakai
     public static function getForums($url_lms, $context_id, $session_id)
     {
-        $request = SakaiController::createClient($url_lms . '/direct/forums/site/' . $context_id . '.json', $session_id);
+        $request = SakaiController::createClient($url_lms, $url_lms . '/direct/forums/site/' . $context_id . '.json', $session_id);
 
         $statusCode = $request['statusCode'];
 
@@ -200,7 +201,7 @@ class SakaiController extends Controller
 
     public static function getForumById($url_lms, $context_id, $session_id, $forumId)
     {
-        $request = SakaiController::createClient($url_lms . '/direct/forums/site/' . $context_id . '.json', $session_id);
+        $request = SakaiController::createClient($url_lms, $url_lms . '/direct/forums/site/' . $context_id . '.json', $session_id);
 
         $statusCode = $request['statusCode'];
 
@@ -217,14 +218,13 @@ class SakaiController extends Controller
     // Función que devuelve las tareas de un curso de Sakai
     public static function getAssignments($url_lms, $context_id, $session_id)
     {
-        $request = SakaiController::createClient($url_lms . '/direct/assignment/site/' . $context_id . '.json', $session_id);
+        $request = SakaiController::createClient($url_lms, $url_lms . '/direct/assignment/site/' . $context_id . '.json', $session_id);
 
         $statusCode = $request['statusCode'];
         $assignments = [];
         if ($statusCode == 200) {
             $dataAssignments = json_decode($request['requestBody']);
             foreach ($dataAssignments->assignment_collection as $assignment) {
-                error_log(print_r($assignment, true));
                 $assignments[] = array(
                     'id' => $assignment->entityId,
                     'name' => $assignment->entityTitle
@@ -236,7 +236,7 @@ class SakaiController extends Controller
 
     public static function getAssignmentById($url_lms, $context_id, $session_id, $assignmentId)
     {
-        $request = SakaiController::createClient($url_lms . '/direct/assignment/site/' . $context_id . '.json', $session_id);
+        $request = SakaiController::createClient($url_lms, $url_lms . '/direct/assignment/site/' . $context_id . '.json', $session_id);
 
         $statusCode = $request['statusCode'];
 
@@ -253,7 +253,7 @@ class SakaiController extends Controller
     // Función que devuelve los recursos de un curso de Sakai dependiendo de su tipo
     public static function getResources($url_lms, $context_id, $session_id, $type)
     {
-        $request = SakaiController::createClient($url_lms . '/direct/content/resources/group/' . $context_id . '.json?depth=3', $session_id);
+        $request = SakaiController::createClient($url_lms, $url_lms . '/direct/content/resources/group/' . $context_id . '.json?depth=3', $session_id);
 
         $statusCode = $request['statusCode'];
 
@@ -316,7 +316,7 @@ class SakaiController extends Controller
 
     public static function getResourceById($url_lms, $context_id, $session_id, $resourceId)
     {
-        $request = SakaiController::createClient($url_lms . '/api/sites/' . $context_id . '/entities/resources', $session_id);
+        $request = SakaiController::createClient($url_lms, $url_lms . '/api/sites/' . $context_id . '/entities/resources', $session_id);
 
         $statusCode = $request['statusCode'];
 
@@ -332,7 +332,7 @@ class SakaiController extends Controller
 
     public static function getUserMembers($url_lms, $context_id, $session_id)
     {
-        $request = SakaiController::createClient($url_lms . '/direct/site/' . $context_id . '/memberships.json', $session_id);
+        $request = SakaiController::createClient($url_lms, $url_lms . '/direct/site/' . $context_id . '/memberships.json', $session_id);
 
         $statusCode = $request['statusCode'];
 
@@ -350,7 +350,7 @@ class SakaiController extends Controller
     }
     public static function getGroups($url_lms, $context_id, $session_id)
     {
-        $request = SakaiController::createClient($url_lms . '/direct/site/' . $context_id . '/groups.json', $session_id);
+        $request = SakaiController::createClient($url_lms, $url_lms . '/direct/site/' . $context_id . '/groups.json', $session_id);
 
         $dataGroups = json_decode($request['requestBody']);
         $statusCode = $request['statusCode'];
@@ -371,7 +371,7 @@ class SakaiController extends Controller
     {
         // header('Access-Control-Allow-Origin: *');
         // dd($url_lms.'/direct/lessons/lesson/'.$context_id.'.json');
-        $lessonGetRequest = SakaiController::createClient($url_lms . '/direct/lessons/lesson/' . $lesson_id . '.json', $session_id);
+        $lessonGetRequest = SakaiController::createClient($url_lms, $url_lms . '/direct/lessons/lesson/' . $lesson_id . '.json', $session_id);
 
         $modulesRequestStatus = $lessonGetRequest['statusCode'];
 
@@ -443,7 +443,6 @@ class SakaiController extends Controller
                                     ) {
                                         $module['timeExceptions'] = [];
                                         foreach ($examFounded->timeExceptions as $exception) {
-                                            error_log(print_r($exception, true));
                                             if (isset($exception->forEntityRef)) {
                                                 $exceptionData = [];
 
@@ -559,7 +558,7 @@ class SakaiController extends Controller
                     }
                 }
 
-                $conditionGetRequest = SakaiController::createClient($url_lms . '/api/sites/' . $context_id . '/conditions', $session_id);
+                $conditionGetRequest = SakaiController::createClient($url_lms, $url_lms . '/api/sites/' . $context_id . '/conditions', $session_id);
 
                 $conditionsData = json_decode($conditionGetRequest['requestBody']);
                 $conditionsRequestStatus = $conditionGetRequest['statusCode'];
@@ -632,7 +631,6 @@ class SakaiController extends Controller
                         $oneWeekLater = strtotime('+1 week', $timestamp);
 
                         $newCloseDate = date('Y-m-d\TH:i', $oneWeekLater);
-                        error_log(print_r($newCloseDate, true));
                         $exception['closeDate'] = $newCloseDate;
                     }
                 }
@@ -724,7 +722,7 @@ class SakaiController extends Controller
     }
     public static function getAssesments($url_lms, $context_id, $session_id)
     {
-        $request = SakaiController::createClient($url_lms . '/api/sites/' . $context_id . '/entities/assessments', $session_id);
+        $request = SakaiController::createClient($url_lms, $url_lms . '/api/sites/' . $context_id . '/entities/assessments', $session_id);
 
         $statusCode = $request['statusCode'];
 
@@ -743,7 +741,7 @@ class SakaiController extends Controller
 
     public static function getAssesmentById($url_lms, $context_id, $session_id, $assesmentId)
     {
-        $request = SakaiController::createClient($url_lms . '/api/sites/' . $context_id . '/entities/assessments', $session_id);
+        $request = SakaiController::createClient($url_lms, $url_lms . '/api/sites/' . $context_id . '/entities/assessments', $session_id);
 
         $statusCode = $request['statusCode'];
 
@@ -757,10 +755,9 @@ class SakaiController extends Controller
         }
     }
 
-    public static function createClient($url, $session_id, $type = 'GET', $bodyData = [])
+    public static function createClient($lms_url, $url, $session_id, $type = 'GET', $bodyData = [])
     {
-        $lmsInstance = LtiController::getLmsToken($url, "sakai", true);
-
+        $lmsInstance = LtiController::getLmsToken($lms_url, "sakai", true);
         if (
             isset($lmsInstance) && isset($lmsInstance['ok']) && $lmsInstance['ok'] == true
         ) {
@@ -779,6 +776,7 @@ class SakaiController extends Controller
                 'Cookie' => $cookieName . '=' . $session_id
             ],
         ];
+        
         switch ($type) {
             case "GET":
             case "DELETE":
@@ -843,6 +841,7 @@ class SakaiController extends Controller
 
         $nodesToUpdate = $request->nodesToUpdate;
         $conditionList = $request->conditionList;
+        error_log(print_r($conditionList, true));
 
         $firstNode = reset($nodes);
         $firstPageId = $firstNode['pageId'];
@@ -857,17 +856,17 @@ class SakaiController extends Controller
         }
 
         if ($allHaveSamePageId) {
-            $lessonCopyRequest = SakaiController::createClient($sessionData->platform_id . '/direct/lessons/lesson/' . $request->lessonId . '.json', $sessionData->session_id);
+            $lessonCopyRequest = SakaiController::createClient($sessionData->platform_id, $sessionData->platform_id . '/direct/lessons/lesson/' . $request->lessonId . '.json', $sessionData->session_id);
             $lessonCopy = json_decode($lessonCopyRequest['requestBody']);
             $lessonStatusCode = $lessonCopyRequest['statusCode'];
 
-            $conditionsCopyRequest = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/conditions', $sessionData->session_id);
+            $conditionsCopyRequest = SakaiController::createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/conditions', $sessionData->session_id);
             $conditionsCopy = $conditionsCopyRequest['requestBody'];
             $conditionsStatusCode = $conditionsCopyRequest['statusCode'];
 
             if ($lessonStatusCode == 200 && $conditionsStatusCode == 200) {
                 if (count($nodesToUpdate) >= 1) {
-                    $nodesUpdateRequest = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/entities', $sessionData->session_id, 'PATCH', $nodesToUpdate);
+                    $nodesUpdateRequest = SakaiController::createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/entities', $sessionData->session_id, 'PATCH', $nodesToUpdate);
                     $nodesUpdateStatusCode = $nodesUpdateRequest['statusCode'];
 
                     if ($nodesUpdateStatusCode !== 200) {
@@ -875,24 +874,24 @@ class SakaiController extends Controller
                     }
                 }
 
-                $conditionsDelete = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/conditions', $sessionData->session_id, 'DELETE');
+                $conditionsDelete = SakaiController::createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/conditions', $sessionData->session_id, 'DELETE');
                 $conditionsDeleteStatusCode = $conditionsDelete;
 
-                $lessonItemsDelete = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/items', $sessionData->session_id, 'DELETE');
+                $lessonItemsDelete = SakaiController::createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/items', $sessionData->session_id, 'DELETE');
                 $lessonItemsDeleteStatusCode = $lessonItemsDelete;
 
                 if ($conditionsDeleteStatusCode === 200 && $lessonItemsDeleteStatusCode === 200) {
-                    $nodesCreationRequest = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/items/bulk', $sessionData->session_id, 'POST', $nodes);
+                    $nodesCreationRequest = SakaiController::createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/items/bulk', $sessionData->session_id, 'POST', $nodes);
                     $nodesCreated = $nodesCreationRequest['requestBody'];
                     $nodesCreationStatusCode = $nodesCreationRequest['statusCode'];
 
-                    if ($nodesCreationStatusCode == 200) {
+                    if ($nodesCreationStatusCode != 200) {
                         if (($conditionList != null && count($conditionList) >= 1)) {
                             $filteredArray = SakaiController::conditionIdParse(json_decode($nodesCreated), $conditionList);
 
                             $conditionsParsedList = (array_values($filteredArray));
 
-                            $conditionsCreationRequest = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/conditions/bulk', $sessionData->session_id, 'POST', $conditionsParsedList);
+                            $conditionsCreationRequest = SakaiController::createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/conditions/bulk', $sessionData->session_id, 'POST', $conditionsParsedList);
                             $conditionsCreationStatusCode = $conditionsCreationRequest['statusCode'];
 
                             if ($conditionsCreationStatusCode == 200) {
@@ -905,8 +904,8 @@ class SakaiController extends Controller
                         }
                     } else {
                         $parsedNodes = SakaiController::parseSakaiLessonCopy($lessonCopy->contentsList);
-
-                        $nodesCopyCreationRequest = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/items/bulk', $sessionData->session_id, 'POST', $parsedNodes);
+                        error_log(print_r($parsedNodes, true));
+                        $nodesCopyCreationRequest = SakaiController::createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/items/bulk', $sessionData->session_id, 'POST', $parsedNodes);
                         $nodesCopyCreation = json_decode($nodesCopyCreationRequest['requestBody']);
                         $nodesCopyCreationStatusCode = $nodesCopyCreationRequest['statusCode'];
 
@@ -914,7 +913,7 @@ class SakaiController extends Controller
 
                         $filteredArray = SakaiController::conditionIdParse($nodesCopyCreation, $parsedConditions);
 
-                        $conditionsCopyCreationRequest = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/conditions/bulk', $sessionData->session_id, 'POST', $filteredArray);
+                        $conditionsCopyCreationRequest = SakaiController::createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/conditions/bulk', $sessionData->session_id, 'POST', $filteredArray);
                         $conditionsCopyCreationStatusCode = $conditionsCopyCreationRequest['statusCode'];
 
                         if ($nodesCopyCreationStatusCode == 200 && $conditionsCopyCreationStatusCode == 200) {
@@ -1039,6 +1038,6 @@ class SakaiController extends Controller
             array_push($parsedSakaiLessonCopy, $parsedContent);
         }
 
-        return $contentsList;
+        return $parsedSakaiLessonCopy;
     }
 }
