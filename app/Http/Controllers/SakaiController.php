@@ -986,25 +986,21 @@ class SakaiController extends Controller
 
     public static function parseSakaiLessonCopy($contentsList)
     {
+        $parsedSakaiLessonCopy = [];
+
         foreach ($contentsList as $content) {
-            unset($content->description);
-            unset($content->html);
-            unset($content->id);
-
-            $content->title = $content->name;
-            unset($content->name);
-
-            unset($content->url);
-            unset($content->prerequisite);
-            unset($content->required);
+            $parsedContent = [];
+            $parsedContent['title'] = $content->name;
+            $parsedContent['pageId'] = $content->pageId;
+            $parsedContent['type'] = $content->type;
 
             if ($content->type == 14) {
-                unset($content->sakaiId);
+                $parsedContent['format'] = $content->format;
             } else {
-                unset($content->format);
-                $content->contentRef = $content->sakaiId;
-                unset($content->sakaiId);
+                $parsedContent['contentRef'] = $content->sakaiId;
             }
+
+            array_push($parsedSakaiLessonCopy, $parsedContent);
         }
 
         return $contentsList;
