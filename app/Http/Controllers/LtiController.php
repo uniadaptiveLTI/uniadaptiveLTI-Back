@@ -69,6 +69,15 @@ class LtiController extends Controller
                 case 'sakai':
                     $jwtPayload = $jwt->getPayload();
                     $sakai_serverid = $jwtPayload->{'https://www.sakailms.org/spec/lti/claim/extension'}->sakai_serverid;
+
+                    $sessionIdRequest = SakaiController::createSession($fire['platform_id'], $sakai_serverid, $token_request['data']);
+
+                    if (isset($sessionIdRequest) && isset($sessionIdRequest['ok']) && $sessionIdRequest['ok'] === true) {
+                        $session_id = $sessionIdRequest['data']['user_id'];
+                    } else {
+                        return response()->json(['ok' => false, 'errorType' => "CREATE_SESSION_ERROR"]);
+                    }
+
                     DB::table('lti_info')->where([
                         ['user_id', '=', $fire['user_id']],
                         ['platform_id', '=', $fire['platform_id']],
@@ -77,7 +86,7 @@ class LtiController extends Controller
                     ])->update([
                                 'profile_url' => SakaiController::getUrl($fire['platform_id'], $fire['context_id'], SakaiController::getId($fire['user_id'])),
                                 'lis_person_name_full' => $fire['lis_person_name_full'],
-                                'session_id' => SakaiController::createSession($fire['platform_id'], $sakai_serverid, $token_request['data'])
+                                'session_id' => $session_id
                             ]);
                 // dd($session);
                 default:
@@ -120,7 +129,15 @@ class LtiController extends Controller
                     $jwtPayload = $jwt->getPayload();
                     $locale = $jwtPayload->locale;
                     $sakai_serverid = $jwtPayload->{'https://www.sakailms.org/spec/lti/claim/extension'}->sakai_serverid;
-                    // dd($sakai_serverid);
+
+                    $sessionIdRequest = SakaiController::createSession($fire['platform_id'], $sakai_serverid, $token_request['data']);
+
+                    if (isset($sessionIdRequest) && isset($sessionIdRequest['ok']) && $sessionIdRequest['ok'] === true) {
+                        $session_id = $sessionIdRequest['data']['user_id'];
+                    } else {
+                        return response()->json(['ok' => false, 'errorType' => "CREATE_SESSION_ERROR"]);
+                    }
+
                     DB::table('lti_info')->insert([
                         'tool_consumer_info_product_family_code' => $fire['tool_consumer_info_product_family_code'],
                         'context_id' => $fire['context_id'],
@@ -131,7 +148,7 @@ class LtiController extends Controller
                         'platform_id' => $fire['platform_id'],
                         'token' => Str::uuid()->toString(),
                         'ext_sakai_serverid' => $sakai_serverid,
-                        'session_id' => SakaiController::createSession($fire['platform_id'], $sakai_serverid, $token_request['data']),
+                        'session_id' => $session_id,
                         //
                         'launch_presentation_return_url' => $fire['platform_id'] . '/portal/site/' . $fire['context_id'],
                         'user_id' => $fire['user_id'],
@@ -159,8 +176,8 @@ class LtiController extends Controller
         // dd($session);
         $headers = @get_headers(env('FRONT_URL'));
         $canSee = false;
-        
-       if ($headers) {
+
+        if ($headers) {
             foreach ($headers as $header) {
                 if (strpos($header, '200 OK')) {
                     $canSee = true;
@@ -168,7 +185,7 @@ class LtiController extends Controller
                 }
             }
         }
-        
+
         if ($canSee) {
             // URL is available
             // Generate redirect response
@@ -437,7 +454,7 @@ class LtiController extends Controller
     public function auth(Request $request)
     {
         $password = $request->password;
-        
+
         $adminPassword = env('ADMIN_PASSWORD');
 
         try {
@@ -482,7 +499,7 @@ class LtiController extends Controller
                 'error' => "A token has not been configured for this LMS, you must add the token generated in ({$url_lms}) in the configuration file."
             ];
             return $return;
-        }else{
+        } else {
             // Obtains from the multiple_lms_config.php configuration the lms_data that contains all the LMS grouped by url and token
             $multiple_lms_config = config('multiple_lms_config.lms_data');
 
@@ -490,10 +507,10 @@ class LtiController extends Controller
                 case 'moodle':
                     foreach ($multiple_lms_config as $lms_data) {
                         if ($lms_data['url'] == $url_lms) {
-        
+
                             if ($validated) {
                                 $token = trim($lms_data['token']);
-        
+
                                 if (!$token) {
                                     $return = [
                                         'ok' => false,
@@ -508,13 +525,13 @@ class LtiController extends Controller
                                 ];
                                 return $return;
                             }
-        
+
                             $token = trim($lms_data['token']);
-        
+
                             if (!$token) {
                                 break;
                             }
-        
+
                             $client = new Client([
                                 'base_uri' => $url_lms . '/webservice/rest/server.php',
                                 'timeout' => 20.0,
@@ -527,10 +544,10 @@ class LtiController extends Controller
                                     'moodlewsrestformat' => 'json'
                                 ]
                             ]);
-        
+
                             $content = $response->getBody()->getContents();
                             $data = json_decode($content);
-        
+
                             if (isset($data->exception)) {
                                 $return = [
                                     'ok' => false,
@@ -539,7 +556,7 @@ class LtiController extends Controller
                                 ];
                                 return $return;
                             }
-        
+
                             $return = [
                                 'ok' => true,
                                 'data' => $token
@@ -547,7 +564,7 @@ class LtiController extends Controller
                             return $return;
                         }
                     }
-        
+
                     $return = [
                         'ok' => false,
                         'data' => "[TokenNotConfigured]",
@@ -581,7 +598,7 @@ class LtiController extends Controller
                             }
                         }
                     }
-        
+
                     $return = [
                         'ok' => false,
                         'data' => "[TokenNotConfigured]",

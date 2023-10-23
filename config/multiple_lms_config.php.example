@@ -13,7 +13,7 @@ return [
         'LMS3' => [
             'url' => 'http://sakai1.com',
             'user' => 'usersakai',
-            'token' => 'tokensakai'
+            'password' => 'sakaipassword'
         ],
         /* Add more instances as needed.
          * It is important that when you add the names of the LMS these are not repeated.

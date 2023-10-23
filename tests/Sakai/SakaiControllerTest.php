@@ -2,14 +2,14 @@
 
 namespace Tests\Feature;
 
-use App\Http\Controllers\MoodleController;
+use App\Http\Controllers\SakaiController;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
 use Illuminate\Http\Request;
 use stdClass;
 use Tests\TestCase;
 
-class MoodleControllerTest extends TestCase
+class SakaiControllerTest extends TestCase
 {
 
 	private $idUserMoodle = 4;
@@ -35,192 +35,16 @@ class MoodleControllerTest extends TestCase
     ,"updated_at": "2023-06-30 10:40:56"}';
 
 
-	public function testGetImgUser()
+	public function testCreateSession()
 	{
-		$controller = new MoodleController();
-		$response = $controller->getImgUser($this->urlLmsMoodle, $this->idUserMoodle);
+		$unique_lms_config = config('lms_config_test');
 
-		$this->assertIsString($response);
-	}
+		$result = SakaiController::createSession($unique_lms_config['url'], null, $unique_lms_config);
 
-	public function testGetGroups()
-	{
-		$controller = new MoodleController();
-		$response = $controller->getGroups($this->urlLmsMoodle, $this->idCourseMoodle);
+		$this->assertTrue(array_key_exists('ok', $result));
 
-		$this->assertIsArray($response);
-
-		foreach ($response as $group) {
-			$this->assertIsArray($group);
-			$this->assertArrayHasKey('id', $group);
-			$this->assertArrayHasKey('name', $group);
+		if (array_key_exists('ok', $result) && $result['ok']) {
+			$this->assertEquals(200, $result['data']['status_code']);
 		}
-	}
-
-	public function testGetGrupings()
-	{
-		$controller = new MoodleController();
-		$response = $controller->getGrupings($this->urlLmsMoodle, $this->idCourseMoodle);
-
-		$this->assertIsArray($response);
-
-		foreach ($response as $gruping) {
-			$this->assertIsArray($gruping);
-			$this->assertArrayHasKey('id', $gruping);
-			$this->assertArrayHasKey('name', $gruping);
-		}
-	}
-
-	public function testGetModules()
-	{
-		$controller = new MoodleController();
-		$response = $controller->getModules($this->urlLmsMoodle, $this->idCourseMoodle);
-
-		$this->assertIsArray($response);
-
-		foreach ($response as $module) {
-			$this->assertIsArray($module);
-			$this->assertArrayHasKey('name', $module);
-			$this->assertArrayHasKey('modname', $module);
-			$this->assertArrayHasKey('id', $module);
-			$this->assertArrayHasKey('has_califications', $module);
-			$this->assertArrayHasKey('order', $module);
-			$this->assertArrayHasKey('section', $module);
-			$this->assertArrayHasKey('indent', $module);
-			$this->assertArrayHasKey('visible', $module);
-		}
-	}
-
-	public function testgetModulesByType()
-	{
-		$controller = new MoodleController();
-		$request = new Request([
-			'url_lms' => $this->urlLmsMoodle,
-			'platform' => $this->platformMoodle,
-			'course' => $this->idCourseMoodle,
-			'type' => $this->resourceType1
-		]);
-
-		$response = $controller->getModulesByType($request);
-		$this->assertIsArray($response);
-
-		foreach ($response as $module) {
-			$this->assertIsArray($module);
-			$this->assertArrayHasKey('id', $module);
-			$this->assertArrayHasKey('name', $module);
-			$this->assertArrayHasKey('section', $module);
-			$this->assertArrayHasKey('has_grades', $module);
-		}
-
-		$request = new Request([
-			'url_lms' => $this->urlLmsMoodle,
-			'platform' => $this->platformMoodle,
-			'course' => $this->idCourseMoodle,
-			'type' => $this->resourceType2
-		]);
-
-		$response = $controller->getModulesByType($request);
-		$this->assertIsArray($response);
-
-		foreach ($response as $module) {
-			$this->assertIsArray($module);
-			$this->assertArrayHasKey('id', $module);
-			$this->assertArrayHasKey('name', $module);
-			$this->assertArrayHasKey('section', $module);
-			$this->assertArrayHasKey('has_grades', $module);
-		}
-	}
-
-	public function testGetSections()
-	{
-		$controller = new MoodleController();
-		$response = $controller->getSections($this->urlLmsMoodle, $this->idCourseMoodle);
-
-		$this->assertIsArray($response);
-
-		foreach ($response as $section) {
-			$this->assertIsArray($section);
-			$this->assertArrayHasKey('id', $section);
-			$this->assertArrayHasKey('name', $section);
-			$this->assertArrayHasKey('position', $section);
-		}
-	}
-
-	public function testGetBadges()
-	{
-		$controller = new MoodleController();
-		$response = $controller->getBadges($this->idCourseMoodle);
-
-		$this->assertIsArray($response);
-
-		foreach ($response as $badge) {
-			$this->assertIsArray($badge);
-			$this->assertArrayHasKey('id', $badge);
-			$this->assertArrayHasKey('name', $badge);
-			$this->assertArrayHasKey('conditions', $badge);
-		}
-	}
-
-	public function testGetCourse()
-	{
-		$controller = new MoodleController();
-		$response = $controller->getCourse($this->idCourseMoodle, $this->platformMoodle, $this->urlLmsMoodle);
-		$this->assertIsArray($response);
-		$this->assertArrayHasKey('maps', $response);
-
-		foreach ($response['maps'] as $map) {
-			$this->assertIsArray($map);
-			$this->assertArrayHasKey('id', $map);
-			$this->assertArrayHasKey('course_id', $map);
-			$this->assertArrayHasKey('name', $map);
-			$this->assertArrayHasKey('versions', $map);
-			foreach ($map['versions'] as $version) {
-				$this->assertIsArray($version);
-				$this->assertArrayHasKey('id', $version);
-				$this->assertArrayHasKey('map_id', $version);
-				$this->assertArrayHasKey('name', $version);
-				$this->assertArrayHasKey('updated_at', $version);
-				$this->assertArrayHasKey('default', $version);
-				$this->assertArrayHasKey('blocksData', $version);
-			}
-		}
-	}
-
-	public function testStoreVersion()
-	{
-
-		$request = new Request([
-			'saveData' => json_decode($this->itemMap, true)
-		]);
-
-		// Llamar a la función
-		$result = MoodleController::storeVersion($request);
-
-		// Verificar que el resultado es 0
-		$this->assertEquals('0', $result);
-	}
-
-	public function testGetSession()
-	{
-		$result = MoodleController::getSession(json_decode($this->itemSession));
-
-		$this->assertIsArray($result);
-		$this->assertCount(3, $result);
-
-		$this->assertIsArray($result[0]);
-	}
-
-	public function testGetCoursegrades()
-	{
-		$result = MoodleController::getCoursegrades($this->idCourseMoodle);
-
-		$this->assertIsArray($result);
-	}
-
-	public function testGetIdCoursegrades()
-	{
-		$result = MoodleController::getIdCoursegrades($this->urlLmsMoodle, $this->idCourseMoodle);
-
-		$this->assertIsArray($result);
 	}
 }

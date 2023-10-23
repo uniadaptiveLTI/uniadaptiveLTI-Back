@@ -99,14 +99,18 @@ class SakaiController extends Controller
     }
 
     public static function createSession($url_lms, $sakaiServerId, $data)
-    {   
-
+    {
         $client = new Client();
         $response = $client->request('GET', $url_lms . '/sakai-ws/rest/login/login?id=' . $data['user'] . '&pw=' . $data['password']);
         $content = $response->getBody()->getContents();
-        $user_id = $content . '.' . $sakaiServerId;
-        return $user_id;
+        $statusCode = $response->getStatusCode();
 
+        if (isset($statusCode) && $statusCode == 200) {
+            $user_id = $content . '.' . $sakaiServerId;
+            return ['ok' => true, 'data' => ['user_id' => $user_id, 'status_code' => $statusCode]];
+        } else {
+            return ['ok' => false, 'data' => []];
+        }
     }
 
     public static function getLessons($url_lms, $context_id, $session_id)
@@ -739,7 +743,6 @@ class SakaiController extends Controller
         $request = SakaiController::createClient($url_lms . '/api/sites/' . $context_id . '/entities/assessments', $session_id);
 
         $modules = json_decode($request['requestBody']);
-        error_log(print_r($modules, true));
         $statusCode = $request['statusCode'];
 
         if ($statusCode == 200) {
@@ -753,10 +756,24 @@ class SakaiController extends Controller
 
     public static function createClient($url, $session_id, $type = 'GET', $bodyData = [])
     {
+        $lmsInstance = LtiController::getLmsToken($url, "sakai", true);
+
+        if (
+            isset($lmsInstance) && isset($lmsInstance['ok']) && $lmsInstance['ok'] == true
+        ) {
+            if (isset($lmsInstance['data']) && isset($lmsInstance['data']['cookieName'])) {
+                $cookieName = $lmsInstance['data']['cookieName'];
+            } else {
+                $cookieName = "JSESSIONID";
+            }
+        } else {
+            return ['requestBody' => [], 'statusCode' => 400];
+        }
+
         $client = new Client();
         $options = [
             'headers' => [
-                'Cookie' => 'JSESSIONID=' . $session_id
+                'Cookie' => $cookieName . '=' . $session_id
             ],
         ];
         switch ($type) {
@@ -770,7 +787,7 @@ class SakaiController extends Controller
                 }
                 break;
 
-            case "BATCH":
+            case "PATCH":
             case "POST":
                 // Convert the $bodyData array to JSON
                 $options['json'] = $bodyData;
@@ -847,7 +864,7 @@ class SakaiController extends Controller
 
             if ($lessonStatusCode == 200 && $conditionsStatusCode == 200) {
                 if (count($nodesToUpdate) >= 1) {
-                    $nodesUpdateRequest = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/entities', $sessionData->session_id, 'BATCH', $nodesToUpdate);
+                    $nodesUpdateRequest = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/entities', $sessionData->session_id, 'PATCH', $nodesToUpdate);
                     $nodesUpdateStatusCode = $nodesUpdateRequest['statusCode'];
 
                     if ($nodesUpdateStatusCode !== 200) {

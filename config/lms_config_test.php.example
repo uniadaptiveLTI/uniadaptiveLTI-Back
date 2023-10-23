@@ -1,0 +1,7 @@
+<?php
+
+return [
+    'url' => 'http://localhost:8443',
+    'user' => 'admin',
+    'password' => 'admin'
+];
