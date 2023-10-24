@@ -240,9 +240,12 @@ class SakaiController extends Controller
             $dataForums = json_decode($request['requestBody']);
             foreach ($dataForums->forums_collection as $forum) {
                 if ($forum->id == $forumId) {
-                    return $forum;
+                    return ['ok' => true, 'data' => ['forum_founded' => $forum, 'status_code' => $statusCode]];
                 }
             }
+            return ['ok' => false, 'data' => ['status_code' => $statusCode]];
+        } else {
+            return ['ok' => false, 'data' => ['status_code' => $statusCode]];
         }
     }
 
@@ -275,9 +278,12 @@ class SakaiController extends Controller
             $dataAssignments = json_decode($request['requestBody']);
             foreach ($dataAssignments->assignment_collection as $assignment) {
                 if ($assignment->id == $assignmentId) {
-                    return $assignment;
+                    return ['ok' => true, 'data' => ['assignment_founded' => $assignment, 'status_code' => $statusCode]];
                 }
             }
+            return ['ok' => false, 'data' => ['status_code' => $statusCode]];
+        } else {
+            return ['ok' => false, 'data' => ['status_code' => $statusCode]];
         }
     }
 
@@ -355,9 +361,12 @@ class SakaiController extends Controller
             $modules = json_decode($request['requestBody']);
             foreach ($modules as $resource) {
                 if ($resource->id == $resourceId) {
-                    return $resource;
+                    return ['ok' => true, 'data' => ['resource_founded' => $resource, 'status_code' => $statusCode]];
                 }
             }
+            return ['ok' => false, 'data' => ['status_code' => $statusCode]];
+        } else {
+            return ['ok' => false, 'data' => ['status_code' => $statusCode]];
         }
     }
 
@@ -402,7 +411,7 @@ class SakaiController extends Controller
         }
     }
 
-    public static function getModules($url_lms, $lesson_id, $session_id, $context_id)
+    public static function getModules($url_lms, $site_id, $lesson_id, $session_id, $context_id)
     {
         // header('Access-Control-Allow-Origin: *');
         // dd($url_lms.'/direct/lessons/lesson/'.$context_id.'.json');
@@ -439,157 +448,156 @@ class SakaiController extends Controller
                         $order = 1;
                     } else if ($modulesData->contentsList[$index]->type != 'break' /*&& $modulesData->contentsList[$index]->type != 'generic'*/&& $modulesData->contentsList[$index]->type != 'page' && $modulesData->contentsList[$index]->type != 'text') {
                         // $modulesData->contentsList[$index]->section = $section;
-                        $module = [
-                            "id" => $modulesData->contentsList[$index]->id,
-                            "name" => $modulesData->contentsList[$index]->name,
-                            "modname" => $modulesData->contentsList[$index]->type,
-                            "pageId" => $modulesData->contentsList[$index]->pageId,
-                            "section" => $section,
-                            "indent" => $column,
-                            "order" => $order++,
-                        ];
+                        $itemFounded = SakaiController::getLessonItemById($modulesData->contentsList[$index], $url_lms, $context_id, $session_id);
+                        if (isset($itemFounded)) {
+                            $module = [
+                                "id" => $modulesData->contentsList[$index]->id,
+                                "name" => $modulesData->contentsList[$index]->name,
+                                "modname" => $modulesData->contentsList[$index]->type,
+                                "pageId" => $modulesData->contentsList[$index]->pageId,
+                                "section" => $section,
+                                "indent" => $column,
+                                "order" => $order++,
+                            ];
 
-                        switch ($modulesData->contentsList[$index]->type) {
-                            case 'exam':
-                                $sakaiId = SakaiController::parseSakaiId($modulesData->contentsList[$index]);
-                                $module['sakaiId'] = $sakaiId;
+                            switch ($modulesData->contentsList[$index]->type) {
+                                case 'exam':
+                                    if (isset($itemFounded)) {
+                                        if (isset($itemFounded->openDate)) {
+                                            $openDate = date('Y-m-d\TH:i', $itemFounded->openDate);
+                                            $module['openDate'] = $openDate;
+                                        }
 
-                                $examFounded = SakaiController::getAssesmentById($url_lms, $context_id, $session_id, $sakaiId);
+                                        if (isset($itemFounded->dueDate)) {
+                                            $dueDate = date('Y-m-d\TH:i', $itemFounded->dueDate);
+                                            $module['dueDate'] = $dueDate;
+                                        }
 
-                                if (isset($examFounded)) {
-                                    if (isset($examFounded->openDate)) {
-                                        $openDate = date('Y-m-d\TH:i', $examFounded->openDate);
+                                        if (isset($itemFounded->closeDate)) {
+                                            $closeDate = date('Y-m-d\TH:i', $itemFounded->closeDate);
+                                            $module['closeDate'] = $closeDate;
+                                        }
+
+                                        if (
+                                            isset($itemFounded->timeExceptions) &&
+                                            is_array($itemFounded->timeExceptions) && count($itemFounded->timeExceptions) > 0
+                                        ) {
+                                            $module['timeExceptions'] = [];
+                                            foreach ($itemFounded->timeExceptions as $exception) {
+                                                if (isset($exception->forEntityRef)) {
+                                                    $exceptionData = [];
+
+                                                    $exceptionData['forEntityRef'] = $exception->forEntityRef;
+
+                                                    if (isset($exception->openDate)) {
+                                                        $exceptionData['openDate'] = date('Y-m-d\TH:i', $exception->openDate);
+                                                    }
+
+                                                    if (isset($exception->dueDate)) {
+                                                        $exceptionData['dueDate'] = date('Y-m-d\TH:i', $exception->dueDate);
+                                                    }
+
+                                                    if (isset($exception->closeDate)) {
+                                                        $exceptionData['closeDate'] = date('Y-m-d\TH:i', $exception->closeDate);
+                                                    }
+
+                                                    $module['timeExceptions'][] = $exceptionData;
+                                                }
+                                            }
+                                        }
+
+                                        if (
+                                            isset($itemFounded->groupRefs) &&
+                                            is_array($itemFounded->groupRefs) && count($itemFounded->groupRefs) > 0
+                                        ) {
+                                            $module['groups'] = $itemFounded->groupRefs;
+                                        }
+                                    }
+
+                                    break;
+                                case 'assign':
+                                    if (isset($itemFounded) && isset($itemFounded->openTime) && isset($itemFounded->openTime->epochSecond)) {
+                                        $openDate = date('Y-m-d\TH:i', $itemFounded->openTime->epochSecond);
                                         $module['openDate'] = $openDate;
                                     }
 
-                                    if (isset($examFounded->dueDate)) {
-                                        $dueDate = date('Y-m-d\TH:i', $examFounded->dueDate);
+                                    if (isset($itemFounded) && isset($itemFounded->dueTime) && isset($itemFounded->dueTime->epochSecond)) {
+                                        $dueDate = date('Y-m-d\TH:i', $itemFounded->dueTime->epochSecond);
                                         $module['dueDate'] = $dueDate;
                                     }
 
-                                    if (isset($examFounded->closeDate)) {
-                                        $closeDate = date('Y-m-d\TH:i', $examFounded->closeDate);
+                                    if (isset($itemFounded) && isset($itemFounded->closeTime) && isset($itemFounded->closeTime->epochSecond)) {
+                                        $closeDate = date('Y-m-d\TH:i', $itemFounded->closeTime->epochSecond);
                                         $module['closeDate'] = $closeDate;
                                     }
 
                                     if (
-                                        isset($examFounded->timeExceptions) &&
-                                        is_array($examFounded->timeExceptions) && count($examFounded->timeExceptions) > 0
+                                        isset($itemFounded->groups) &&
+                                        is_array($itemFounded->groups) && count($itemFounded->groups) > 0
                                     ) {
-                                        $module['timeExceptions'] = [];
-                                        foreach ($examFounded->timeExceptions as $exception) {
-                                            if (isset($exception->forEntityRef)) {
-                                                $exceptionData = [];
+                                        $module['groups'] = $itemFounded->groups;
+                                    }
 
-                                                $exceptionData['forEntityRef'] = $exception->forEntityRef;
+                                    break;
+                                case 'forum':
+                                    if (isset($itemFounded) && isset($itemFounded->openDate)) {
+                                        $openDate = date('Y-m-d\TH:i', $itemFounded->openDate);
+                                        $module['openDate'] = $openDate;
+                                    }
 
-                                                if (isset($exception->openDate)) {
-                                                    $exceptionData['openDate'] = date('Y-m-d\TH:i', $exception->openDate);
-                                                }
+                                    if (isset($itemFounded) && isset($itemFounded->closeDate)) {
+                                        $closeDate = date('Y-m-d\TH:i', $itemFounded->closeDate);
+                                        $module['dueDate'] = $closeDate;
+                                    }
 
-                                                if (isset($exception->dueDate)) {
-                                                    $exceptionData['dueDate'] = date('Y-m-d\TH:i', $exception->dueDate);
-                                                }
+                                    break;
+                                case 'break':
+                                    break 2;
+                                case 'folder':
+                                    if (isset($itemFounded) && isset($itemFounded->openDate)) {
+                                        $openDate = date('Y-m-d\TH:i', $itemFounded->openDate);
+                                        $module['openDate'] = $openDate;
+                                    }
 
-                                                if (isset($exception->closeDate)) {
-                                                    $exceptionData['closeDate'] = date('Y-m-d\TH:i', $exception->closeDate);
-                                                }
+                                    if (isset($itemFounded) && isset($itemFounded->closeDate)) {
+                                        $closeDate = date('Y-m-d\TH:i', $itemFounded->closeDate);
+                                        $module['dueDate'] = $closeDate;
+                                    }
+                                    break;
+                                case 'resource':
+                                    if (isset($itemFounded) && isset($itemFounded->openDate)) {
+                                        $openDate = date('Y-m-d\TH:i', $itemFounded->openDate);
+                                        $module['openDate'] = $openDate;
+                                    }
 
-                                                $module['timeExceptions'][] = $exceptionData;
-                                            }
-                                        }
+                                    if (isset($itemFounded) && isset($itemFounded->closeDate)) {
+                                        $closeDate = date('Y-m-d\TH:i', $itemFounded->closeDate);
+                                        $module['dueDate'] = $closeDate;
                                     }
 
                                     if (
-                                        isset($examFounded->groupRefs) &&
-                                        is_array($examFounded->groupRefs) && count($examFounded->groupRefs) > 0
+                                        isset($itemFounded->groupRefs) &&
+                                        is_array($itemFounded->groupRefs) && count($itemFounded->groupRefs) > 0
                                     ) {
-                                        $module['groups'] = $examFounded->groupRefs;
+                                        $module['groups'] = $itemFounded->groupRefs;
                                     }
-                                }
+                                    break;
+                                default:
+                                    array_push(
+                                        $modules,
+                                        $module
+                                    );
+                                    break 2;
+                            }
 
-                                break;
-                            case 'assign':
-                                $sakaiId = SakaiController::parseSakaiId($modulesData->contentsList[$index]);
-                                $module['sakaiId'] = $sakaiId;
+                            $updatedModuleWithDates = SakaiController::parseItemDates($module);
+                            $updatedModuleWithExceptionDates = SakaiController::parseItemExceptionDates($updatedModuleWithDates);
 
-                                $assignmentFounded = SakaiController::getAssignmentById($url_lms, $context_id, $session_id, $sakaiId);
-
-                                if (isset($assignmentFounded) && isset($assignmentFounded->openTime) && isset($assignmentFounded->openTime->epochSecond)) {
-                                    $openDate = date('Y-m-d\TH:i', $assignmentFounded->openTime->epochSecond);
-                                    $module['openDate'] = $openDate;
-                                }
-
-                                if (isset($assignmentFounded) && isset($assignmentFounded->dueTime) && isset($assignmentFounded->dueTime->epochSecond)) {
-                                    $dueDate = date('Y-m-d\TH:i', $assignmentFounded->dueTime->epochSecond);
-                                    $module['dueDate'] = $dueDate;
-                                }
-
-                                if (isset($assignmentFounded) && isset($assignmentFounded->closeTime) && isset($assignmentFounded->closeTime->epochSecond)) {
-                                    $closeDate = date('Y-m-d\TH:i', $assignmentFounded->closeTime->epochSecond);
-                                    $module['closeDate'] = $closeDate;
-                                }
-
-                                if (
-                                    isset($assignmentFounded->groups) &&
-                                    is_array($assignmentFounded->groups) && count($assignmentFounded->groups) > 0
-                                ) {
-                                    $module['groups'] = $assignmentFounded->groups;
-                                }
-
-                                break;
-                            case 'forum':
-                                $sakaiId = SakaiController::parseSakaiId($modulesData->contentsList[$index]);
-                                $module['sakaiId'] = $sakaiId;
-
-                                $forumFounded = SakaiController::getForumById($url_lms, $context_id, $session_id, $sakaiId);
-
-                                if (isset($forumFounded) && isset($forumFounded->openDate)) {
-                                    $openDate = date('Y-m-d\TH:i', $forumFounded->openDate);
-                                    $module['openDate'] = $openDate;
-                                }
-
-                                if (isset($forumFounded) && isset($forumFounded->closeDate)) {
-                                    $closeDate = date('Y-m-d\TH:i', $forumFounded->closeDate);
-                                    $module['dueDate'] = $closeDate;
-                                }
-
-                                break;
-                            case 'break':
-                                break 2;
-                            default:
-                                $sakaiId = $modulesData->contentsList[$index]->sakaiId;
-                                $module['sakaiId'] = $sakaiId;
-
-                                $resourceFounded = SakaiController::getResourceById($url_lms, $context_id, $session_id, $sakaiId);
-
-                                if (isset($resourceFounded) && isset($resourceFounded->openDate)) {
-                                    $openDate = date('Y-m-d\TH:i', $resourceFounded->openDate);
-                                    $module['openDate'] = $openDate;
-                                }
-
-                                if (isset($resourceFounded) && isset($resourceFounded->closeDate)) {
-                                    $closeDate = date('Y-m-d\TH:i', $resourceFounded->closeDate);
-                                    $module['dueDate'] = $closeDate;
-                                }
-
-                                if (
-                                    isset($resourceFounded->groupRefs) &&
-                                    is_array($resourceFounded->groupRefs) && count($resourceFounded->groupRefs) > 0
-                                ) {
-                                    $module['groups'] = $resourceFounded->groupRefs;
-                                }
-
-                                break;
+                            array_push(
+                                $modules,
+                                $updatedModuleWithExceptionDates
+                            );
                         }
-
-                        $updatedModuleWithDates = SakaiController::parseItemDates($module);
-                        $updatedModuleWithExceptionDates = SakaiController::parseItemExceptionDates($updatedModuleWithDates);
-
-                        array_push(
-                            $modules,
-                            $updatedModuleWithExceptionDates
-                        );
                     }
                 }
 
@@ -609,6 +617,69 @@ class SakaiController extends Controller
             }
         } else {
             return response()->json(['ok' => false, 'errorType' => 'MODULES_ERROR']);
+        }
+    }
+
+    public static function getLessonItemById($item, $url_lms, $context_id, $session_id)
+    {
+        if (isset($item) && isset($item->type)) {
+            switch ($item->type) {
+                case "exam":
+                    $sakaiId = SakaiController::parseSakaiId($item);
+                    $examFounded = SakaiController::getAssesmentById($url_lms, $context_id, $session_id, $sakaiId);
+
+                    if (
+                        isset($examFounded) && isset($examFounded['ok']) && $examFounded['ok'] == true && isset($examFounded['data']) &&
+                        isset($examFounded['data']['status_code']) && $examFounded['data']['status_code'] == 200
+                    ) {
+                        return $examFounded['data']['assesment_founded'];
+                    } else {
+                        return null;
+                    }
+                case "assign":
+                    $sakaiId = SakaiController::parseSakaiId($item);
+                    $assignmentFounded = SakaiController::getAssignmentById($url_lms, $context_id, $session_id, $sakaiId);
+
+                    if (
+                        isset($assignmentFounded) && isset($assignmentFounded['ok']) && $assignmentFounded['ok'] == true && isset($assignmentFounded['data']) &&
+                        isset($assignmentFounded['data']['status_code']) && $assignmentFounded['data']['status_code'] == 200
+                    ) {
+                        return $assignmentFounded['data']['assignment_founded'];
+                    } else {
+                        return null;
+                    }
+                case "forum":
+                    $sakaiId = SakaiController::parseSakaiId($item);
+                    $forumFounded = SakaiController::getForumById($url_lms, $context_id, $session_id, $sakaiId);
+
+                    if (
+                        isset($forumFounded) && isset($forumFounded['ok']) && $forumFounded['ok'] == true && isset($forumFounded['data']) &&
+                        isset($forumFounded['data']['status_code']) && $forumFounded['data']['status_code'] == 200
+                    ) {
+                        return $forumFounded['data']['forum_founded'];
+                    } else {
+                        return null;
+                    }
+                case "break":
+                    return null;
+                case 'folder':
+                case "resource":
+                    $sakaiId = $item->sakaiId;
+                    $resourceFounded = SakaiController::getResourceById($url_lms, $context_id, $session_id, $sakaiId);
+
+                    if (
+                        isset($resourceFounded) && isset($resourceFounded['ok']) && $resourceFounded['ok'] == true && isset($resourceFounded['data']) &&
+                        isset($resourceFounded['data']['status_code']) && $resourceFounded['data']['status_code'] == 200
+                    ) {
+                        return $resourceFounded['data']['resource_founded'];
+                    } else {
+                        return null;
+                    }
+                default:
+                    return ['type' => 'generic'];
+            }
+        } else {
+            return null;
         }
     }
 
@@ -784,9 +855,12 @@ class SakaiController extends Controller
             $modules = json_decode($request['requestBody']);
             foreach ($modules as $assesment) {
                 if ($assesment->id == $assesmentId) {
-                    return $assesment;
+                    return ['ok' => true, 'data' => ['assesment_founded' => $assesment, 'status_code' => $statusCode]];
                 }
             }
+            return ['ok' => false, 'data' => ['status_code' => $statusCode]];
+        } else {
+            return ['ok' => false, 'data' => ['status_code' => $statusCode]];
         }
     }
 
@@ -864,7 +938,6 @@ class SakaiController extends Controller
 
     public static function exportVersion(Request $request, $sessionData)
     {
-        //header('Access-Control-Allow-Origin: *');
         $nodes = $request->nodes;
 
         $nodes = array_map(function ($item) {
@@ -915,11 +988,11 @@ class SakaiController extends Controller
                 $lessonItemsDeleteStatusCode = $lessonItemsDelete;
 
                 if ($conditionsDeleteStatusCode === 200 && $lessonItemsDeleteStatusCode === 200) {
-                    /*$nodesCreationRequest = SakaiController::createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/items/bulk', $sessionData->session_id, 'POST', $nodes);
+                    $nodesCreationRequest = SakaiController::createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/items/bulk', $sessionData->session_id, 'POST', $nodes);
                     $nodesCreated = $nodesCreationRequest['requestBody'];
                     $nodesCreationStatusCode = $nodesCreationRequest['statusCode'];
 
-                    if ($nodesCreationStatusCode != 200) {
+                    if ($nodesCreationStatusCode == 200) {
                         if (($conditionList != null && count($conditionList) >= 1)) {
                             $filteredArray = SakaiController::conditionIdParse(json_decode($nodesCreated), $conditionList);
 
@@ -929,42 +1002,44 @@ class SakaiController extends Controller
                             $conditionsCreationStatusCode = $conditionsCreationRequest['statusCode'];
 
                             if ($conditionsCreationStatusCode == 200) {
-                                return response()->json(['ok' => true, 'errorType' => 'EXPORTACION_CON_EXITO', 'data' => '']);
+                                return response()->json(['ok' => true, 'successType' => 'SUCCESSFUL_EXPORT']);
                             } else {
-                                return response()->json(['ok' => true, 'errorType' => 'EXPORTACION_CON_EXITO', 'data' => '', 'extraInfo' => 'conditions_not']);
+                                return response()->json(['ok' => true, 'successType' => 'SUCCESSFUL_EXPORT_WITHOUT_CONDITIONS']);
                             }
                         } else {
-                            return response()->json(['ok' => true, 'errorType' => 'EXPORTACION_CON_EXITO', 'data' => '', 'extraInfo' => 'conditions_not']);
+                            return response()->json(['ok' => true, 'successType' => 'SUCCESSFUL_EXPORT_WITHOUT_CONDITIONS']);
                         }
-                    } else {*/
-                    $parsedNodes = SakaiController::parseSakaiLessonCopy($lessonCopy->contentsList);
-                    $parsedNodesWithId = SakaiController::parseSakaiLessonCopy($lessonCopy->contentsList, true);
-
-                    $nodesCopyCreationRequest = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/items/bulk', $sessionData->session_id, 'POST', $parsedNodes);
-                    $nodesCopyCreation = json_decode($nodesCopyCreationRequest['requestBody']);
-                    $nodesCopyCreationStatusCode = $nodesCopyCreationRequest['statusCode'];
-                    error_log("AYA PACA");
-                    $parsedConditions = SakaiController::conditionItemIdAdder($parsedNodes, json_decode($conditionsCopy));
-                    error_log(print_r($parsedConditions, true));
-                    $filteredArray = SakaiController::conditionIdParse($nodesCopyCreation, $parsedConditions);
-                    error_log(print_r($filteredArray, true));
-                    $conditionsCopyCreationRequest = SakaiController::createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/conditions/bulk', $sessionData->session_id, 'POST', $filteredArray);
-                    $conditionsCopyCreationStatusCode = $conditionsCopyCreationRequest['statusCode'];
-
-                    if ($nodesCopyCreationStatusCode == 200 && $conditionsCopyCreationStatusCode == 200) {
-                        return response()->json(['ok' => false, 'errorType' => 'LESSON_ITEMS_CREATION_ERROR', 'data' => '']);
                     } else {
-                        return response()->json(['ok' => false, 'errorType' => 'FATAL_ERROR', 'data' => '']);
-                    }
+                        $parsedNodes = SakaiController::parseSakaiLessonCopy($lessonCopy->contentsList);
+                        $parsedNodesWithId = SakaiController::parseSakaiLessonCopy($lessonCopy->contentsList, true);
 
+                        $nodesCopyCreationRequest = SakaiController::createClient($sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/items/bulk', $sessionData->session_id, 'POST', $parsedNodes);
+                        $nodesCopyCreation = json_decode($nodesCopyCreationRequest['requestBody']);
+                        $nodesCopyCreationStatusCode = $nodesCopyCreationRequest['statusCode'];
+                        if ($nodesCopyCreationStatusCode == 200) {
+                            $parsedConditions = SakaiController::conditionItemIdAdder($parsedNodesWithId, json_decode($conditionsCopy));
+                            $filteredArray = SakaiController::conditionIdParse($nodesCopyCreation, $parsedConditions);
+
+                            $conditionsCopyCreationRequest = SakaiController::createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/conditions/bulk', $sessionData->session_id, 'POST', $filteredArray);
+                            $conditionsCopyCreationStatusCode = $conditionsCopyCreationRequest['statusCode'];
+
+                            if ($conditionsCopyCreationStatusCode == 200) {
+                                return response()->json(['ok' => false, 'errorType' => 'LESSON_ITEMS_CREATION_ERROR']);
+                            } else {
+                                return response()->json(['ok' => false, 'errorType' => 'LESSON_ITEMS_WITHOUT_CONDITIONS_CREATION_ERROR']);
+                            }
+                        } else {
+                            return response()->json(['ok' => false, 'errorType' => 'FATAL_ERROR']);
+                        }
+                    }
                 } else {
-                    return response()->json(['ok' => false, 'errorType' => 'LESSON_DELETE_ERROR', 'data' => '']);
+                    return response()->json(['ok' => false, 'errorType' => 'LESSON_DELETE_ERROR']);
                 }
             } else {
-                return response()->json(['ok' => false, 'errorType' => 'LESSON_COPY_ERROR', 'data' => '']);
+                return response()->json(['ok' => false, 'errorType' => 'LESSON_COPY_ERROR']);
             }
         } else {
-            return response()->json(['ok' => false, 'errorType' => 'PAGE_EXPORT_ERROR', 'data' => '']);
+            return response()->json(['ok' => false, 'errorType' => 'PAGE_EXPORT_ERROR']);
         }
     }
 
@@ -1024,35 +1099,37 @@ class SakaiController extends Controller
             return false;
         });
 
-        foreach ($filteredArray as &$root) {
-            foreach ($nodesIdList as $idObject) {
-                $idObject = json_decode($idObject, true);
-                if ($root['itemId'] == $idObject['contentRef']) {
-                    $root['itemId'] = ($idObject['id']);
-                    unset($root['id']);
-                    break;
+        if (isset($filteredArray) && $filteredArray != null) {
+            foreach ($filteredArray as &$root) {
+                foreach ($nodesIdList as $idObject) {
+                    $idObject = json_decode($idObject, true);
+                    if ($root['itemId'] == $idObject['contentRef']) {
+                        $root['itemId'] = ($idObject['id']);
+                        unset($root['id']);
+                        break;
+                    }
                 }
-            }
 
-            if (isset($root['subConditions'])) {
-                foreach ($root['subConditions'] as &$parent) {
-                    unset($parent['id']);
-                    if (isset($parent['subConditions']) && count($parent['subConditions']) >= 1) {
-                        foreach ($parent['subConditions'] as &$childCondition) {
-                            foreach ($nodesIdList as $idObject) {
-                                $idObject = json_decode($idObject, true);
-                                if ($childCondition['itemId'] == $idObject['contentRef']) {
-                                    $childCondition['itemId'] = ($idObject['id']);
-                                    unset($childCondition['id']);
-                                    break;
+                if (isset($root['subConditions'])) {
+                    foreach ($root['subConditions'] as &$parent) {
+                        unset($parent['id']);
+                        if (isset($parent['subConditions']) && count($parent['subConditions']) >= 1) {
+                            foreach ($parent['subConditions'] as &$childCondition) {
+                                foreach ($nodesIdList as $idObject) {
+                                    $idObject = json_decode($idObject, true);
+                                    if ($childCondition['itemId'] == $idObject['contentRef']) {
+                                        $childCondition['itemId'] = ($idObject['id']);
+                                        unset($childCondition['id']);
+                                        break;
+                                    }
                                 }
                             }
                         }
                     }
                 }
             }
+            unset($root, $subCondition, $childCondition);
         }
-        unset($root, $subCondition, $childCondition);
 
         return $filteredArray;
     }
@@ -1060,25 +1137,25 @@ class SakaiController extends Controller
     public static function parseSakaiLessonCopy($contentsList, $idAdder = false)
     {
         $parsedSakaiLessonCopy = [];
+        if (isset($contentsList) && $contentsList != null) {
+            foreach ($contentsList as $content) {
+                $parsedContent = [];
+                if ($idAdder == true) {
+                    $parsedContent['id'] = $content->id;
+                }
+                $parsedContent['title'] = $content->name;
+                $parsedContent['pageId'] = $content->pageId;
+                $parsedContent['type'] = $content->type;
 
-        foreach ($contentsList as $content) {
-            $parsedContent = [];
-            if ($idAdder == true) {
-                $parsedContent['id'] = $content->id;
+                if ($content->type == 14) {
+                    $parsedContent['format'] = $content->format;
+                } else {
+                    $parsedContent['contentRef'] = $content->sakaiId;
+                }
+
+                array_push($parsedSakaiLessonCopy, $parsedContent);
             }
-            $parsedContent['title'] = $content->name;
-            $parsedContent['pageId'] = $content->pageId;
-            $parsedContent['type'] = $content->type;
-
-            if ($content->type == 14) {
-                $parsedContent['format'] = $content->format;
-            } else {
-                $parsedContent['contentRef'] = $content->sakaiId;
-            }
-
-            array_push($parsedSakaiLessonCopy, $parsedContent);
         }
-
         return $parsedSakaiLessonCopy;
     }
 }

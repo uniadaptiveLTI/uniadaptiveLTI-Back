@@ -242,7 +242,7 @@ class LtiController extends Controller
                     break;
                 case 'sakai':
                     if (isset($request->lesson)) {
-                        return SakaiController::getModules($sessionData->platform_id, $request->lesson, $sessionData->session_id, $sessionData->context_id);
+                        return SakaiController::getModules($sessionData->platform_id, $sessionData->context_id, $request->lesson, $sessionData->session_id, $sessionData->context_id);
                     } else {
                         return response()->json(['ok' => false, 'error_type' => 'LESSON_NOT_VALID', 'data' => []]);
                     }
