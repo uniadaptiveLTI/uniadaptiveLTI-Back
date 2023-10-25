@@ -258,11 +258,12 @@ class MoodleController extends Controller
     // Function that returns the modules of a specific type of a course.
     public static function getModulesByType(Request $request, $sessionData)
     {
+        // header('Access-Control-Allow-Origin: *');
         $url_lms = $sessionData->platform_id;
         $token_request = LtiController::getLmsToken($url_lms, MOODLE_PLATFORM, true);
 
-        $milliseconds = round(microtime(true) * 1000);
-        error_log('Comienzo de petición: ' . date('Y-m-d H:i:s', $milliseconds / 1000) . substr((string) $milliseconds, -3));
+        // $milliseconds = round(microtime(true) * 1000);
+        // error_log('Comienzo de petición: ' . date('Y-m-d H:i:s', $milliseconds / 1000) . substr((string) $milliseconds, -3));
         $client = new Client([
             'base_uri' => $url_lms . '/webservice/rest/server.php',
             'timeout' => 20.0,
@@ -288,28 +289,26 @@ class MoodleController extends Controller
             $response = $client->request('GET', '', [
                 'query' => [
                     'wstoken' => $token_request['data'],
-                    'wsfunction' => 'core_course_get_contents',
+                    'wsfunction' => 'local_uniadaptive_get_course_modules_by_type',
                     'courseid' => $sessionData->context_id,
-                    'options' => [
-                        [
-                            'name' => 'modname',
-                            'value' => $request->type,
-                        ]
-                    ],
+                    'type' => $request->type,
+                    'excludestatusdelete' => true,
                     'moodlewsrestformat' => 'json'
                 ]
             ]);
             $content = $response->getBody()->getContents();
             $data = json_decode($content);
+            
             $module_grades = MoodleController::getCoursegrades($sessionData->platform_id, $sessionData->context_id);
             $modules = [];
-            foreach ($data as $indexM => $section) {
-                foreach ($section->modules as $module) {
+            foreach ($data as $modules_data) {
+                
+                foreach ($modules_data as $module) {
                     $has_grades = in_array($module->name, $module_grades->module_grades);
                     array_push($modules, [
                         'id' => htmlspecialchars($module->id),
                         'name' => htmlspecialchars($module->name),
-                        'section' => htmlspecialchars($indexM),
+                        'section' => htmlspecialchars($module->section),
                         'has_grades' => $has_grades
                     ]);
                 }
@@ -468,7 +467,7 @@ class MoodleController extends Controller
     // This function creates a Moodle version of the course with the request data.
     public static function exportVersion(Request $request)
     {
-        // header('Access-Control-Allow-Origin: *');
+        header('Access-Control-Allow-Origin: *');
 
         $sections = MoodleController::getModulesListBySectionsCourse($request->instance, $request->course);
         // dd($sections);
@@ -773,6 +772,8 @@ class MoodleController extends Controller
     // This function gets the modules of a Moodle course that are not compatible with the type of map you want to create.
     public static function getModulesNotSupported($request, $sessionData)
     {
+        // header('Access-Control-Allow-Origin: *');
+        // dd(explode(',', json_encode($request->supportedTypes)));
         $url_lms = $sessionData->platform_id;
         $token_request = LtiController::getLmsToken($url_lms, MOODLE_PLATFORM, true);
 
@@ -786,11 +787,10 @@ class MoodleController extends Controller
                 'wstoken' => $token_request['data'],
                 'wsfunction' => 'local_uniadaptive_get_course_modules',
                 'courseid' => $sessionData->context_id,
-                'exclude' => explode(',', json_encode($request->supportedTypes)),
+                'exclude' => $request->supportedTypes,
                 'invert' => false,
                 'moodlewsrestformat' => 'json'
             ]
-
         ]);
         $content = $response->getBody()->getContents();
         $data = json_decode($content);
@@ -888,7 +888,7 @@ class MoodleController extends Controller
         $url_lms = MoodleController::getURLLMS($instance);
         $token_request = LtiController::getLmsToken($url_lms, MOODLE_PLATFORM, true);
 
-        //dd($instance, $sections, $modules, $badges);
+        // dd($instance, $sections, $modules, $badges);
         $client = new Client([
             'base_uri' => $url_lms . '/webservice/rest/server.php',
             'timeout' => 20.0,
@@ -910,7 +910,7 @@ class MoodleController extends Controller
         ]);
         $content = $response->getBody()->getContents();
         $data = json_decode($content);
-        dd($data);
+        // dd($data);
         return $data;
     }
     public static function getCalifications($url_lms, $module_id, $module_modname)
@@ -938,9 +938,11 @@ class MoodleController extends Controller
 
         $content = $response->getBody()->getContents();
         $data = json_decode($content);
-        $data->data->data->min = (float) number_format($data->data->data->min, 5);
-        $data->data->data->max = (float) number_format($data->data->data->max, 5);
-        // error_log(json_encode($data));
+        $min = (float) number_format($data->data->data->min, 5);
+        $max = (float) number_format($data->data->data->max, 5);
+        $data->data->data->min = $min;
+        $data->data->data->max = $max;
+        error_log(json_encode($data));
         return $data->data;
     }
 }
