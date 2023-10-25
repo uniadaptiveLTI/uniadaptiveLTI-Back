@@ -347,46 +347,30 @@ class SakaiController extends Controller
                 return $str;
             }
 
-            if ($type === 'resource') {
-                function process_resource($resource, &$resources)
-                {
-                    $id = decode_unicode(str_replace('\/', '/', $resource->resourceId));
 
-                    switch ($resource->mimeType) {
-                        case 'text/html':
-                        case 'text/url':
-                        case null:
-                            break;
-                        default:
-                            array_push($resources, [
-                                'id' => htmlspecialchars($id),
-                                'name' => htmlspecialchars($resource->name)
-                            ]);
-                            break;
-                    }
-                    error_log("223 " . print_r($resource, true));
-                    if (count($resource->resourceChildren) >= 1) {
-                        foreach ($resource->resourceChildren as $child) {
-                            process_resource($child, $resources);
-                        }
-                    }
+            function process_resource($resource, &$resources, $type)
+            {
+                $id = decode_unicode(str_replace('\/', '/', $resource->resourceId));
+
+                if ($type === $resource->mimeType) {
+                    array_push($resources, [
+                        'id' => htmlspecialchars($id),
+                        'name' => htmlspecialchars($resource->name)
+                    ]);
                 }
 
-                foreach ($dataContents->content_collection[0]->resourceChildren as $resource) {
-                    process_resource($resource, $resources);
-                }
-                return ['ok' => true, 'data' => ['resources' => $resources, 'status_code' => $statusCode]];
-            } else {
-                foreach ($dataContents->content_collection[0]->resourceChildren as $resource) {
-                    if ($resource->mimeType === $type) {
-                        array_push($resources, [
-                            'id' => htmlspecialchars($resource->resourceId),
-                            'name' => htmlspecialchars($resource->name)
-                        ]);
+                if (isset($resource->resourceChildren) && count($resource->resourceChildren) >= 1) {
+                    foreach ($resource->resourceChildren as $child) {
+                        process_resource($child, $resources, $type);
                     }
                 }
-                return ['ok' => true, 'data' => ['resources' => $resources, 'status_code' => $statusCode]];
             }
+
+            foreach ($dataContents->content_collection[0]->resourceChildren as $resource) {
+                process_resource($resource, $resources, $type);
+            }
+
+            return ['ok' => true, 'data' => ['resources' => $resources, 'status_code' => $statusCode]];
         } else {
             return ['ok' => false, 'data' => ['resources' => $resources, 'status_code' => $statusCode]];
         }
@@ -489,11 +473,13 @@ class SakaiController extends Controller
                         }
                         $order = 1;
                     } else if ($modulesData->contentsList[$index]->type != 'break') {
+                        $sakaiId = SakaiController::nodeSakaiIdUpdater($modulesData->contentsList[$index]);
                         // $modulesData->contentsList[$index]->section = $section;
-                        $itemFounded = SakaiController::getLessonItemById($modulesData->contentsList[$index], $url_lms, $context_id, $session_id);
+                        $itemFounded = SakaiController::getLessonItemById($modulesData->contentsList[$index], $url_lms, $context_id, $session_id, $sakaiId);
                         if (isset($itemFounded)) {
                             $module = [
                                 "id" => $modulesData->contentsList[$index]->id,
+                                "sakaiId" => $sakaiId,
                                 "name" => $modulesData->contentsList[$index]->name,
                                 "modname" => $modulesData->contentsList[$index]->type,
                                 "pageId" => $modulesData->contentsList[$index]->pageId,
@@ -663,12 +649,28 @@ class SakaiController extends Controller
         }
     }
 
-    public static function getLessonItemById($item, $url_lms, $context_id, $session_id)
+    public static function nodeSakaiIdUpdater($item)
     {
         if (isset($item) && isset($item->type)) {
             switch ($item->type) {
                 case "exam":
-                    $sakaiId = SakaiController::parseSakaiId($item);
+                case "assign":
+                case "forum":
+                    return SakaiController::parseSakaiId($item);
+                case "folder":
+                case "resource":
+                    return $item->sakaiId;
+                default:
+                    return null;
+            }
+        }
+    }
+
+    public static function getLessonItemById($item, $url_lms, $context_id, $session_id, $sakaiId)
+    {
+        if (isset($item) && isset($item->type)) {
+            switch ($item->type) {
+                case "exam":
                     $examFounded = SakaiController::getAssesmentById($url_lms, $context_id, $session_id, $sakaiId);
                     $successfulExamRequest = SakaiController::requestChecker($examFounded);
 
@@ -678,7 +680,6 @@ class SakaiController extends Controller
                         return null;
                     }
                 case "assign":
-                    $sakaiId = SakaiController::parseSakaiId($item);
                     $assignmentFounded = SakaiController::getAssignmentById($url_lms, $context_id, $session_id, $sakaiId);
                     $successfulAssignmentRequest = SakaiController::requestChecker($assignmentFounded);
 
@@ -688,7 +689,6 @@ class SakaiController extends Controller
                         return null;
                     }
                 case "forum":
-                    $sakaiId = SakaiController::parseSakaiId($item);
                     $forumFounded = SakaiController::getForumById($url_lms, $context_id, $session_id, $sakaiId);
                     $successfulForumRequest = SakaiController::requestChecker($forumFounded);
 
@@ -697,11 +697,8 @@ class SakaiController extends Controller
                     } else {
                         return null;
                     }
-                case "break":
-                    return null;
                 case 'folder':
                 case "resource":
-                    $sakaiId = $item->sakaiId;
                     $resourceFounded = SakaiController::getResourceById($url_lms, $context_id, $session_id, $sakaiId);
                     $successfulResourceRequest = SakaiController::requestChecker($resourceFounded);
 
@@ -912,7 +909,7 @@ class SakaiController extends Controller
                 'Cookie' => $cookieName . '=' . $session_id
             ],
         ];
-        
+
         switch ($type) {
             case "GET":
             case "DELETE":
@@ -1072,7 +1069,7 @@ class SakaiController extends Controller
 
     public static function conditionItemIdAdder($nodes, $conditionList)
     {
-                error_log(print_r($nodes, true));
+        error_log(print_r($nodes, true));
         $nodesIdList = [];
         foreach ($nodes as $node) {
             $node = json_decode(json_encode($node));
