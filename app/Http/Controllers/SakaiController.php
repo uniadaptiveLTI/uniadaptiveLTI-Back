@@ -592,7 +592,7 @@ class SakaiController extends Controller
                                     break;
                                 case 'text':
                                 case 'url':
-                                case 'page':
+                                case 'html':
                                 case 'resource':
                                     if (isset($itemFounded) && isset($itemFounded->openDate)) {
                                         $openDate = date('Y-m-d\TH:i', $itemFounded->openDate);
@@ -829,7 +829,7 @@ class SakaiController extends Controller
             case 1:
                 return 'resource';
             case 2:
-                return 'page';
+                return 'html';
             case 3:
                 return 'assign';
             case 4:
