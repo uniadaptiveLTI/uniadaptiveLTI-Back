@@ -68,21 +68,27 @@ class SakaiController extends Controller
     public static function getSession(object $lastInserted)
     {
         $lessonGetRequest = SakaiController::getLessons($lastInserted->platform_id, $lastInserted->context_id, $lastInserted->session_id);
-        if (isset($lessonGetRequest['data']) && isset($lessonGetRequest['data']['status_code']) && $lessonGetRequest['data']['status_code'] == 200) {
+        $successfulLessonRequest = SakaiController::requestChecker($lessonGetRequest);
+
+        if ($successfulLessonRequest == true) {
             $lessons = $lessonGetRequest['data']['lessons'];
         } else {
             return response()->json($lessonGetRequest);
         }
 
         $userMembersGetRequest = SakaiController::getUserMembers($lastInserted->platform_id, $lastInserted->context_id, $lastInserted->session_id);
-        if (isset($userMembersGetRequest['data']) && isset($userMembersGetRequest['data']['status_code']) && $userMembersGetRequest['data']['status_code'] == 200) {
+        $successfulUserRequest = SakaiController::requestChecker($userMembersGetRequest);
+
+        if ($successfulUserRequest == true) {
             $userMembers = $userMembersGetRequest['data']['users'];
         } else {
             return response()->json($userMembersGetRequest);
         }
 
         $groupsGetRequest = SakaiController::getGroups($lastInserted->platform_id, $lastInserted->context_id, $lastInserted->session_id);
-        if (isset($groupsGetRequest['data']) && isset($groupsGetRequest['data']['status_code']) && $groupsGetRequest['data']['status_code'] == 200) {
+        $successfulGroupRequest = SakaiController::requestChecker($groupsGetRequest);
+
+        if ($successfulGroupRequest == true) {
             $groups = $groupsGetRequest['data']['groups'];
         } else {
             return response()->json($groupsGetRequest);
@@ -145,7 +151,9 @@ class SakaiController extends Controller
             $data = json_decode(($request['requestBody']));
             foreach ($data->lessons_collection as $Lesson) {
                 $pageIdGetRequest = SakaiController::getPageIdLesson($url_lms, $Lesson->id, $session_id);
-                if (isset($pageIdGetRequest['data']) && isset($pageIdGetRequest['data']['status_code']) && $pageIdGetRequest['data']['status_code'] == 200) {
+                $successfulRequest = SakaiController::requestChecker($pageIdGetRequest);
+
+                if ($successfulRequest == true) {
                     array_push($lessons, [
                         'id' => $Lesson->id,
                         'name' => $Lesson->lessonTitle,
@@ -181,32 +189,56 @@ class SakaiController extends Controller
     {
         switch ($request->type) {
             case 'forum':
-                return SakaiController::getForums($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id);
-                break;
+                $forumsGetRequest = SakaiController::getForums($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id);
+                $successfulForumsRequest = SakaiController::requestChecker($forumsGetRequest);
+
+                if ($successfulForumsRequest == true) {
+                    return $forumsGetRequest['data']['forums'];
+                } else {
+                    return [];
+                }
             case 'exam':
-                return SakaiController::getAssesments($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id);
-                break;
+                $examsGetRequest = SakaiController::getAssesments($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id);
+                $successfulExamsRequest = SakaiController::requestChecker($examsGetRequest);
+
+                if ($successfulExamsRequest == true) {
+                    return $examsGetRequest['data']['assesments'];
+                } else {
+                    return [];
+                }
             case 'assign':
-                return SakaiController::getAssignments($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id);
-                break;
+                $assignmentsGetRequest = SakaiController::getAssignments($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id);
+                $successfulAssignmentsRequest = SakaiController::requestChecker($assignmentsGetRequest);
+
+                if ($successfulAssignmentsRequest == true) {
+                    return $assignmentsGetRequest['data']['assignments'];
+                } else {
+                    return [];
+                }
             case 'text':
-                return SakaiController::getResources($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id, 'text/plain');
-                break;
+                return SakaiController::getResourcesByType($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id, 'text/plain');
             case 'url':
-                return SakaiController::getResources($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id, 'text/url');
-                break;
+                return SakaiController::getResourcesByType($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id, 'text/url');
             case 'html':
-                return SakaiController::getResources($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id, 'text/html');
-                break;
+                return SakaiController::getResourcesByType($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id, 'text/html');
             case 'folder':
-                return SakaiController::getResources($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id, null);
-                break;
+                return SakaiController::getResourcesByType($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id, null);
             case 'resource':
-                return SakaiController::getResources($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id, 'resource');
-                break;
+                return SakaiController::getResourcesByType($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id, 'resource');
             default:
                 return response()->json(['ok' => false, 'errorType' => 'TYPE_NOT_SUPPORTED', 'data' => '']);
-                break;
+        }
+    }
+
+    public static function getResourcesByType($platform_id, $context_id, $session_id, $type)
+    {
+        $resourcesGetRequest = SakaiController::getResources($platform_id, $context_id, $session_id, $type);
+        $successfulRequest = SakaiController::requestChecker($resourcesGetRequest);
+
+        if ($successfulRequest == true) {
+            return $resourcesGetRequest['data']['resources'];
+        } else {
+            return [];
         }
     }
 
@@ -226,8 +258,10 @@ class SakaiController extends Controller
                     'name' => $forum->title
                 );
             }
+            return ['ok' => true, 'data' => ['forums' => $forums, 'status_code' => $statusCode]];
+        } else {
+            return ['ok' => false, 'data' => ['status_code' => $statusCode]];
         }
-        return response()->json(['ok' => true, 'data' => $forums]);
     }
 
     public static function getForumById($url_lms, $context_id, $session_id, $forumId)
@@ -264,8 +298,10 @@ class SakaiController extends Controller
                     'name' => $assignment->entityTitle
                 );
             }
+            return ['ok' => true, 'data' => ['assignments' => $assignments, 'status_code' => $statusCode]];
+        } else {
+            return ['ok' => false, 'data' => ['status_code' => $statusCode]];
         }
-        return response()->json(['ok' => true, 'data' => $assignments]);
     }
 
     public static function getAssignmentById($url_lms, $context_id, $session_id, $assignmentId)
@@ -334,7 +370,7 @@ class SakaiController extends Controller
                 foreach ($dataContents->content_collection[0]->resourceChildren as $resource) {
                     process_resource($resource, $resources);
                 }
-                return response()->json(['ok' => true, 'data' => $resources]);
+                return response()->json(['ok' => true, 'data' => ['resources' => $resources, 'status_code' => $statusCode]]);
             } else {
                 foreach ($dataContents->content_collection[0]->resourceChildren as $resource) {
                     if ($resource->mimeType === $type) {
@@ -344,10 +380,10 @@ class SakaiController extends Controller
                         ]);
                     }
                 }
-                return response()->json(['ok' => true, 'data' => $resources]);
+                return response()->json(['ok' => true, 'data' => ['resources' => $resources, 'status_code' => $statusCode]]);
             }
         } else {
-            return response()->json(['ok' => true, 'data' => $resources]);
+            return response()->json(['ok' => false, 'data' => ['resources' => $resources, 'status_code' => $statusCode]]);
         }
     }
 
@@ -627,11 +663,9 @@ class SakaiController extends Controller
                 case "exam":
                     $sakaiId = SakaiController::parseSakaiId($item);
                     $examFounded = SakaiController::getAssesmentById($url_lms, $context_id, $session_id, $sakaiId);
+                    $successfulExamRequest = SakaiController::requestChecker($examFounded);
 
-                    if (
-                        isset($examFounded) && isset($examFounded['ok']) && $examFounded['ok'] == true && isset($examFounded['data']) &&
-                        isset($examFounded['data']['status_code']) && $examFounded['data']['status_code'] == 200
-                    ) {
+                    if ($successfulExamRequest == true) {
                         return $examFounded['data']['assesment_founded'];
                     } else {
                         return null;
@@ -639,11 +673,9 @@ class SakaiController extends Controller
                 case "assign":
                     $sakaiId = SakaiController::parseSakaiId($item);
                     $assignmentFounded = SakaiController::getAssignmentById($url_lms, $context_id, $session_id, $sakaiId);
+                    $successfulAssignmentRequest = SakaiController::requestChecker($assignmentFounded);
 
-                    if (
-                        isset($assignmentFounded) && isset($assignmentFounded['ok']) && $assignmentFounded['ok'] == true && isset($assignmentFounded['data']) &&
-                        isset($assignmentFounded['data']['status_code']) && $assignmentFounded['data']['status_code'] == 200
-                    ) {
+                    if ($successfulAssignmentRequest == true) {
                         return $assignmentFounded['data']['assignment_founded'];
                     } else {
                         return null;
@@ -651,11 +683,9 @@ class SakaiController extends Controller
                 case "forum":
                     $sakaiId = SakaiController::parseSakaiId($item);
                     $forumFounded = SakaiController::getForumById($url_lms, $context_id, $session_id, $sakaiId);
+                    $successfulForumRequest = SakaiController::requestChecker($forumFounded);
 
-                    if (
-                        isset($forumFounded) && isset($forumFounded['ok']) && $forumFounded['ok'] == true && isset($forumFounded['data']) &&
-                        isset($forumFounded['data']['status_code']) && $forumFounded['data']['status_code'] == 200
-                    ) {
+                    if ($successfulForumRequest == true) {
                         return $forumFounded['data']['forum_founded'];
                     } else {
                         return null;
@@ -666,11 +696,9 @@ class SakaiController extends Controller
                 case "resource":
                     $sakaiId = $item->sakaiId;
                     $resourceFounded = SakaiController::getResourceById($url_lms, $context_id, $session_id, $sakaiId);
+                    $successfulResourceRequest = SakaiController::requestChecker($resourceFounded);
 
-                    if (
-                        isset($resourceFounded) && isset($resourceFounded['ok']) && $resourceFounded['ok'] == true && isset($resourceFounded['data']) &&
-                        isset($resourceFounded['data']['status_code']) && $resourceFounded['data']['status_code'] == 200
-                    ) {
+                    if ($successfulResourceRequest == true) {
                         return $resourceFounded['data']['resource_founded'];
                     } else {
                         return null;
@@ -841,8 +869,10 @@ class SakaiController extends Controller
                     'name' => $assesment->title
                 );
             }
+            return ['ok' => true, 'data' => ['assesments' => $assesments, 'status_code' => $statusCode]];
+        } else {
+            return ['ok' => false, 'data' => ['status_code' => $statusCode]];
         }
-        return response()->json(['ok' => true, 'data' => $assesments]);
     }
 
     public static function getAssesmentById($url_lms, $context_id, $session_id, $assesmentId)
@@ -1157,5 +1187,17 @@ class SakaiController extends Controller
             }
         }
         return $parsedSakaiLessonCopy;
+    }
+
+    public static function requestChecker($getRequest)
+    {
+        if (
+            isset($getRequest) && isset($getRequest['ok']) && $getRequest['ok'] == true && isset($getRequest['data']) &&
+            isset($getRequest['data']['status_code']) && $getRequest['data']['status_code'] == 200
+        ) {
+            return true;
+        } else {
+            return false;
+        }
     }
 }
