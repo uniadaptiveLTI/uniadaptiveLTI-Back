@@ -352,9 +352,24 @@ class SakaiController extends Controller
             {
                 $id = decode_unicode(str_replace('\/', '/', $resource->resourceId));
 
-                if ($type === $resource->mimeType) {
+                if ($type === null && $type === $resource->mimeType) {
                     array_push($resources, [
-                        'id' => htmlspecialchars($id),
+                        'id' => htmlspecialchars($resource->id),
+                        'name' => htmlspecialchars($resource->name)
+                    ]);
+                } elseif (is_string($type) && $type !== '' && strpos($resource->mimeType, $type) !== false) {
+                    array_push($resources, [
+                        'id' => htmlspecialchars($resource->id),
+                        'name' => htmlspecialchars($resource->name)
+                    ]);
+                } elseif (
+                    $type === '' &&
+                    (strpos($resource->mimeType, 'url') === false) &&
+                    (strpos($resource->mimeType, 'html') === false) &&
+                    (strpos($resource->mimeType, 'plain') === false)
+                ) {
+                    array_push($resources, [
+                        'id' => htmlspecialchars($resource->id),
                         'name' => htmlspecialchars($resource->name)
                     ]);
                 }
