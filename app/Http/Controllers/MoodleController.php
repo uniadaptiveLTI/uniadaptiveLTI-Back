@@ -10,6 +10,7 @@ use Exception;
 use GuzzleHttp\Client;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+
 define('MOODLE_PLATFORM', 'moodle');
 
 class MoodleController extends Controller
@@ -281,7 +282,8 @@ class MoodleController extends Controller
 
             $milliseconds = round(microtime(true) * 1000);
             error_log('Finalización de petición: ' . date('Y-m-d H:i:s', $milliseconds / 1000) . substr((string) $milliseconds, -3));
-            return response()->json(['ok' => true, 'data' => $badges]);
+            // Status code on moodle responses should be added
+            return response()->json(['ok' => true, 'data' => ['items' => $badges]]);
         } else {
             $response = $client->request('GET', '', [
                 'query' => [
@@ -315,7 +317,8 @@ class MoodleController extends Controller
             $modules;
             $milliseconds = round(microtime(true) * 1000);
             error_log('Finalización de petición: ' . date('Y-m-d H:i:s', $milliseconds / 1000) . substr((string) $milliseconds, -3));
-            return response()->json(['ok' => true, 'data' => $modules]);
+            // Status code on moodle responses should be added
+            return response()->json(['ok' => true, 'data' => ['items' => $modules]]);
         }
     }
     // Function that returns the groups of a course.
@@ -546,12 +549,12 @@ class MoodleController extends Controller
             if (count($section->sequence) == 0) {
                 unset($section->sequence);
             }
-            
+
         }
         foreach ($sections->sections as $index => $section) {
-           if(count($section->sequence) == 0){
-            unset($section->sequence);
-           }
+            if (count($section->sequence) == 0) {
+                unset($section->sequence);
+            }
         }
         // dd($sections);
         $statusUpdate = MoodleController::updateCourse($request->instance, $sections->sections, $nodes, $badges);
@@ -874,7 +877,7 @@ class MoodleController extends Controller
     // This function updates a Moodle course.
     public static function updateCourse($instance, $sections, $modules, $badges)
     {
-        if($modules !== null && is_array($modules) && count($modules) > 0){
+        if ($modules !== null && is_array($modules) && count($modules) > 0) {
             foreach ($modules as &$module) {
                 if (isset($module['c'])) {
                     $module['c'] = json_encode($module['c']);
@@ -912,7 +915,7 @@ class MoodleController extends Controller
     }
     public static function getCalifications($url_lms, $module_id, $module_modname)
     {
-        
+
         // header('Access-Control-Allow-Origin: *');
         $token_request = LtiController::getLmsToken($url_lms, 'moodle', true);
         // dd($token_request['data']);

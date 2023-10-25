@@ -192,28 +192,34 @@ class SakaiController extends Controller
                 $forumsGetRequest = SakaiController::getForums($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id);
                 $successfulForumsRequest = SakaiController::requestChecker($forumsGetRequest);
 
+                $forumsStatusCode = $forumsGetRequest['statusCode'];
+
                 if ($successfulForumsRequest == true) {
-                    return $forumsGetRequest['data']['forums'];
+                    return ['ok' => true, 'data' => ['items' => $forumsGetRequest['data']['forums'], 'status_code' => $forumsStatusCode]];
                 } else {
-                    return [];
+                    return ['ok' => false, 'data' => ['items' => [], 'status_code' => $forumsStatusCode]];
                 }
             case 'exam':
                 $examsGetRequest = SakaiController::getAssesments($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id);
                 $successfulExamsRequest = SakaiController::requestChecker($examsGetRequest);
 
+                $examsStatusCode = $examsGetRequest['statusCode'];
+
                 if ($successfulExamsRequest == true) {
-                    return $examsGetRequest['data']['assesments'];
+                    return ['ok' => true, 'data' => ['items' => $examsGetRequest['data']['assesments'], 'status_code' => $examsStatusCode]];
                 } else {
-                    return [];
+                    return ['ok' => false, 'data' => ['items' => [], 'status_code' => $examsStatusCode]];
                 }
             case 'assign':
                 $assignmentsGetRequest = SakaiController::getAssignments($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id);
                 $successfulAssignmentsRequest = SakaiController::requestChecker($assignmentsGetRequest);
 
+                $assignmentsStatusCode = $assignmentsGetRequest['statusCode'];
+
                 if ($successfulAssignmentsRequest == true) {
-                    return $assignmentsGetRequest['data']['assignments'];
+                    return ['ok' => true, 'data' => ['items' => $assignmentsGetRequest['data']['assignments'], 'status_code' => $assignmentsStatusCode]];
                 } else {
-                    return [];
+                    return ['ok' => false, 'data' => ['items' => [], 'status_code' => $assignmentsStatusCode]];
                 }
             case 'text':
                 return SakaiController::getResourcesByType($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id, 'text/plain');
@@ -235,10 +241,12 @@ class SakaiController extends Controller
         $resourcesGetRequest = SakaiController::getResources($platform_id, $context_id, $session_id, $type);
         $successfulRequest = SakaiController::requestChecker($resourcesGetRequest);
 
+        $resourcesStatusCode = $resourcesGetRequest['statusCode'];
+
         if ($successfulRequest == true) {
-            return $resourcesGetRequest['data']['resources'];
+            return ['ok' => true, 'data' => ['items' => $resourcesGetRequest['data']['resources'], 'status_code' => $resourcesStatusCode]];
         } else {
-            return [];
+            return ['ok' => false, 'data' => ['items' => [], 'status_code' => $resourcesStatusCode]];
         }
     }
 
@@ -587,8 +595,6 @@ class SakaiController extends Controller
                                     }
 
                                     break;
-                                case 'break':
-                                    break 2;
                                 case 'folder':
                                     if (isset($itemFounded) && isset($itemFounded->openDate)) {
                                         $openDate = date('Y-m-d\TH:i', $itemFounded->openDate);
@@ -623,7 +629,7 @@ class SakaiController extends Controller
                                         $modules,
                                         $module
                                     );
-                                    break 2;
+                                    break;
                             }
 
                             $updatedModuleWithDates = SakaiController::parseItemDates($module);
