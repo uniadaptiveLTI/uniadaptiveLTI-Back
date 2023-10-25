@@ -354,12 +354,12 @@ class SakaiController extends Controller
 
                 if ($type === null && $type === $resource->mimeType) {
                     array_push($resources, [
-                        'id' => htmlspecialchars($resource->id),
+                        'id' => htmlspecialchars($id),
                         'name' => htmlspecialchars($resource->name)
                     ]);
                 } elseif (is_string($type) && $type !== '' && strpos($resource->mimeType, $type) !== false) {
                     array_push($resources, [
-                        'id' => htmlspecialchars($resource->id),
+                        'id' => htmlspecialchars($id),
                         'name' => htmlspecialchars($resource->name)
                     ]);
                 } elseif (
@@ -369,7 +369,7 @@ class SakaiController extends Controller
                     (strpos($resource->mimeType, 'plain') === false)
                 ) {
                     array_push($resources, [
-                        'id' => htmlspecialchars($resource->id),
+                        'id' => htmlspecialchars($id),
                         'name' => htmlspecialchars($resource->name)
                     ]);
                 }
