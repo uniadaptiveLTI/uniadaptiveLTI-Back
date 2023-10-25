@@ -188,7 +188,7 @@ class SakaiController extends Controller
                 $forumsGetRequest = SakaiController::getForums($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id);
                 $successfulForumsRequest = SakaiController::requestChecker($forumsGetRequest);
 
-                $forumsStatusCode = $forumsGetRequest['statusCode'];
+                $forumsStatusCode = $forumsGetRequest['data']['status_code'];
 
                 if ($successfulForumsRequest == true) {
                     return ['ok' => true, 'data' => ['items' => $forumsGetRequest['data']['forums'], 'status_code' => $forumsStatusCode]];
@@ -199,7 +199,7 @@ class SakaiController extends Controller
                 $examsGetRequest = SakaiController::getAssesments($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id);
                 $successfulExamsRequest = SakaiController::requestChecker($examsGetRequest);
 
-                $examsStatusCode = $examsGetRequest['statusCode'];
+                $examsStatusCode = $examsGetRequest['data']['status_code'];
 
                 if ($successfulExamsRequest == true) {
                     return ['ok' => true, 'data' => ['items' => $examsGetRequest['data']['assesments'], 'status_code' => $examsStatusCode]];
@@ -210,7 +210,7 @@ class SakaiController extends Controller
                 $assignmentsGetRequest = SakaiController::getAssignments($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id);
                 $successfulAssignmentsRequest = SakaiController::requestChecker($assignmentsGetRequest);
 
-                $assignmentsStatusCode = $assignmentsGetRequest['statusCode'];
+                $assignmentsStatusCode = $assignmentsGetRequest['data']['status_code'];
 
                 if ($successfulAssignmentsRequest == true) {
                     return ['ok' => true, 'data' => ['items' => $assignmentsGetRequest['data']['assignments'], 'status_code' => $assignmentsStatusCode]];
@@ -235,9 +235,10 @@ class SakaiController extends Controller
     public static function getResourcesByType($platform_id, $context_id, $session_id, $type)
     {
         $resourcesGetRequest = SakaiController::getResources($platform_id, $context_id, $session_id, $type);
+        error_log(print_r($resourcesGetRequest, true));
         $successfulRequest = SakaiController::requestChecker($resourcesGetRequest);
 
-        $resourcesStatusCode = $resourcesGetRequest['statusCode'];
+        $resourcesStatusCode = $resourcesGetRequest['data']['status_code'];
 
         if ($successfulRequest == true) {
             return ['ok' => true, 'data' => ['items' => $resourcesGetRequest['data']['resources'], 'status_code' => $resourcesStatusCode]];
@@ -374,7 +375,7 @@ class SakaiController extends Controller
                 foreach ($dataContents->content_collection[0]->resourceChildren as $resource) {
                     process_resource($resource, $resources);
                 }
-                return response()->json(['ok' => true, 'data' => ['resources' => $resources, 'status_code' => $statusCode]]);
+                return ['ok' => true, 'data' => ['resources' => $resources, 'status_code' => $statusCode]];
             } else {
                 foreach ($dataContents->content_collection[0]->resourceChildren as $resource) {
                     if ($resource->mimeType === $type) {
@@ -384,10 +385,10 @@ class SakaiController extends Controller
                         ]);
                     }
                 }
-                return response()->json(['ok' => true, 'data' => ['resources' => $resources, 'status_code' => $statusCode]]);
+                return ['ok' => true, 'data' => ['resources' => $resources, 'status_code' => $statusCode]];
             }
         } else {
-            return response()->json(['ok' => false, 'data' => ['resources' => $resources, 'status_code' => $statusCode]]);
+            return ['ok' => false, 'data' => ['resources' => $resources, 'status_code' => $statusCode]];
         }
     }
 
@@ -467,7 +468,6 @@ class SakaiController extends Controller
 
         if ($modulesRequestStatus == 200) {
             $modulesData = json_decode($lessonGetRequest['requestBody']);
-            error_log(print_r($modulesData, true));
             if ($modulesData->contentsList != null && count($modulesData->contentsList) >= 1) {
                 foreach ($modulesData->contentsList as $index => $module) {
                     error_log("A VER LOCO");

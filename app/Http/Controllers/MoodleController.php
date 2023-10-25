@@ -275,6 +275,7 @@ class MoodleController extends Controller
                 foreach ($badges as $badge) {
                     if (property_exists($badge, 'params')) {
                         unset($badge->params);
+                        $badge->id = str($badge->id);
                         $badge->section = -1;
                         $badge->has_grades = false;
                     }
@@ -284,7 +285,7 @@ class MoodleController extends Controller
             $milliseconds = round(microtime(true) * 1000);
             error_log('Finalización de petición: ' . date('Y-m-d H:i:s', $milliseconds / 1000) . substr((string) $milliseconds, -3));
             // Status code on moodle responses should be added
-            return response()->json(['ok' => true, 'data' => ['items' => $badges]]);
+            return ['ok' => true, 'data' => ['items' => $badges]];
         } else {
             $response = $client->request('GET', '', [
                 'query' => [
@@ -317,7 +318,7 @@ class MoodleController extends Controller
             $milliseconds = round(microtime(true) * 1000);
             error_log('Finalización de petición: ' . date('Y-m-d H:i:s', $milliseconds / 1000) . substr((string) $milliseconds, -3));
             // Status code on moodle responses should be added
-            return response()->json(['ok' => true, 'data' => ['items' => $modules]]);
+            return ['ok' => true, 'data' => ['items' => $modules]];
         }
     }
     // Function that returns the groups of a course.
@@ -514,10 +515,10 @@ class MoodleController extends Controller
                 if (isset($nodes[$index]['c']['type'])) {
                     unset($nodes[$index]['c']['type']);
                 }
-                // if (isset($nodes[$index]['g'])) {
-                //     // dd($nodes[$index]);
-                //     unset($nodes[$index]['g']);
-                // }
+                if (isset($nodes[$index]['g'])) {
+                    // dd($nodes[$index]);
+                    unset($nodes[$index]['g']);
+                }
                 if (isset($nodes[$index]['children'])) {
                     unset($nodes[$index]['children']);
                 }
@@ -550,12 +551,7 @@ class MoodleController extends Controller
             }
 
         }
-        foreach ($sections->sections as $index => $section) {
-            if (count($section->sequence) == 0) {
-                unset($section->sequence);
-            }
-        }
-        // dd($sections);
+        dd($nodes);
         $statusUpdate = MoodleController::updateCourse($request->instance, $sections->sections, $nodes, $badges);
         return response()->json(['ok' => $statusUpdate->status, 'errorType' => $statusUpdate->error]);
     }
@@ -810,7 +806,7 @@ class MoodleController extends Controller
                 'has_grades' => false
             ]);
         }
-        return response()->json(['ok' => true, 'data' => $modules]);
+        return ['ok' => true, 'data' => ['items' => $modules]];
     }
     // This function gets the item id of a Moodle course that corresponds to a grade id.
     public static function getGradeModule($url_lms, $gradeId)
