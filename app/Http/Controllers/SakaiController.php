@@ -500,61 +500,141 @@ class SakaiController extends Controller
                         // $modulesData->contentsList[$index]->section = $section;
                         $itemFounded = SakaiController::getLessonItemById($modulesData->contentsList[$index], $url_lms, $context_id, $session_id, $sakaiId);
                         if (isset($itemFounded)) {
-                            $module = [
-                                "id" => $modulesData->contentsList[$index]->id,
-                                "sakaiId" => $sakaiId,
-                                "name" => $modulesData->contentsList[$index]->name,
-                                "modname" => $modulesData->contentsList[$index]->type,
-                                "pageId" => $modulesData->contentsList[$index]->pageId,
-                                "section" => $section,
-                                "indent" => $column,
-                                "order" => $order++,
-                            ];
+                            $moduleAlreadyExists = false;
 
-                            switch ($modulesData->contentsList[$index]->type) {
-                                case 'exam':
-                                    if (isset($itemFounded)) {
-                                        if (isset($itemFounded->openDate)) {
-                                            $openDate = date('Y-m-d\TH:i', $itemFounded->openDate);
+                            foreach ($modules as $existingModule) {
+                                if ($existingModule["sakaiId"] === $sakaiId) {
+                                    $moduleAlreadyExists = true;
+                                    break;
+                                }
+                            }
+
+                            if (!$moduleAlreadyExists) {
+                                $module = [
+                                    "id" => $modulesData->contentsList[$index]->id,
+                                    "sakaiId" => $sakaiId,
+                                    "name" => $modulesData->contentsList[$index]->name,
+                                    "modname" => $modulesData->contentsList[$index]->type,
+                                    "pageId" => $modulesData->contentsList[$index]->pageId,
+                                    "section" => $section,
+                                    "indent" => $column,
+                                    "order" => $order++,
+                                ];
+
+                                switch ($modulesData->contentsList[$index]->type) {
+                                    case 'exam':
+                                        if (isset($itemFounded)) {
+                                            if (isset($itemFounded->openDate)) {
+                                                $openDate = date('Y-m-d\TH:i', $itemFounded->openDate);
+                                                $module['openDate'] = $openDate;
+                                            }
+
+                                            if (isset($itemFounded->dueDate)) {
+                                                $dueDate = date('Y-m-d\TH:i', $itemFounded->dueDate);
+                                                $module['dueDate'] = $dueDate;
+                                            }
+
+                                            if (isset($itemFounded->closeDate)) {
+                                                $closeDate = date('Y-m-d\TH:i', $itemFounded->closeDate);
+                                                $module['closeDate'] = $closeDate;
+                                            }
+
+                                            if (
+                                                isset($itemFounded->timeExceptions) &&
+                                                is_array($itemFounded->timeExceptions) && count($itemFounded->timeExceptions) > 0
+                                            ) {
+                                                $module['timeExceptions'] = [];
+                                                foreach ($itemFounded->timeExceptions as $exception) {
+                                                    if (isset($exception->forEntityRef)) {
+                                                        $exceptionData = [];
+
+                                                        $exceptionData['forEntityRef'] = $exception->forEntityRef;
+
+                                                        if (isset($exception->openDate)) {
+                                                            $exceptionData['openDate'] = date('Y-m-d\TH:i', $exception->openDate);
+                                                        }
+
+                                                        if (isset($exception->dueDate)) {
+                                                            $exceptionData['dueDate'] = date('Y-m-d\TH:i', $exception->dueDate);
+                                                        }
+
+                                                        if (isset($exception->closeDate)) {
+                                                            $exceptionData['closeDate'] = date('Y-m-d\TH:i', $exception->closeDate);
+                                                        }
+
+                                                        $module['timeExceptions'][] = $exceptionData;
+                                                    }
+                                                }
+                                            }
+
+                                            if (
+                                                isset($itemFounded->groupRefs) &&
+                                                is_array($itemFounded->groupRefs) && count($itemFounded->groupRefs) > 0
+                                            ) {
+                                                $module['groups'] = $itemFounded->groupRefs;
+                                            }
+                                        }
+
+                                        break;
+                                    case 'assign':
+                                        if (isset($itemFounded) && isset($itemFounded->openTime) && isset($itemFounded->openTime->epochSecond)) {
+                                            $openDate = date('Y-m-d\TH:i', $itemFounded->openTime->epochSecond);
                                             $module['openDate'] = $openDate;
                                         }
 
-                                        if (isset($itemFounded->dueDate)) {
-                                            $dueDate = date('Y-m-d\TH:i', $itemFounded->dueDate);
+                                        if (isset($itemFounded) && isset($itemFounded->dueTime) && isset($itemFounded->dueTime->epochSecond)) {
+                                            $dueDate = date('Y-m-d\TH:i', $itemFounded->dueTime->epochSecond);
                                             $module['dueDate'] = $dueDate;
                                         }
 
-                                        if (isset($itemFounded->closeDate)) {
-                                            $closeDate = date('Y-m-d\TH:i', $itemFounded->closeDate);
+                                        if (isset($itemFounded) && isset($itemFounded->closeTime) && isset($itemFounded->closeTime->epochSecond)) {
+                                            $closeDate = date('Y-m-d\TH:i', $itemFounded->closeTime->epochSecond);
                                             $module['closeDate'] = $closeDate;
                                         }
 
                                         if (
-                                            isset($itemFounded->timeExceptions) &&
-                                            is_array($itemFounded->timeExceptions) && count($itemFounded->timeExceptions) > 0
+                                            isset($itemFounded->groups) &&
+                                            is_array($itemFounded->groups) && count($itemFounded->groups) > 0
                                         ) {
-                                            $module['timeExceptions'] = [];
-                                            foreach ($itemFounded->timeExceptions as $exception) {
-                                                if (isset($exception->forEntityRef)) {
-                                                    $exceptionData = [];
+                                            $module['groups'] = $itemFounded->groups;
+                                        }
 
-                                                    $exceptionData['forEntityRef'] = $exception->forEntityRef;
+                                        break;
+                                    case 'forum':
+                                        if (isset($itemFounded) && isset($itemFounded->openDate)) {
+                                            $openDate = date('Y-m-d\TH:i', $itemFounded->openDate);
+                                            $module['openDate'] = $openDate;
+                                        }
 
-                                                    if (isset($exception->openDate)) {
-                                                        $exceptionData['openDate'] = date('Y-m-d\TH:i', $exception->openDate);
-                                                    }
+                                        if (isset($itemFounded) && isset($itemFounded->closeDate)) {
+                                            $closeDate = date('Y-m-d\TH:i', $itemFounded->closeDate);
+                                            $module['dueDate'] = $closeDate;
+                                        }
 
-                                                    if (isset($exception->dueDate)) {
-                                                        $exceptionData['dueDate'] = date('Y-m-d\TH:i', $exception->dueDate);
-                                                    }
+                                        break;
+                                    case 'folder':
+                                        if (isset($itemFounded) && isset($itemFounded->openDate)) {
+                                            $openDate = date('Y-m-d\TH:i', $itemFounded->openDate);
+                                            $module['openDate'] = $openDate;
+                                        }
 
-                                                    if (isset($exception->closeDate)) {
-                                                        $exceptionData['closeDate'] = date('Y-m-d\TH:i', $exception->closeDate);
-                                                    }
+                                        if (isset($itemFounded) && isset($itemFounded->closeDate)) {
+                                            $closeDate = date('Y-m-d\TH:i', $itemFounded->closeDate);
+                                            $module['dueDate'] = $closeDate;
+                                        }
+                                        break;
+                                    case 'text':
+                                    case 'url':
+                                    case 'html':
+                                    case 'resource':
+                                        if (isset($itemFounded) && isset($itemFounded->openDate)) {
+                                            $openDate = date('Y-m-d\TH:i', $itemFounded->openDate);
+                                            $module['openDate'] = $openDate;
+                                        }
 
-                                                    $module['timeExceptions'][] = $exceptionData;
-                                                }
-                                            }
+                                        if (isset($itemFounded) && isset($itemFounded->closeDate)) {
+                                            $closeDate = date('Y-m-d\TH:i', $itemFounded->closeDate);
+                                            $module['dueDate'] = $closeDate;
                                         }
 
                                         if (
@@ -563,92 +643,23 @@ class SakaiController extends Controller
                                         ) {
                                             $module['groups'] = $itemFounded->groupRefs;
                                         }
-                                    }
+                                        break;
+                                    default:
+                                        array_push(
+                                            $modules,
+                                            $module
+                                        );
+                                        break;
+                                }
 
-                                    break;
-                                case 'assign':
-                                    if (isset($itemFounded) && isset($itemFounded->openTime) && isset($itemFounded->openTime->epochSecond)) {
-                                        $openDate = date('Y-m-d\TH:i', $itemFounded->openTime->epochSecond);
-                                        $module['openDate'] = $openDate;
-                                    }
+                                $updatedModuleWithDates = SakaiController::parseItemDates($module);
+                                $updatedModuleWithExceptionDates = SakaiController::parseItemExceptionDates($updatedModuleWithDates);
 
-                                    if (isset($itemFounded) && isset($itemFounded->dueTime) && isset($itemFounded->dueTime->epochSecond)) {
-                                        $dueDate = date('Y-m-d\TH:i', $itemFounded->dueTime->epochSecond);
-                                        $module['dueDate'] = $dueDate;
-                                    }
-
-                                    if (isset($itemFounded) && isset($itemFounded->closeTime) && isset($itemFounded->closeTime->epochSecond)) {
-                                        $closeDate = date('Y-m-d\TH:i', $itemFounded->closeTime->epochSecond);
-                                        $module['closeDate'] = $closeDate;
-                                    }
-
-                                    if (
-                                        isset($itemFounded->groups) &&
-                                        is_array($itemFounded->groups) && count($itemFounded->groups) > 0
-                                    ) {
-                                        $module['groups'] = $itemFounded->groups;
-                                    }
-
-                                    break;
-                                case 'forum':
-                                    if (isset($itemFounded) && isset($itemFounded->openDate)) {
-                                        $openDate = date('Y-m-d\TH:i', $itemFounded->openDate);
-                                        $module['openDate'] = $openDate;
-                                    }
-
-                                    if (isset($itemFounded) && isset($itemFounded->closeDate)) {
-                                        $closeDate = date('Y-m-d\TH:i', $itemFounded->closeDate);
-                                        $module['dueDate'] = $closeDate;
-                                    }
-
-                                    break;
-                                case 'folder':
-                                    if (isset($itemFounded) && isset($itemFounded->openDate)) {
-                                        $openDate = date('Y-m-d\TH:i', $itemFounded->openDate);
-                                        $module['openDate'] = $openDate;
-                                    }
-
-                                    if (isset($itemFounded) && isset($itemFounded->closeDate)) {
-                                        $closeDate = date('Y-m-d\TH:i', $itemFounded->closeDate);
-                                        $module['dueDate'] = $closeDate;
-                                    }
-                                    break;
-                                case 'text':
-                                case 'url':
-                                case 'html':
-                                case 'resource':
-                                    if (isset($itemFounded) && isset($itemFounded->openDate)) {
-                                        $openDate = date('Y-m-d\TH:i', $itemFounded->openDate);
-                                        $module['openDate'] = $openDate;
-                                    }
-
-                                    if (isset($itemFounded) && isset($itemFounded->closeDate)) {
-                                        $closeDate = date('Y-m-d\TH:i', $itemFounded->closeDate);
-                                        $module['dueDate'] = $closeDate;
-                                    }
-
-                                    if (
-                                        isset($itemFounded->groupRefs) &&
-                                        is_array($itemFounded->groupRefs) && count($itemFounded->groupRefs) > 0
-                                    ) {
-                                        $module['groups'] = $itemFounded->groupRefs;
-                                    }
-                                    break;
-                                default:
-                                    array_push(
-                                        $modules,
-                                        $module
-                                    );
-                                    break;
+                                array_push(
+                                    $modules,
+                                    $updatedModuleWithExceptionDates
+                                );
                             }
-
-                            $updatedModuleWithDates = SakaiController::parseItemDates($module);
-                            $updatedModuleWithExceptionDates = SakaiController::parseItemExceptionDates($updatedModuleWithDates);
-
-                            array_push(
-                                $modules,
-                                $updatedModuleWithExceptionDates
-                            );
                         }
                     }
                 }
