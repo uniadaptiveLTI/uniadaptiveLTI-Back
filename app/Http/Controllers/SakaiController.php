@@ -226,7 +226,7 @@ class SakaiController extends Controller
             case 'folder':
                 return SakaiController::getResourcesByType($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id, 'folder');
             case 'resource':
-                return SakaiController::getResourcesByType($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id, '');
+                return SakaiController::getResourcesByType($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id, 'resource');
             default:
                 return response()->json(['ok' => false, 'errorType' => 'TYPE_NOT_SUPPORTED', 'data' => '']);
         }
@@ -332,7 +332,6 @@ class SakaiController extends Controller
     public static function getResources($url_lms, $context_id, $session_id, $type)
     {
         $request = SakaiController::createClient($url_lms, $url_lms . '/direct/content/resources/group/' . $context_id . '.json?depth=3', $session_id);
-        error_log(print_r($request, true));
         $statusCode = $request['statusCode'];
 
         $resources = [];
@@ -350,41 +349,48 @@ class SakaiController extends Controller
 
             function process_resource($resource, &$resources, $type)
             {
+                error_log(print_r($resource->name, true));
+                error_log(print_r($resource->mimeType, true));
+                error_log(print_r($type, true));
                 $id = decode_unicode(str_replace('\/', '/', $resource->resourceId));
-                if (is_null($resource->mimeType) && $type == 'folder') {
-
+                if ($resource->mimeType == null && $type == 'folder') {
+                    error_log("AAAAAA 1");
                     array_push($resources, [
                         'id' => htmlspecialchars($id),
                         'name' => htmlspecialchars($resource->name)
                     ]);
-                } elseif (is_string($type) && $type !== '' && $type !== 'folder' && strpos($resource->mimeType, $type) !== false) {
+                } elseif (is_string($type) && $type !== '' && strpos($resource->mimeType, $type) == true) {
+                    error_log("AAAAAA 2");
                     array_push($resources, [
                         'id' => htmlspecialchars($id),
                         'name' => htmlspecialchars($resource->name)
                     ]);
                 } elseif (
                     is_string($type) &&
+                    $type == "resource" &&
                     $resource->mimeType !== null &&
                     (strpos($resource->mimeType, 'url') == false) &&
                     (strpos($resource->mimeType, 'html') == false) &&
                     (strpos($resource->mimeType, 'plain') === false)
                 ) {
+                    error_log("AAAAAA 3");
                     array_push($resources, [
                         'id' => htmlspecialchars($id),
                         'name' => htmlspecialchars($resource->name)
                     ]);
                 }
-                error_log(print_r($resource));
+
+                error_log(" ");
+
                 if (isset($resource->resourceChildren) && count($resource->resourceChildren) >= 1) {
                     foreach ($resource->resourceChildren as $child) {
-                        error_log(print_r($child, true));
                         process_resource($child, $resources, $type);
                     }
                 }
             }
 
-            foreach ($dataContents->content_collection[0]->resourceChildren as $resourceChild) {
-                process_resource($resourceChild, $resources, $type);
+            foreach ($dataContents->content_collection[0]->resourceChildren as $resource) {
+                process_resource($resource, $resources, $type);
             }
 
             return ['ok' => true, 'data' => ['resources' => $resources, 'status_code' => $statusCode]];

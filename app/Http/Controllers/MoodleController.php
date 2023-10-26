@@ -468,7 +468,7 @@ class MoodleController extends Controller
     // This function creates a Moodle version of the course with the request data.
     public static function exportVersion(Request $request)
     {
-        header('Access-Control-Allow-Origin: *');
+        // header('Access-Control-Allow-Origin: *');
 
         $sections = MoodleController::getModulesListBySectionsCourse($request->instance, $request->course);
         // dd($sections);
@@ -557,7 +557,7 @@ class MoodleController extends Controller
         }
         // dd($nodes);
         $statusUpdate = MoodleController::updateCourse($request->instance, $sections->sections, $nodes, $badges);
-        dd($statusUpdate);
+        // dd($statusUpdate);
         return response()->json(['ok' => $statusUpdate->status, 'errorType' => $statusUpdate->error]);
     }
     // This function changes the conditions of the nodes according to the URL and type.
