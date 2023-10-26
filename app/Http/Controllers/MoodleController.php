@@ -517,7 +517,11 @@ class MoodleController extends Controller
                 }
                 if (isset($nodes[$index]['g'])) {
                     // dd($nodes[$index]);
-                    unset($nodes[$index]['g']);
+                    $g = $nodes[$index]['g'];
+                    $nodes[$index]['g']['data']['min'] = strval($g['data']['min']);
+                    $nodes[$index]['g']['data']['max'] = strval($g['data']['max']);
+                    // unset($nodes[$index]['g']);
+                    // dd($nodes[$index]);
                 }
                 if (isset($nodes[$index]['children'])) {
                     unset($nodes[$index]['children']);
@@ -551,8 +555,9 @@ class MoodleController extends Controller
             }
 
         }
-        dd($nodes);
+        // dd($nodes);
         $statusUpdate = MoodleController::updateCourse($request->instance, $sections->sections, $nodes, $badges);
+        dd($statusUpdate);
         return response()->json(['ok' => $statusUpdate->status, 'errorType' => $statusUpdate->error]);
     }
     // This function changes the conditions of the nodes according to the URL and type.
