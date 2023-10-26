@@ -692,6 +692,10 @@ class SakaiController extends Controller
                 case "forum":
                     return SakaiController::parseSakaiId($item);
                 case "folder":
+                    return $item->dataDirectory;
+                case "html":
+                case "text":
+                case "url":
                 case "resource":
                     return $item->sakaiId;
                 default:
