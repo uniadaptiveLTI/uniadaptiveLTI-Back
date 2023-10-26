@@ -478,7 +478,7 @@ class SakaiController extends Controller
             if ($modulesData->contentsList != null && count($modulesData->contentsList) >= 1) {
                 foreach ($modulesData->contentsList as $index => $module) {
                     error_log("A VER LOCO");
-                    $modulesData->contentsList[$index]->type = SakaiController::changeIdNameType($module->type);
+                    $modulesData->contentsList[$index]->type = SakaiController::changeIdNameType($module);
                     if ($modulesData->contentsList[$index]->type == 'break') {
                         $format = isset($modulesData->contentsList[$index]->format);
                         if ($format) {
@@ -846,13 +846,23 @@ class SakaiController extends Controller
         }
     }
 
-    public static function changeIdNameType($type)
+    public static function changeIdNameType($module)
     {
-        switch ($type) {
+        switch ($module->type) {
             case 1:
-                return 'resource';
-            case 2:
-                return 'html';
+                if (isset($module->contentType)) {
+                    if (str_contains($module->contentType, "plain")) {
+                        return "text";
+                    } elseif (str_contains($module->contentType, "url")) {
+                        return "url";
+                    } elseif (str_contains($module->contentType, "html")) {
+                        return "html";
+                    } else {
+                        return "resource";
+                    }
+                } else {
+                    return "resource";
+                }
             case 3:
                 return 'assign';
             case 4:
@@ -865,6 +875,7 @@ class SakaiController extends Controller
                 return 'forum';
             case 14:
                 return 'break';
+            case 2:
             case 20:
                 return 'folder';
             default:
