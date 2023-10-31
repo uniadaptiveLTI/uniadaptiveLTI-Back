@@ -574,8 +574,6 @@ class LtiController extends Controller
                     break;
                 case 'sakai':
                     foreach ($multiple_lms_config as $lms_data) {
-                        error_log($url_lms);
-                        error_log($lms_data['url']);
                         if ($lms_data['url'] == $url_lms) {
                             // dd($lms_data);
                             if ($validated) {
