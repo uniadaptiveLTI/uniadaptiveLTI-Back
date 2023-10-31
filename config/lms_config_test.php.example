@@ -3,6 +3,36 @@
 return [
     'url' => 'http://localhost:8443',
     'user' => 'admin',
-    'password' => 'admin'
-    'site_id' => '123123213131'
+    'password' => 'admin',
+    'site_id' => '1',
+    'lesson_id' => '2'
 ];
+
+
+/* MOODLE EXAMPLE:
+return [
+    'test_config' => [
+        'lms_url' => 'http://localhost/moodle_test/moodle42-test',
+        'user_id' => 1,
+        'course_id' => 2,
+        'platform' => 'moodle',
+        'resource_type' => 'quiz',
+        'id_map_version' => 1,
+        'instance_id' => 3,
+        'item_id' => 1,
+        'grade_id' => 1,
+        'module_id' => 1,
+        'module_name' => ''
+    ]
+];
+*/
+
+/* SAKAI EXAMPLE
+return [
+    'url' => 'http://localhost:8443',
+    'user' => 'admin',
+    'password' => 'admin',
+    'site_id' => '123123213131',
+    'lesson_id' => '2'
+];
+*/

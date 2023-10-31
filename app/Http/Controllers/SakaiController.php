@@ -485,13 +485,13 @@ class SakaiController extends Controller
                         }
                         $order = 1;
                     } else if ($modulesData->contentsList[$index]->type != 'break') {
-                        if($modulesData->contentsList[$index]->type == "folder"){
+                        if ($modulesData->contentsList[$index]->type == "folder") {
                             $modulesData->contentsList[$index]->dataDirectory = str_replace("//", "/", $modulesData->contentsList[$index]->dataDirectory);
                         }
                         $sakaiId = SakaiController::nodeSakaiIdUpdater($modulesData->contentsList[$index]);
                         // $modulesData->contentsList[$index]->section = $section;
                         $itemFounded = SakaiController::getLessonItemById($modulesData->contentsList[$index], $url_lms, $context_id, $session_id, $sakaiId);
-                        
+
                         if (isset($itemFounded)) {
                             $moduleAlreadyExists = false;
                             foreach ($modules as $existingModule) {
@@ -1031,14 +1031,15 @@ class SakaiController extends Controller
 
         if ($allHaveSamePageId) {
             $lessonCopyRequest = SakaiController::createClient($sessionData->platform_id, $sessionData->platform_id . '/direct/lessons/lesson/' . $request->lessonId . '.json', $sessionData->session_id);
-            $lessonCopy = json_decode($lessonCopyRequest['requestBody']);
             $lessonStatusCode = $lessonCopyRequest['statusCode'];
 
             $conditionsCopyRequest = SakaiController::createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/conditions', $sessionData->session_id);
-            $conditionsCopy = $conditionsCopyRequest['requestBody'];
             $conditionsStatusCode = $conditionsCopyRequest['statusCode'];
 
             if ($lessonStatusCode == 200 && $conditionsStatusCode == 200) {
+                $lessonCopy = json_decode($lessonCopyRequest['requestBody']);
+                $conditionsCopy = $conditionsCopyRequest['requestBody'];
+
                 if (count($nodesToUpdate) >= 1) {
                     $nodesUpdateRequest = SakaiController::createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/entities', $sessionData->session_id, 'PATCH', $nodesToUpdate);
                     $nodesUpdateStatusCode = $nodesUpdateRequest['statusCode'];
@@ -1056,11 +1057,11 @@ class SakaiController extends Controller
 
                 if ($conditionsDeleteStatusCode === 200 && $lessonItemsDeleteStatusCode === 200) {
                     $nodesCreationRequest = SakaiController::createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/items/bulk', $sessionData->session_id, 'POST', $nodes);
-                    $nodesCreated = $nodesCreationRequest['requestBody'];
                     $nodesCreationStatusCode = $nodesCreationRequest['statusCode'];
 
                     if ($nodesCreationStatusCode == 200) {
                         if (($conditionList != null && count($conditionList) >= 1)) {
+                            $nodesCreated = $nodesCreationRequest['requestBody'];
                             $filteredArray = SakaiController::conditionIdParse(json_decode($nodesCreated), $conditionList);
 
                             $conditionsParsedList = (array_values($filteredArray));
@@ -1189,10 +1190,10 @@ class SakaiController extends Controller
                     if ($root['itemId'] == $idObject['contentRef']) {
                         $root['itemId'] = ($idObject['id']);
                         unset($root['id']);
-                        if(array_key_exists('argument', $root)){
+                        if (array_key_exists('argument', $root)) {
                             unset($root['argument']);
                         }
-                        if(isset($root['hasParent'])){
+                        if (isset($root['hasParent'])) {
                             unset($root['hasParent']);
                         }
                         break;
@@ -1202,13 +1203,13 @@ class SakaiController extends Controller
                 if (isset($root['subConditions'])) {
                     foreach ($root['subConditions'] as &$parent) {
                         unset($parent['id']);
-                        if(isset($parent['hasParent'])){
+                        if (isset($parent['hasParent'])) {
                             unset($parent['hasParent']);
                         }
-                        if(array_key_exists('argument', $parent)){
+                        if (array_key_exists('argument', $parent)) {
                             unset($parent['argument']);
                         }
-                        if(array_key_exists('itemId', $parent)){
+                        if (array_key_exists('itemId', $parent)) {
                             unset($parent['itemId']);
                         }
                         if (isset($parent['subConditions']) && count($parent['subConditions']) >= 1) {
@@ -1219,7 +1220,7 @@ class SakaiController extends Controller
                                         $childCondition['itemId'] = ($idObject['id']);
                                         unset($childCondition['id']);
                                         unset($childCondition['subConditions']);
-                                        if(isset($childCondition['hasParent'])){
+                                        if (isset($childCondition['hasParent'])) {
                                             unset($childCondition['hasParent']);
                                         }
                                         break;
