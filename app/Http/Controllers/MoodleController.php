@@ -16,7 +16,7 @@ define('MOODLE_PLATFORM', 'moodle');
 class MoodleController extends Controller
 {
     // Saves the user's session in the database and redirects to the front end.
-    public static function storeVersion($saveData, $token)
+    public static function storeVersion($saveData)
     {
         try {
             $course = Course::where('instance_id', $saveData['instance_id'])
@@ -26,8 +26,8 @@ class MoodleController extends Controller
             $mapData = $saveData['map'];
 
             $map = Map::updateOrCreate(
-                ['created_id' => $mapData['id'], 'course_id' => $course->id, 'user_id' => intval($saveData['user_id'])],
-                ['name' => $mapData['name'], 'lesson_id' => $saveData['instance_id']]
+                ['created_id' => $mapData['id'], 'course_id' => $course->id, 'user_id' => (string)$saveData['user_id']],
+                ['name' => $mapData['name']]
             );
 
             $versionData = $mapData['versions'];
@@ -35,7 +35,7 @@ class MoodleController extends Controller
                 ['map_id' => $map->id, 'name' => $versionData['name']],
                 ['default' => boolval($versionData['default']), 'blocks_data' => json_encode($versionData['blocksData'])]
             );
-            return response()->json(['ok' => true]);
+            return response()->json(['ok' => true, 'errorType' => '', 'data' => []]);
         } catch (\Exception $e) {
             error_log($e);
             abort(500, $e->getMessage());
@@ -47,7 +47,7 @@ class MoodleController extends Controller
     {
         $data = [
             [
-                'user_id' => $lastInserted->user_id,
+                'user_id' => (int) $lastInserted->user_id,
                 'name' => $lastInserted->lis_person_name_full,
                 'profile_url' => $lastInserted->profile_url,
                 'roles' => $lastInserted->roles

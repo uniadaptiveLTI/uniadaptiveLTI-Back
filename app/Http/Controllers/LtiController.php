@@ -112,7 +112,7 @@ class LtiController extends Controller
                         'platform_id' => $fire['platform_id'],
                         'token' => Str::uuid()->toString(),
                         'launch_presentation_return_url' => $fire['launch_presentation_return_url'],
-                        'user_id' => $fire['user_id'],
+                        'user_id' => (string) $fire['user_id'],
                         'lis_person_name_full' => $fire['lis_person_name_full'],
                         //
                         'profile_url' => MoodleController::getImgUser($fire['platform_id'], $fire['user_id']),
@@ -285,6 +285,7 @@ class LtiController extends Controller
     // This function saves a version of a map.
     public function storeVersion(Request $request)
     {
+        error_log('LLAMO A STOREVERSION!!');
         if ($this->checkToken($request->token)) {
             $sessionData = DB::table('lti_info')
                 ->where('token', '=', $request->token)
@@ -292,14 +293,10 @@ class LtiController extends Controller
             $this->registerLog('storeVersion', $sessionData);
             switch ($sessionData->tool_consumer_info_product_family_code) {
                 case 'moodle':
-                    return MoodleController::storeVersion($request->saveData, $request->token);
+                    return MoodleController::storeVersion($request->saveData);
                     break;
                 case 'sakai':
-                    if (isset($request->lesson)) {
-                        // return SakaiController::storeVersion();
-                    } else {
-                        return response()->json(['ok' => false, 'error_type' => 'LESSON_NOT_VALID', 'data' => []]);
-                    }
+                    return SakaiController::storeVersion($request->saveData);
                     break;
                 default:
                     error_log('The platform you are using is not supported.');

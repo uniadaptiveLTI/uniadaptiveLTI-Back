@@ -12,6 +12,19 @@ use Illuminate\Support\Facades\DB;
 
 class SakaiController extends Controller
 {
+    public static function getinstance($platform, $url_lms)
+    {
+        $dataInstance = Instance::firstOrCreate(
+            ['platform' => $platform, 'url_lms' => $url_lms],
+            ['platform' => $platform, 'url_lms' => $url_lms, 'timestamps' => now()]
+        );
+        while (is_null($dataInstance->id)) {
+            sleep(1);
+        }
+        ;
+        return $dataInstance->id;
+    }
+
     public static function getCourse($course_id, $platform, $url_lms)
     {
         $dataInstance = Instance::firstOrCreate(
@@ -102,7 +115,7 @@ class SakaiController extends Controller
             ],
             [
                 'name' => $lastInserted->context_title,
-                // 'instance_id' => $this->getinstance($lastInserted->tool_consumer_info_product_family_code, $lastInserted->platform_id),
+                'instance_id' => SakaiController::getinstance($lastInserted->tool_consumer_info_product_family_code, $lastInserted->platform_id),
                 'lessons' => $lessons,
                 'course_id' => $lastInserted->context_id,
                 'session_id' => $lastInserted->session_id,
@@ -121,6 +134,8 @@ class SakaiController extends Controller
         // dd($data);
         return response()->json(['ok' => true, 'data' => $data]);
     }
+
+    
 
     public static function createSession($url_lms, $sakaiServerId, $data)
     {
@@ -1001,6 +1016,34 @@ class SakaiController extends Controller
     public static function find($array, $callback)
     {
         return current(array_filter($array, $callback));
+    }
+
+    // Saves the user's session in the database and redirects to the front end.
+    public static function storeVersion($saveData)
+    {
+        try {
+            $course = Course::where('instance_id', $saveData['instance_id'])
+                ->where('course_id', $saveData['course_id'])
+                ->select('id')
+                ->first();
+            $mapData = $saveData['map'];
+
+            $map = Map::updateOrCreate(
+                ['created_id' => $mapData['id'], 'course_id' => $course->id, 'user_id' => $saveData['user_id']],
+                ['name' => $mapData['name']]
+            );
+
+            $versionData = $mapData['versions'];
+            Version::updateOrCreate(
+                ['map_id' => $map->id, 'name' => $versionData['name']],
+                ['default' => boolval($versionData['default']), 'blocks_data' => json_encode($versionData['blocksData'])]
+            );
+            return response()->json(['ok' => true, 'errorType' => '', 'data' => []]);
+        } catch (\Exception $e) {
+            error_log($e);
+            abort(500, $e->getMessage());
+            return response()->json(['ok' => false, 'errorType' => 'ERROR_SAVING_VERSION']);
+        }
     }
 
     public static function exportVersion(Request $request, $sessionData)
