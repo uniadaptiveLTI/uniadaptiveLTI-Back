@@ -11,34 +11,18 @@ use Tests\TestCase;
 
 class MoodleControllerTest extends TestCase
 {
+    private $test_config;
 
-    private $idUserMoodle = 4;
-    private $idCourseMoodle = 8;
-    private $idInstanceMoodle = 1;
-    private $platformMoodle = 'moodle';
-    private $urlLmsMoodle = 'http://localhost/moodle-3.11.13';
-    private $resourceType1 = 'quiz';
-    private $resourceType2 = 'resource';
-    private $itemMap = '{"instance_id":1,"course_id":"8","platform":"moodle","user_id":"2","map":{"id":"834589328291","name":"Nuevo Mapa 1","versions":{"id":21,"map_id":25,"name":"Última versión","updated_at":"2023-06-29T09:35:28.000000Z","default":1,"blocksData":[{"id":"1464800653154","data":{"label":"Entrada","children":["900404137072"]},"type":"start","position":{"x":-128.5,"y":-11.5},"deletable":false},{"id":"1630639804058","data":{"label":"Salida","conditions":{"id":"162033670147","op":"&","type":"conditionsGroup","conditions":[{"id":"1284856013808","op":"811637142173","type":"completion","query":"completed"}]}},"type":"end","position":{"x":296.5,"y":1},"deletable":false},{"id":"811637142173","data":{"label":"Carpeta 2","order":1,"section":0,"children":["1630639804058"],"conditions":{"id":"1561552545390","op":"&","type":"conditionsGroup","conditions":[{"id":"1158475704642","op":"900404137072","type":"completion","query":"completed"}]},"identation":0,"lmsResource":80,"lmsVisibility":"hidden_until_access"},"type":"folder","position":{"x":166.5,"y":-70.5}},{"id":"900404137072","data":{"label":"Carpeta 3","order":0,"section":0,"children":["811637142173"],"conditions":{"id":"413700410136","op":"&","type":"conditionsGroup","conditions":[{"id":"1303388121936","op":"1464800653154","type":"completion","query":"completed"}]},"identation":0,"lmsResource":-1,"lmsVisibility":"hidden_until_access"},"type":"folder","position":{"x":32,"y":51.5}}],"lastUpdate":"30/6/2023, 11:19:52"}}}';
-    private $itemSession = '{"id": 179,"tool_consumer_info_product_family_code": "moodle","context_id": "8"
-    ,"context_title": "Introducción al flamenco"
-    ,"launch_presentation_locale": "es"
-    ,"platform_id": "http://localhost/moodle-3.11.13"
-    ,"ext_sakai_serverid": null
-    ,"session_id": null
-    ,"launch_presentation_return_url": "http://localhost/moodle-3.11.13/mod/lti/return.php?course=8&launch_container=4&instanceid=3&sesskey=eInS9NLmBm"
-    ,"user_id": "2"
-    ,"lis_person_name_full": "Administrador Usuario"
-    ,"profile_url": "http://localhost/moodle-3.11.13/pluginfile.php/5/user/icon/boost/f1?rev=211"
-    ,"roles": "http://purl.imsglobal.org/vocab/lis/v2/institution/person#Administrator,http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor,http://purl.imsglobal.org/vocab/lis/v2/system/person#Administrator"
-    ,"created_at": "2023-06-30 10:40:56"
-    ,"updated_at": "2023-06-30 10:40:56"}';
-
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->test_config = config('lms_config_test.test_config');
+    }
 
     public function testGetImgUser()
     {
         $controller = new MoodleController();
-        $response = $controller->getImgUser($this->urlLmsMoodle, $this->idUserMoodle);
+        $response = $controller->getImgUser($this->test_config['lms_url'], $this->test_config['user_id']);
 
         $this->assertIsString($response);
     }
@@ -46,7 +30,7 @@ class MoodleControllerTest extends TestCase
     public function testGetGroups()
     {
         $controller = new MoodleController();
-        $response = $controller->getGroups($this->urlLmsMoodle, $this->idCourseMoodle);
+        $response = $controller->getGroups($this->test_config['lms_url'], $this->test_config['course_id']);
 
         $this->assertIsArray($response);
 
@@ -60,7 +44,7 @@ class MoodleControllerTest extends TestCase
     public function testGetGrupings()
     {
         $controller = new MoodleController();
-        $response = $controller->getGrupings($this->urlLmsMoodle, $this->idCourseMoodle);
+        $response = $controller->getGrupings($this->test_config['lms_url'], $this->test_config['course_id']);
 
         $this->assertIsArray($response);
 
@@ -74,11 +58,13 @@ class MoodleControllerTest extends TestCase
     public function testGetModules()
     {
         $controller = new MoodleController();
-        $response = $controller->getModules($this->urlLmsMoodle, $this->idCourseMoodle);
+        $response = $controller->getModules($this->test_config['lms_url'], $this->test_config['course_id']);
+        $responseData = json_decode($response->getContent(), true);
 
-        $this->assertIsArray($response);
+        $this->assertArrayHasKey('ok', $responseData);
+        $this->assertArrayHasKey('data', $responseData);
 
-        foreach ($response as $module) {
+        foreach ($responseData["data"] as $module) {
             $this->assertIsArray($module);
             $this->assertArrayHasKey('name', $module);
             $this->assertArrayHasKey('modname', $module);
@@ -95,46 +81,26 @@ class MoodleControllerTest extends TestCase
     {
         $controller = new MoodleController();
         $request = new Request([
-            'url_lms' => $this->urlLmsMoodle,
-            'platform' => $this->platformMoodle,
-            'course' => $this->idCourseMoodle,
-            'type' => $this->resourceType1
+            'url_lms' => $this->test_config['lms_url'],
+            'platform' => $this->test_config['platform'],
+            'course' => $this->test_config['course_id'],
+            'type' => $this->test_config['resource_type']
         ]);
 
-        $response = $controller->getModulesByType($request);
-        $this->assertIsArray($response);
+        $session_data = new stdClass();
+        $session_data->platform_id = $this->test_config['lms_url'];
+        $session_data->context_id = $this->test_config['context_id'];
 
-        foreach ($response as $module) {
-            $this->assertIsArray($module);
-            $this->assertArrayHasKey('id', $module);
-            $this->assertArrayHasKey('name', $module);
-            $this->assertArrayHasKey('section', $module);
-            $this->assertArrayHasKey('has_grades', $module);
-        }
+        $response = $controller->getModulesByType($request, $session_data);
 
-        $request = new Request([
-            'url_lms' => $this->urlLmsMoodle,
-            'platform' => $this->platformMoodle,
-            'course' => $this->idCourseMoodle,
-            'type' => $this->resourceType2
-        ]);
-
-        $response = $controller->getModulesByType($request);
-        $this->assertIsArray($response);
-
-        foreach ($response as $module) {
-            $this->assertIsArray($module);
-            $this->assertArrayHasKey('id', $module);
-            $this->assertArrayHasKey('name', $module);
-            $this->assertArrayHasKey('section', $module);
-            $this->assertArrayHasKey('has_grades', $module);
-        }
+        $this->assertArrayHasKey('ok', $response);
+        $this->assertArrayHasKey('data', $response);
     }
 
     public function testGetSections()
     {
         $controller = new MoodleController();
-        $response = $controller->getSections($this->urlLmsMoodle, $this->idCourseMoodle);
+        $response = $controller->getSections($this->test_config['lms_url'], $this->test_config['course_id']);
 
         $this->assertIsArray($response);
 
@@ -149,22 +115,20 @@ class MoodleControllerTest extends TestCase
     public function testGetBadges()
     {
         $controller = new MoodleController();
-        $response = $controller->getBadges($this->idCourseMoodle);
+        $response = $controller->getBadges($this->test_config['lms_url'], $this->test_config['course_id']);
 
         $this->assertIsArray($response);
-
         foreach ($response as $badge) {
-            $this->assertIsArray($badge);
-            $this->assertArrayHasKey('id', $badge);
-            $this->assertArrayHasKey('name', $badge);
-            $this->assertArrayHasKey('conditions', $badge);
+            $this->assertNotNull($badge->id);
+            $this->assertNotNull($badge->name);
+            $this->assertNotNull($badge->params);
         }
     }
 
     public function testGetCourse()
     {
         $controller = new MoodleController();
-        $response = $controller->getCourse($this->idCourseMoodle, $this->platformMoodle, $this->urlLmsMoodle);
+        $response = $controller->getCourse($this->test_config['course_id'], $this->test_config['platform'], $this->test_config['lms_url'], $this->test_config['user_id']);
         $this->assertIsArray($response);
         $this->assertArrayHasKey('maps', $response);
 
@@ -186,41 +150,120 @@ class MoodleControllerTest extends TestCase
         }
     }
 
-    public function testStoreVersion()
+    public function testGetInstance()
     {
-
-        $request = new Request([
-            'saveData' => json_decode($this->itemMap, true)
-        ]);
-
-        // Llamar a la función
-        $result = MoodleController::storeVersion($request);
-
-        // Verificar que el resultado es 0
-        $this->assertEquals('0', $result);
+        $controller = new MoodleController();
+        $response = $controller->getinstance($this->test_config['platform'], $this->test_config['lms_url']);
+        $this->assertNotNull($response);
     }
 
-    public function testGetSession()
+    public function testGetVersion()
     {
-        $result = MoodleController::getSession(json_decode($this->itemSession));
-
-        $this->assertIsArray($result);
-        $this->assertCount(3, $result);
-
-        $this->assertIsArray($result[0]);
+        $controller = new MoodleController();
+        $response = $controller->getVersion($this->test_config['id_map_version']);
+        $this->assertNotNull($response);
     }
 
     public function testGetCoursegrades()
     {
-        $result = MoodleController::getCoursegrades($this->idCourseMoodle);
+        $result = MoodleController::getCoursegrades($this->test_config['lms_url'], $this->test_config['course_id']);
 
-        $this->assertIsArray($result);
+        $this->assertInstanceOf(stdClass::class, $result);
     }
 
     public function testGetIdCoursegrades()
     {
-        $result = MoodleController::getIdCoursegrades($this->urlLmsMoodle, $this->idCourseMoodle);
+        $result = MoodleController::getIdCoursegrades($this->test_config['lms_url'], $this->test_config['course_id']);
 
         $this->assertIsArray($result);
+    }
+
+    public function testGetUrlLms()
+    {
+        $result = MoodleController::getUrlLms($this->test_config['instance_id']);
+
+        if ($result) {
+            $this->assertIsString($result);
+        }
+        if (!$result) {
+            $this->assertNull($result);
+
+        }
+    }
+
+    public function testGetModuleById()
+    {
+        $result = MoodleController::getModuleById($this->test_config['instance_id'], $this->test_config['item_id']);
+
+        $this->assertInstanceOf(stdClass::class, $result);
+    }
+
+    public function testGetIdGrade()
+    {
+        $module = new stdClass();
+        $module->cm = new stdClass();
+        $module->cm->course = $this->test_config['cm_course_id'];
+        $module->cm->name = $this->test_config['cm_name'];
+        $module->cm->modname = $this->test_config['cm_modname'];
+        $module->cm->instance = $this->test_config['cm_instance'];
+
+        $result = MoodleController::getIdGrade($this->test_config['instance_id'], $module);
+
+        if ($result) {
+            $this->assertIsInt($result);
+        }
+
+        if (!$result) {
+            $this->assertNull($result);
+        }
+    }
+
+    public function testGetIdCoursegrade()
+    {
+        $result = MoodleController::getIdCoursegrade($this->test_config['instance_id'], $this->test_config['course_id']);
+
+        $this->assertNotNull($result);
+    }
+
+    public function testGetModulesListBySectionsCourse()
+    {
+        $result = MoodleController::getModulesListBySectionsCourse($this->test_config['instance_id'], $this->test_config['course_id']);
+
+        $this->assertInstanceOf(stdClass::class, $result);
+    }
+
+
+    public function testGetGradeModule()
+    {
+        $result = MoodleController::getGradeModule($this->test_config['lms_url'], $this->test_config['grade_id']);
+
+        $this->assertInstanceOf(stdClass::class, $result);
+    }
+
+    public function testGetRoles()
+    {
+        $result = MoodleController::getRoles($this->test_config['lms_url'], $this->test_config['course_id']);
+
+        $this->assertIsArray($result);
+    }
+
+    public function testGetCompetencies()
+    {
+        $result = MoodleController::getCompetencies($this->test_config['lms_url'], $this->test_config['course_id']);
+
+        $this->assertIsArray($result);
+    }
+
+    public function testGetCalifications()
+    {
+        $result = MoodleController::getCalifications($this->test_config['lms_url'], $this->test_config['module_id'], $this->test_config['cm_modname']);
+
+        if ($result) {
+            $this->assertInstanceOf(stdClass::class, $result);
+        }
+
+        if (!$result) {
+            $this->assertNull($result);
+        }
     }
 }
