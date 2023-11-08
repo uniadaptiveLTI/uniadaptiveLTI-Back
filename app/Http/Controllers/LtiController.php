@@ -34,9 +34,9 @@ class LtiController extends Controller
         }
         $tool = LtiTool::getLtiTool();
         $tool->handleRequest();
+        // dd($tool);
         $jwt = $tool->getJWT();
         $fire = $tool->getMessageParameters();
-
         $platform = $fire['tool_consumer_info_product_family_code'];
         $token_request = LtiController::getLmsToken($fire['platform_id'], $platform, true);
         if (!$token_request['ok']) {
@@ -287,7 +287,7 @@ class LtiController extends Controller
     // This function saves a version of a map.
     public function storeVersion(Request $request)
     {
-        error_log('LLAMO A STOREVERSION!!');
+        // error_log('LLAMO A STOREVERSION!!');
         if ($this->checkToken($request->token)) {
             $sessionData = DB::table('lti_info')
                 ->where('token', '=', $request->token)
@@ -490,6 +490,7 @@ class LtiController extends Controller
     // Function that returns the token (if it exists) of the url added in the function
     public static function getLmsToken($url_lms, $platform, $validated = null)
     {
+        // header('Content-Type: application/json');
         $multiple_lms_config = '';
         if (!config()->has('multiple_lms_config')) {
             $return = [
@@ -509,7 +510,6 @@ class LtiController extends Controller
 
                             if ($validated) {
                                 $token = trim($lms_data['token']);
-
                                 if (!$token) {
                                     $return = [
                                         'ok' => false,
