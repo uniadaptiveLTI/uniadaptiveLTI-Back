@@ -259,6 +259,8 @@ class LtiController extends Controller
     // Function that returns the modules with a specific type of a course.
     public function getModulesByType(Request $request)
     {
+        // header('Access-Control-Allow-Origin: *');
+        // dd($request->type);
         if ($this->checkToken($request->token)) {
             $sessionData = DB::table('lti_info')
                 ->where('token', '=', $request->token)

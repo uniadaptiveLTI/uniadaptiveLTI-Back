@@ -235,19 +235,8 @@ class MoodleController extends Controller
                     'indent' => $module->indent,
                     'visible' => ($module->visible >= 1) ? 'show_unconditionally' : 'hidden'
                 ];
-                // switch ($module->modname) {
-                //     case 'quiz':
-                //     case 'assign':
-                //     case 'forum':
-                //     case 'workshop':
-                //         $module_data['g'] = MoodleController::getCalifications($url_lms, $module->id, $module->modname);
-                //         break;
-
-                //     default:
-                //         break;
-                // }
                 if ($module->availability != null) {
-                    $module_data['availability'] = MoodleController::importRecursiveConditionsChange($url_lms, json_decode($module->availability));
+                    $module_data['availability'] = MoodleController::importRecursiveConditionsChange($url_lms, json_decode($module->availability), $section->modules);
                 }
                 $modules[] = $module_data;
             }
@@ -299,7 +288,7 @@ class MoodleController extends Controller
             ]);
             $content = $response->getBody()->getContents();
             $data = json_decode($content);
-            
+            // dd($data);
             $module_grades = MoodleController::getCoursegrades($sessionData->platform_id, $sessionData->context_id);
             $modules = [];
             foreach ($data as $modules_data) {
@@ -473,7 +462,8 @@ class MoodleController extends Controller
         $sections = MoodleController::getModulesListBySectionsCourse($request->instance, $request->course);
         // dd($sections);
         $nodes = $request->nodes;
-
+        // dd($nodes);
+        //dd($nodes);
         $badges = [];
         usort($nodes, function ($a, $b) {
             if (isset($a['section']) && isset($b['section'])) {
@@ -561,13 +551,13 @@ class MoodleController extends Controller
         return response()->json(['ok' => $statusUpdate->status, 'errorType' => $statusUpdate->error]);
     }
     // This function changes the conditions of the nodes according to the URL and type.
-    public static function importRecursiveConditionsChange($url_lms, $data)
+    public static function importRecursiveConditionsChange($url_lms, $data, $modules)
     {
         switch ($data) {
             case isset($data->c):
                 $c = [];
                 foreach ($data->c as $index => $condition) {
-                    array_push($c, MoodleController::importRecursiveConditionsChange($url_lms, $condition));
+                    array_push($c, MoodleController::importRecursiveConditionsChange($url_lms, $condition, $modules));
                 }
                 $data->c = $c;
                 break;
@@ -583,6 +573,23 @@ class MoodleController extends Controller
                         $data->id = $grade_module->itemid;
                         return $data;
                         break;
+                    case 'completion':
+                        // header('Access-Control-Allow-Origin: *');
+                        foreach ($modules as $key => $module) {
+                            if($data->cm == $module->id && $data->e > 1){
+                                $g = MoodleController::getCalifications($url_lms, $module->id, $module->modname);
+                                if(!$g->hasToBeQualified){
+                                    switch ($data->e) {
+                                        case 2:
+                                        case 3:
+                                            $data->e = 1;
+                                            break;
+                                    }
+                                }                       
+                            }
+                        }
+                        return $data;
+                        break;
                     default:
                         break;
                 }
@@ -595,6 +602,7 @@ class MoodleController extends Controller
     // This function changes the conditions of the nodes according to the type and date.
     public static function exportRecursiveConditionsChange($instance_id, $course_id, $data, $json = [])
     {
+        // dd($data);
         switch ($data) {
             case isset($data['c']):
                 // Check if the conditions array is empty
@@ -603,16 +611,16 @@ class MoodleController extends Controller
                     unset($data);
                 } else {
                     $c = [];
-                    $showc = [];
+                    // $showc = [];
                     foreach ($data['c'] as $index => $condition) {
                         $result = MoodleController::exportRecursiveConditionsChange($instance_id, $course_id, $data['c'][$index], $json);
                         // Only add the result to the array if it's not null
                         if ($result !== null) {
                             array_push($c, $result);
                             // If the operator is & or !|, update the content of showc
-                            if (isset($data['op']) && ($data['op'] == '&' || $data['op'] == '!|')) {
-                                array_push($showc, true); // Add a boolean for each first-level condition
-                            }
+                            // if (isset($data['op']) && ($data['op'] == '&' || $data['op'] == '!|')) {
+                            //     array_push($showc, true); // Add a boolean for each first-level condition
+                            // }
                         }
                     }
                     // If after deletion, the 'c' array is empty, remove the entire conditions object
@@ -621,9 +629,9 @@ class MoodleController extends Controller
                     } else {
                         $data['c'] = $c;
                         // Update the content of showc
-                        if (!empty($showc)) {
-                            $data['showc'] = $showc;
-                        }
+                        // if (!empty($showc)) {
+                        //     $data['showc'] = $showc;
+                        // }
                     }
                 }
                 break;
@@ -774,11 +782,11 @@ class MoodleController extends Controller
     public static function getModulesNotSupported($request, $sessionData)
     {
         // header('Access-Control-Allow-Origin: *');
-        // dd(explode(',', json_encode($request->supportedTypes)));
+        // dd($request->supportedTypes);
         $url_lms = $sessionData->platform_id;
         $token_request = LtiController::getLmsToken($url_lms, MOODLE_PLATFORM, true);
+        // dd($request->sections);
 
-        $sections = json_encode($request->sections);
         $client = new Client([
             'base_uri' => $url_lms . '/webservice/rest/server.php',
             'timeout' => 20.0,
@@ -795,19 +803,15 @@ class MoodleController extends Controller
         ]);
         $content = $response->getBody()->getContents();
         $data = json_decode($content);
+        // dd($data);
         $modules = [];
         foreach ($data->modules as $module) {
             $section_position = 0;
-            foreach (json_decode($sections) as $section) {
-                if ($section->id == $module->section) {
-                    $section_position = $section->position;
-                    break;
-                }
-            }
+
             array_push($modules, [
                 'id' => htmlspecialchars($module->id),
                 'name' => htmlspecialchars($module->name),
-                'section' => htmlspecialchars($section_position),
+                'section' => htmlspecialchars($module->section),
                 'has_grades' => false
             ]);
         }
@@ -943,7 +947,8 @@ class MoodleController extends Controller
         $max = (float) number_format($data->data->data->max, 5);
         $data->data->data->min = $min;
         $data->data->data->max = $max;
-        error_log(json_encode($data));
+        // error_log(json_encode($data));
+        // dd($data);
         return $data->data;
     }
 }
