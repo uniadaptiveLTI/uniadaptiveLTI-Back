@@ -556,11 +556,6 @@ class MoodleController extends Controller
             }
 
         }
-        foreach ($sections->sections as $index => $section) {
-            if (count($section->sequence) == 0) {
-                unset($section->sequence);
-            }
-        }
         // dd($sections);
         $statusUpdate = MoodleController::updateCourse($request->instance, $sections->sections, $nodes, $badges);
         // dd($statusUpdate);
@@ -970,8 +965,6 @@ class MoodleController extends Controller
         $max = (float) number_format($data->data->data->max, 5);
         $data->data->data->min = $min;
         $data->data->data->max = $max;
-        // error_log(json_encode($data));
-        // dd($data);
         return $data->data;
     }
 }
