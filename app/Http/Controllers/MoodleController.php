@@ -98,16 +98,16 @@ class MoodleController extends Controller
         );
         while (is_null($dataInstance->id)) {
             sleep(1);
-        }
-        ;
+        };
+
         $dataCourse = Course::firstOrCreate(
             ['instance_id' => $dataInstance->id, 'course_id' => $course_id],
             ['instance_id' => $dataInstance->id, 'course_id' => $course_id, 'timestamps' => now()]
         );
         while (is_null($dataCourse->id)) {
             sleep(1);
-        }
-        ;
+        };
+
         $dataMaps = Map::select('id', 'created_id', 'user_id', 'course_id', 'name', 'updated_at')
             ->where('course_id', $dataCourse->id)
             ->where('user_id', $user_id)
@@ -147,8 +147,9 @@ class MoodleController extends Controller
         $dataVersion = Version::select('id', 'map_id', 'name', 'blocks_data', 'updated_at', 'default')
             ->where('id', $version_id)
             ->first();
-        if ($dataVersion == null)
+        if ($dataVersion == null) {
             return response()->json(['ok' => false, 'errorType' => 'Invalid_version', 'data' => ['invalid' => true]]);
+        }
         $dataVersion->blocks_data = json_decode($dataVersion->blocks_data);
         return response()->json(['ok' => true, 'data' => $dataVersion]);
     }
@@ -223,7 +224,13 @@ class MoodleController extends Controller
         $module_grades = MoodleController::getCoursegrades($url_lms, $course);
         foreach ($data as $indexS => $section) {
             foreach ($section->modules as $indexM => $module) {
-                $has_grades = in_array($module->name, $module_grades->module_grades);
+
+                $has_grades = false;
+                $has_califications = MoodleController::getCalifications($url_lms, $module->id, $module->modname);
+                if (!empty($module_grades->module_grades)) {
+                    $has_grades = in_array($module->name, $module_grades->module_grades);
+                }
+
                 $module_data = [
                     'name' => e($module->name),
                     'modname' => e($module->modname),
@@ -293,7 +300,9 @@ class MoodleController extends Controller
             $modules = [];
             foreach ($data as $modules_data) {
                 
+                
                 foreach ($modules_data as $module) {
+
                     $has_grades = in_array($module->name, $module_grades->module_grades);
                     array_push($modules, [
                         'id' => htmlspecialchars($module->id),
@@ -381,6 +390,7 @@ class MoodleController extends Controller
             ]
         ]);
         $content = $response->getBody()->getContents();
+
         $data = json_decode($content);
         return $data;
     }
@@ -422,6 +432,7 @@ class MoodleController extends Controller
             ]
         ]);
         $content = $response->getBody()->getContents();
+
         $data = json_decode($content);
         return $data;
     }
@@ -545,7 +556,12 @@ class MoodleController extends Controller
             }
 
         }
-        // dd($nodes);
+        foreach ($sections->sections as $index => $section) {
+            if (count($section->sequence) == 0) {
+                unset($section->sequence);
+            }
+        }
+        // dd($sections);
         $statusUpdate = MoodleController::updateCourse($request->instance, $sections->sections, $nodes, $badges);
         // dd($statusUpdate);
         return response()->json(['ok' => $statusUpdate->status, 'errorType' => $statusUpdate->error]);
@@ -678,7 +694,10 @@ class MoodleController extends Controller
             ->where('id', $instance)
             ->select('url_lms')
             ->first();
-        return $url_lms->url_lms;
+            if($url_lms) {
+                return $url_lms->url_lms;
+            }
+        return null;
     }
     // This function gets the data of a Moodle course module.
     public static function getModuleById($instance, $item_id)
@@ -725,6 +744,9 @@ class MoodleController extends Controller
         ]);
         $content = $response->getBody()->getContents();
         $data = json_decode($content);
+        if (isset($data->exception)) {
+            return null;
+        }
         return $data->grade_id;
     }
     // This function gets the id of the Moodle course grade.
@@ -736,6 +758,7 @@ class MoodleController extends Controller
         $url_lms = MoodleController::getURLLMS($instance);
         $token_request = LtiController::getLmsToken($url_lms, MOODLE_PLATFORM, true);
 
+        
         $client = new Client([
             'base_uri' => $url_lms . '/webservice/rest/server.php',
             'timeout' => 20.0,
@@ -922,7 +945,7 @@ class MoodleController extends Controller
     {
 
         // header('Access-Control-Allow-Origin: *');
-        $token_request = LtiController::getLmsToken($url_lms, 'moodle', true);
+        $token_request = LtiController::getLmsToken($url_lms, MOODLE_PLATFORM, true);
         // dd($token_request['data']);
         // dd($module_id, $module_modname);
 
