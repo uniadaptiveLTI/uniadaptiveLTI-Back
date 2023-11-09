@@ -45,36 +45,64 @@ class MoodleController extends Controller
     // Returns the session stored in the database of a user who has logged on to the lti.
     public static function getSession(object $lastInserted)
     {
-        $data = [
-            [
-                'user_id' => (int) $lastInserted->user_id,
-                'name' => $lastInserted->lis_person_name_full,
-                'profile_url' => $lastInserted->profile_url,
-                'roles' => $lastInserted->roles
-            ],
-            [
-                'platform' => $lastInserted->tool_consumer_info_product_family_code,
-                'instance_id' => MoodleController::getinstance($lastInserted->tool_consumer_info_product_family_code, $lastInserted->platform_id),
-                'course_id' => $lastInserted->context_id,
-                'name' => $lastInserted->context_title,
-                'lms_url' => $lastInserted->platform_id,
-                'return_url' => $lastInserted->launch_presentation_return_url,
-                'sections' => MoodleController::getSections($lastInserted->platform_id, $lastInserted->context_id),
-                'groups' => MoodleController::getGroups($lastInserted->platform_id, $lastInserted->context_id),
-                'groupings' => MoodleController::getGrupings($lastInserted->platform_id, $lastInserted->context_id),
-                'badges' => MoodleController::getBadges($lastInserted->platform_id, $lastInserted->context_id),
-                'grades' => MoodleController::getIdCoursegrades($lastInserted->platform_id, $lastInserted->context_id),
-                'role_list' => MoodleController::getRoles($lastInserted->platform_id, $lastInserted->context_id),
-                'skills' => MoodleController::getCompetencies($lastInserted->platform_id, $lastInserted->context_id)
-            ],
-            MoodleController::getCourse(
-                $lastInserted->context_id,
-                $lastInserted->tool_consumer_info_product_family_code,
-                $lastInserted->platform_id,
-                $lastInserted->user_id
-            )
-        ];
-        return response()->json(['ok' => true, 'data' => $data]);
+        // header('Access-Control-Allow-Origin: *');
+        $token_request = LtiController::getLmsToken($lastInserted->platform_id, MOODLE_PLATFORM, true);
+        $client = new Client([
+            'base_uri' => $lastInserted->platform_id . '/webservice/rest/server.php',
+            'timeout' => 20.0,
+        ]);
+        $response = $client->request('GET', '', [
+            'query' => [
+                'wstoken' => $token_request['data'],
+                'wsfunction' => 'local_uniadaptive_check_user',
+                'courseid' => $lastInserted->context_id,
+                'userid' => (int) $lastInserted->user_id,
+                'moodlewsrestformat' => 'json'
+            ]
+        ]);
+        $content = $response->getBody()->getContents();
+        $answerd = json_decode($content);
+        // dd($answerd);
+        switch ($answerd->authorized) {
+            case 4://Gestor
+            case 3://Teacher with permisions
+                $data = [
+                    [
+                        'user_id' => (int) $lastInserted->user_id,
+                        'name' => $lastInserted->lis_person_name_full,
+                        'profile_url' => $lastInserted->profile_url,
+                        'roles' => $lastInserted->roles
+                    ],
+                    [
+                        'platform' => $lastInserted->tool_consumer_info_product_family_code,
+                        'instance_id' => MoodleController::getinstance($lastInserted->tool_consumer_info_product_family_code, $lastInserted->platform_id),
+                        'course_id' => $lastInserted->context_id,
+                        'name' => $lastInserted->context_title,
+                        'lms_url' => $lastInserted->platform_id,
+                        'return_url' => $lastInserted->launch_presentation_return_url,
+                        'sections' => MoodleController::getSections($lastInserted->platform_id, $lastInserted->context_id),
+                        'groups' => MoodleController::getGroups($lastInserted->platform_id, $lastInserted->context_id),
+                        'groupings' => MoodleController::getGrupings($lastInserted->platform_id, $lastInserted->context_id),
+                        'badges' => MoodleController::getBadges($lastInserted->platform_id, $lastInserted->context_id),
+                        'grades' => MoodleController::getIdCoursegrades($lastInserted->platform_id, $lastInserted->context_id),
+                        'role_list' => MoodleController::getRoles($lastInserted->platform_id, $lastInserted->context_id),
+                        'skills' => MoodleController::getCompetencies($lastInserted->platform_id, $lastInserted->context_id)
+                    ],
+                    MoodleController::getCourse(
+                        $lastInserted->context_id,
+                        $lastInserted->tool_consumer_info_product_family_code,
+                        $lastInserted->platform_id,
+                        $lastInserted->user_id
+                    )
+                ];
+                return response()->json(['ok' => true, 'data' => $data]);
+                break;
+            
+            case 2://Teacher without permisions
+            case 1://Student
+                return response()->json(['ok' => false, 'errorType' => 'USER_UNAUTHORIZED', 'data' => []]);
+                break;
+        }
     }
     // Returns the instance.
     public static function getinstance($platform, $url_lms)
