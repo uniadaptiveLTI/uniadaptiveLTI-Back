@@ -611,4 +611,12 @@ class LtiController extends Controller
             }
         }
     }
+    public static function ping(Request $request){
+        if(isset($request->ping)){
+            $return = [
+                'pong' => 'pong'
+            ];
+            return $return;
+        }
+    }
 }

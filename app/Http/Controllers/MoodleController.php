@@ -910,15 +910,12 @@ class MoodleController extends Controller
 
         $url_lms = MoodleController::getURLLMS($instance);
         $token_request = LtiController::getLmsToken($url_lms, MOODLE_PLATFORM, true);
-
-        // dd($instance, $sections, $modules, $badges);
-        $client = new Client([
-            'base_uri' => $url_lms . '/webservice/rest/server.php',
-            'timeout' => 20.0,
-        ]);
-        // dd(json_decode(json_encode($sections)), $sections);
-        $response = $client->request('POST', '', [
-            'query' => [
+        $client = new \GuzzleHttp\Client([
+                'base_uri' => $url_lms . '/webservice/rest/server.php',
+                'timeout' => 20.0,
+            ]);
+        $response = $client->request('POST', $url_lms . '/webservice/rest/server.php', [
+            'form_params' => [
                 'wstoken' => $token_request['data'],
                 'wsfunction' => 'local_uniadaptive_update_course',
                 'data' => [
@@ -927,9 +924,7 @@ class MoodleController extends Controller
                     'badges' => $badges
                 ],
                 'moodlewsrestformat' => 'json'
-
-            ],
-
+            ]
         ]);
         $content = $response->getBody()->getContents();
         $data = json_decode($content);

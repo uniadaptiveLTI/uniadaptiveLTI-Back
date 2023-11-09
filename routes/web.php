@@ -25,3 +25,4 @@ Route::get('/lti/jwks', [LtiController::class, 'getJWKS']);
 Route::get('/lti/get_resource', [LtiController::class, 'getResource']);
 Route::get('/lti/get_server_info', [LtiController::class, 'getServerInfo']);
 Route::get('/lti/get_grade_module', [MoodleController::class, 'getGradeModule']);
+
