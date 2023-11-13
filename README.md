@@ -38,7 +38,7 @@ Run the development server:
 php artisan serve
 ```
 
-Open http://localhost:9000 with your browser to see the result.
+Open http://127.0.0.1:8000 with your browser to see the result.
 
 You can start editing the project by modifying the files in the `app` folder.
 
