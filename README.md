@@ -29,13 +29,13 @@ php artisan key:generate
 Configures the data for the database in the .env file by filling in the variables:
 
 ```bash
-    # Config data base UNIAdaptive
-    DB_CONNECTION=mysql
-    DB_HOST= # localhost
-    DB_PORT= # 3306
-    DB_DATABASE= # uniadaptative_back
-    DB_USERNAME= # root
-    DB_PASSWORD=
+# Config data base UNIAdaptive
+DB_CONNECTION=mysql
+DB_HOST= # localhost
+DB_PORT= # 3306
+DB_DATABASE= # uniadaptative_back
+DB_USERNAME= # root
+DB_PASSWORD=
 ```
 
 Run the database migrations:
