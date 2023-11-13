@@ -26,7 +26,7 @@ Generate an application key:
 php artisan key:generate
 ```
 
-Run the database migrations and seeders:
+Run the database migrations:
 
 ```bash
 php artisan migrate
