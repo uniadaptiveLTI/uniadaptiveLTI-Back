@@ -29,7 +29,7 @@ php artisan key:generate
 Run the database migrations and seeders:
 
 ```bash
-php artisan migrate --seed
+php artisan migrate
 ```
 
 Run the development server:
