@@ -26,7 +26,7 @@ Generate an application key:
 php artisan key:generate
 ```
 
-Configures the data for the database in the .env file by filling in the variables:
+Set up the data for the database in the .env file by uncommenting/filling in the variables:
 
 ```bash
 # Config data base UNIAdaptive
