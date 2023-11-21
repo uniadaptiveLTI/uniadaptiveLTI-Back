@@ -6,21 +6,21 @@
 
 return [
    'test_config' => [
-        'lms_url' => 'http://localhost/moodle', // instances:url_lms
-        'user_id' => 1, // lti_info:user_id
-        'course_id' => 1,// lti_info:context_id
-        'cm_course_id' => 1, // course_modules:course
-        'cm_name' => 'test 1', // grade_items:itemname
-        'cm_instance' => 1, // course_modules:instance
-        'cm_modname' => 'quiz', // grade_items:itemtype
-        'platform' => 'moodle', // instances:platform
-        'resource_type' => 'quiz', // grade_items:itemtype
-        'id_map_version' => 1, // versions:map_id
-        'instance_id' => 1, // courses:instance_id
-        'item_id' => 1, //course_modules:id
-        'grade_id' => 1, //grade_items:id
-        'module_id' => 1, //course_modules:id
-        'context_id' => '1' // lti_info:context_id
+        'lms_url' => 'http://localhost/moodle', // LMS: instances:url_lms
+        'user_id' => 1, // BACK: lti_info:user_id
+        'course_id' => 1,// BACK: lti_info:context_id
+        'cm_course_id' => 1, // LMS: course_modules:course
+        'cm_name' => 'test 1', // LMS: grade_items:itemname
+        'cm_instance' => 1, // LMS: course_modules:instance
+        'cm_modname' => 'quiz', // LMS: grade_items:itemtype
+        'platform' => 'moodle', // BACK: instances:platform
+        'resource_type' => 'quiz', // LMS: grade_items:itemtype
+        'id_map_version' => 1, // BACK: versions:map_id
+        'instance_id' => 1, // BACK: courses:instance_id
+        'item_id' => 1, // LMS: course_modules:id
+        'grade_id' => 1, // LMS: grade_items:id
+        'module_id' => 1, // LMS: course_modules:id
+        'context_id' => '1' // BACK: lti_info:context_id
     ]
 ];
 */
