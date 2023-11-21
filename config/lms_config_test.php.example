@@ -1,35 +1,26 @@
 <?php
 
-return [
-    'url' => 'http://localhost:8443',
-    'user' => 'admin',
-    'password' => 'admin',
-    'site_id' => '1',
-    'lesson_id' => '2'
-];
-
-
 /* MOODLE EXAMPLE:
 
 * Debe estar configurado el token del webservice para realizar los tests
 
 return [
    'test_config' => [
-        'lms_url' => 'http://localhost/moodle_test/moodle42-test',
-        'user_id' => 1, // User id
-        'course_id' => 2,
-        'cm_course_id' => 2, // Id del curso donde esta el modulo
-        'cm_name' => 'leccion1', // Nombre del modulo
-        'cm_instance' => 1, // Posicion del modulo dentro del curso
-        'cm_modname' => 'lesson', // Tipo de modulo
-        'platform' => 'moodle',
-        'resource_type' => 'quiz',
-        'id_map_version' => 1,
-        'instance_id' => 3,
-        'item_id' => 1,
-        'grade_id' => 1,
-        'module_id' => 1,
-        'context_id' => '1'
+        'lms_url' => 'http://localhost/moodle', // instances:url_lms
+        'user_id' => 1, // lti_info:user_id
+        'course_id' => 1,// lti_info:context_id
+        'cm_course_id' => 1, // course_modules:course
+        'cm_name' => 'test 1', // grade_items:itemname
+        'cm_instance' => 1, // course_modules:instance
+        'cm_modname' => 'quiz', // grade_items:itemtype
+        'platform' => 'moodle', // instances:platform
+        'resource_type' => 'quiz', // grade_items:itemtype
+        'id_map_version' => 1, // versions:map_id
+        'instance_id' => 1, // courses:instance_id
+        'item_id' => 1, //course_modules:id
+        'grade_id' => 1, //grade_items:id
+        'module_id' => 1, //course_modules:id
+        'context_id' => '1' // lti_info:context_id
     ]
 ];
 */
