@@ -6,7 +6,7 @@
 
 return [
    'test_config' => [
-        'lms_url' => 'http://localhost/moodle', // LMS: instances:url_lms
+        'lms_url' => 'http://localhost/moodle', // BACK: instances:url_lms
         'user_id' => 1, // BACK: lti_info:user_id
         'course_id' => 1,// BACK: lti_info:context_id
         'cm_course_id' => 1, // LMS: course_modules:course
