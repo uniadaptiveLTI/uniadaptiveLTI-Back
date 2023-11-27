@@ -487,7 +487,7 @@ class MoodleController extends Controller
         foreach ($datas as $section) {
             foreach ($section->modules as $module) {
                 if (in_array($module->name, $grades->module_grades)) {
-                    array_push($modulesCalificateds, $module->id);
+                    array_push($modulesCalificateds, strval($module->id));
                 }
             }
         }
@@ -501,7 +501,7 @@ class MoodleController extends Controller
         $sections = MoodleController::getModulesListBySectionsCourse($request->instance, $request->course);
         // dd($sections);
         $nodes = $request->nodes;
-        // dd($nodes);
+        // dd($request);
         //dd($nodes);
         $badges = [];
         usort($nodes, function ($a, $b) {
