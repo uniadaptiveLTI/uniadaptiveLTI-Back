@@ -33,10 +33,12 @@ class LtiController extends Controller
             $_SERVER['HTTPS'] = env('APP_HTTPS');
         }
         $tool = LtiTool::getLtiTool();
-        $tool->handleRequest();
         // dd($tool);
+        $tool->handleRequest();
+        
         $jwt = $tool->getJWT();
         $fire = $tool->getMessageParameters();
+        // dd($fire);
         $platform = $fire['tool_consumer_info_product_family_code'];
         $token_request = LtiController::getLmsToken($fire['platform_id'], $platform, true);
         if (!$token_request['ok']) {
@@ -113,7 +115,7 @@ class LtiController extends Controller
                         'token' => Str::uuid()->toString(),
                         'launch_presentation_return_url' => $fire['launch_presentation_return_url'],
                         'user_id' => (string) $fire['user_id'],
-                        'lis_person_name_full' => $fire['lis_person_name_full'],
+                        'lis_person_name_full' => $fire['lis_person_name_full'] == ''? 'Usuario':$fire['lis_person_name_full'],
                         //
                         'profile_url' => MoodleController::getImgUser($fire['platform_id'], $fire['user_id']),
                         'roles' => $fire['roles'],
@@ -173,7 +175,6 @@ class LtiController extends Controller
             ['context_id', '=', $fire['context_id']],
             ['expires_at', '>=', intval(Carbon::now()->valueOf())]
         ])->first();
-        // dd($session);
         $headers = @get_headers(env('FRONT_URL'));
         $canSee = false;
 
@@ -194,7 +195,7 @@ class LtiController extends Controller
         } else {
             // URL is not available
             // Handle error
-            return response('Error: La url no está disponible', 500);
+            return response('Error: No es posible redirigir al Front. Compruebe que el front esté funcionando correctamente. Compruebe la dirección en el .env o si se ha lanzado correctamente.', 500);
         }
     }
     // Function that returns the user and course data.
@@ -216,6 +217,25 @@ class LtiController extends Controller
                     return response()->json(['ok' => false, 'error_type' => 'PLATFORM_NOT_SUPPORTED', 'data' => []]);
                     break;
             }
+        } else {
+            return response()->json(['ok' => false, 'error_type' => 'INVALID_OR_EXPIRED_TOKEN', 'data' => []]);
+        }
+    }
+    // This function obtains data from a map.
+    public function getMap(Request $request)
+    {
+
+        if ($this->checkToken($request->token)) {
+            return MoodleController::getMap($request->map_id);
+        } else {
+            return response()->json(['ok' => false, 'error_type' => 'INVALID_OR_EXPIRED_TOKEN', 'data' => []]);
+        }
+    }
+    // This function obtains data from a version of a map.
+    public function getVersions(Request $request)
+    {
+        if ($this->checkToken($request->token)) {
+            return MoodleController::getVersions($request->map_id);
         } else {
             return response()->json(['ok' => false, 'error_type' => 'INVALID_OR_EXPIRED_TOKEN', 'data' => []]);
         }
@@ -299,6 +319,31 @@ class LtiController extends Controller
                     break;
                 case 'sakai':
                     return SakaiController::storeVersion($request->saveData);
+                    break;
+                default:
+                    error_log('The platform you are using is not supported.');
+                    return response()->json(['ok' => false, 'error_type' => 'PLATFORM_NOT_SUPPORTED', 'data' => []]);
+                    break;
+            }
+
+        } else {
+            return response()->json(['ok' => false, 'error_type' => 'INVALID_OR_EXPIRED_TOKEN', 'data' => []]);
+        }
+    }
+    // This function add a version of a map.
+    public function addVersion(Request $request)
+    {
+        if ($this->checkToken($request->token)) {
+            $sessionData = DB::table('lti_info')
+                ->where('token', '=', $request->token)
+                ->first();
+            $this->registerLog('addVersion', $sessionData);
+            switch ($sessionData->tool_consumer_info_product_family_code) {
+                case 'moodle':
+                    return MoodleController::addVersion($request);
+                    break;
+                case 'sakai':
+                    // return SakaiController::addVersion($request->saveData);
                     break;
                 default:
                     error_log('The platform you are using is not supported.');
@@ -421,6 +466,9 @@ class LtiController extends Controller
             //     break;
             case 'storeVersion':
                 $message = 'User ID: ' . $userData->user_id . ' ("' . $userData->lis_person_name_full . '") from LMS: "' . $userData->platform_id . '" has made a request to store version of course ID: ' . $userData->context_id . ' ("' . $userData->context_title . '")';
+                break;
+            case 'addVersion':
+                $message = 'User ID: ' . $userData->user_id . ' ("' . $userData->lis_person_name_full . '") from LMS: "' . $userData->platform_id . '" has made a request to add version of course ID: ' . $userData->context_id . ' ("' . $userData->context_title . '")';
                 break;
             case 'exportVersion':
                 $message = 'User ID: ' . $userData->user_id . ' ("' . $userData->lis_person_name_full . '") from LMS: "' . $userData->platform_id . '" has made a request to export version of course ID: ' . $userData->context_id . ' ("' . $userData->context_title . '")';
