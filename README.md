@@ -2,11 +2,10 @@ This is a Laravel 9 php project that uses the Laravel framework to create web ap
 
 ## Getting started
 
-### Normal installation
+### required installation
 
 -   [Install PHP](https://www.php.net/manual/es/install.php)
 -   [Install Composer](https://getcomposer.org/download/)
--   [Install Laravel](https://laravel.com/docs/9.x/installation)
 
 Install the necessary dependencies:
 
@@ -44,7 +43,7 @@ Run the database migrations:
 php artisan migrate
 ```
 
-Run the development server:
+You can run the project in a development server:
 
 ```bash
 php artisan serve
