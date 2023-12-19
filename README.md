@@ -6,7 +6,6 @@ This is a Laravel 9 php project that uses the Laravel framework to create web ap
 
 -   [Install PHP](https://www.php.net/manual/es/install.php)
 -   [Install Composer](https://getcomposer.org/download/)
--   [Install Laravel](https://laravel.com/docs/9.x/installation)
 
 Install the necessary dependencies:
 
