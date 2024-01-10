@@ -16,9 +16,11 @@ define('MOODLE_PLATFORM', 'moodle');
 class MoodleController extends Controller
 {
     // Saves the user's session in the database and redirects to the front end.
-    public static function storeVersion($saveData){
+    public static function storeVersion($saveData)
+    {
         // header('Access-Control-Allow-Origin: *');
         // dd($saveData);
+
         try {
             $course = Course::where('instance_id', $saveData['instance_id'])
                 ->where('course_id', $saveData['course_id'])
@@ -31,7 +33,7 @@ class MoodleController extends Controller
                 ['created_id' => $mapData['id'], 'course_id' => $course->id, 'user_id' => (string)$saveData['user_id']],
                 ['name' => $mapData['name']]
             );
-            
+
             $versionsData = $mapData['versions'];
             foreach ($versionsData as $versionData) {
                 // dd($versionData);
@@ -49,30 +51,6 @@ class MoodleController extends Controller
         }
     }
 
-    // Saves the user's session in the database and redirects to the front end.
-    public static function addVersion($request){
-        // header('Access-Control-Allow-Origin: *');
-        $version = $request->version;
-        // dd($request);
-        $dataMap = Map::where('created_id', $version['map_id'])
-        ->first();
-        // dd($dataMap->id);
-        try {
-            Version::create([
-                'map_id' => $dataMap->id, 
-                'name' => $version['name'], 
-                'default' => boolval($version['default']), 
-                'blocks_data' => json_encode($version['blocks_data'])
-            ]);
-            return response()->json(['ok' => true, 'errorType' => '', 'data' => []]);
-        } catch (\Exception $e) {
-            // dd($e);
-            error_log($e);
-            abort(500, $e->getMessage());
-            return response()->json(['ok' => false, 'errorType' => 'ERROR_SAVING_VERSION']);
-        }
-        
-    }
 
     // Returns the session stored in the database of a user who has logged on to the lti.
     public static function getSession(object $lastInserted)
@@ -97,8 +75,9 @@ class MoodleController extends Controller
         // dd($answerd);
         // dd($lastInserted->context_id,(int) $lastInserted->user_id, $answerd);
         switch ($answerd->authorized) {
-            case 4://Gestor
-            case 3://Teacher with permisions
+            case 4: //Gestor
+            case 3: //Teacher with permisions
+            case 1: //Student
                 $data = [
                     [
                         'user_id' => (int) $lastInserted->user_id,
@@ -130,9 +109,10 @@ class MoodleController extends Controller
                 ];
                 return response()->json(['ok' => true, 'data' => $data]);
                 break;
-            
-            case 2://Teacher without permisions
-            case 1://Student
+
+            case 2: //Teacher without permisions
+
+            default:
                 return response()->json(['ok' => false, 'errorType' => 'USER_UNAUTHORIZED', 'data' => []]);
                 break;
         }
@@ -146,8 +126,7 @@ class MoodleController extends Controller
         );
         while (is_null($dataInstance->id)) {
             sleep(1);
-        }
-        ;
+        };
         return $dataInstance->id;
     }
     // Returns an array of the maps of a course with their versions and blocks.
@@ -206,27 +185,30 @@ class MoodleController extends Controller
     public static function getMap($map_id)
     {
         // header('Access-Control-Allow-Origin: *');
-        // dd(Map::select('id', 'created_id')->get());
+        // dd($map_id);
         $dataMap = Map::where('created_id', $map_id)
             ->first();
         if ($dataMap == null) {
-            return response()->json(['ok' => false, 'errorType' => 'INVALID_MAP', 'data' => ['invalid' => true]]);
+
+            return response()->json(['ok' => false, 'errorType' => 'INVALID_MAP', 'data' => ['invalid' => true], 'map_id' => $map_id]);
         }
-        $dataMap= json_decode($dataMap);
+        $dataMap = json_decode($dataMap);
+
         return response()->json(['ok' => true, 'data' => $dataMap]);
     }
     // This function obtains the data of a version of a map, with the version id as parameter.
-    public static function getVersions($map_id){
+    public static function getVersions($map_id)
+    {
         // header('Access-Control-Allow-Origin: *');
         // dd($map_id);
         $mapId = Map::select('id')
-        ->where('created_id', $map_id)
-        ->first();
+            ->where('created_id', $map_id)
+            ->first();
         // dd($mapId);
         $dataVersions = Version::where('map_id', $mapId->id)->get();
 
         if ($dataVersions == null) {
-            return response()->json(['ok' => false, 'errorType' => 'INVALID_VERSION', 'data' => ['invalid' => true]]);
+            return response()->json(['ok' => false, 'errorType' => 'INVALID_VERSION', 'data' => $dataVersions]);
         }
         // dd($dataVersions);
         $dataVersions->transform(function ($version) {
@@ -235,7 +217,7 @@ class MoodleController extends Controller
         });
         // dd($dataVersions->toArray());
         return response()->json(['ok' => true, 'data' => $dataVersions->toArray()]);  // Devuelve los datos de las versiones como un array
-    }   
+    }
 
     // This function obtains the data of a version of a map, with the version id as parameter.
     public static function getVersion($version_id)
@@ -258,7 +240,7 @@ class MoodleController extends Controller
             'timeout' => 20.0,
         ]);
         $response = $client->request('GET', '', [
-            'query' => [ 
+            'query' => [
                 'wstoken' => $token_request['data'],
                 'wsfunction' => 'core_course_get_contents',
                 'courseid' => $course_id,
@@ -345,7 +327,6 @@ class MoodleController extends Controller
             }
         }
         return response()->json(['ok' => true, 'data' => $modules]);
-
     }
     // Function that returns the modules of a specific type of a course.
     public static function getModulesByType(Request $request, $sessionData)
@@ -395,8 +376,8 @@ class MoodleController extends Controller
             $module_grades = MoodleController::getCoursegrades($sessionData->platform_id, $sessionData->context_id);
             $modules = [];
             foreach ($data as $modules_data) {
-                
-                
+
+
                 foreach ($modules_data as $module) {
 
                     $has_grades = in_array($module->name, $module_grades->module_grades);
@@ -493,7 +474,7 @@ class MoodleController extends Controller
     // Function that returns the url of the user's image.
     public static function getImgUser($url_lms, $user_id)
     {
-        
+        header('Access-Control-Allow-Origin: *');
         $token_request = LtiController::getLmsToken($url_lms, MOODLE_PLATFORM, true);
         // dd($url_lms, $user_id, $token_request);
         $client = new Client([
@@ -511,7 +492,7 @@ class MoodleController extends Controller
         ]);
         $content = $response->getBody()->getContents();
         $data = json_decode($content);
-        
+        // dd($data);
         return $data[0]->profileimageurl;
     }
     // Returns an array with the names of all modules in the course that have grades.
@@ -568,7 +549,7 @@ class MoodleController extends Controller
     public static function exportVersion(Request $request)
     {
         // header('Access-Control-Allow-Origin: *');
-
+        // dd($request->getAll());
         $sections = MoodleController::getModulesListBySectionsCourse($request->instance, $request->course);
         // dd($sections);
         $nodes = $request->nodes;
@@ -647,17 +628,17 @@ class MoodleController extends Controller
                     }
                 }
             }
-
         }
         foreach ($sections->sections as $index => $section) {
             if (count($section->sequence) == 0) {
                 unset($section->sequence);
             }
-
         }
         // dd($sections);
         $statusUpdate = MoodleController::updateCourse($request->instance, $sections->sections, $nodes, $badges);
         // dd($statusUpdate);
+        if ($statusUpdate->status) {
+        }
         return response()->json(['ok' => $statusUpdate->status, 'errorType' => $statusUpdate->error]);
     }
     // This function changes the conditions of the nodes according to the URL and type.
@@ -686,16 +667,16 @@ class MoodleController extends Controller
                     case 'completion':
                         // header('Access-Control-Allow-Origin: *');
                         foreach ($modules as $key => $module) {
-                            if($data->cm == $module->id && $data->e > 1){
+                            if ($data->cm == $module->id && $data->e > 1) {
                                 $g = MoodleController::getCalifications($url_lms, $module->id, $module->modname);
-                                if(!$g->hasToBeQualified){
+                                if (!$g->hasToBeQualified) {
                                     switch ($data->e) {
                                         case 2:
                                         case 3:
                                             $data->e = 1;
                                             break;
                                     }
-                                }                       
+                                }
                             }
                         }
                         return $data;
@@ -788,9 +769,9 @@ class MoodleController extends Controller
             ->where('id', $instance)
             ->select('url_lms')
             ->first();
-            if($url_lms) {
-                return $url_lms->url_lms;
-            }
+        if ($url_lms) {
+            return $url_lms->url_lms;
+        }
         return null;
     }
     // This function gets the data of a Moodle course module.
@@ -846,13 +827,11 @@ class MoodleController extends Controller
     // This function gets the id of the Moodle course grade.
     public static function getIdCourseGrade($instance, $course_id)
     {
-        error_log(print_r(gettype(intval($course_id)), true));
-        error_log((MoodleController::getURLLMS($instance) . '/webservice/rest/server.php'));
 
         $url_lms = MoodleController::getURLLMS($instance);
         $token_request = LtiController::getLmsToken($url_lms, MOODLE_PLATFORM, true);
 
-        
+
         $client = new Client([
             'base_uri' => $url_lms . '/webservice/rest/server.php',
             'timeout' => 20.0,
@@ -1010,9 +989,9 @@ class MoodleController extends Controller
         $url_lms = MoodleController::getURLLMS($instance);
         $token_request = LtiController::getLmsToken($url_lms, MOODLE_PLATFORM, true);
         $client = new \GuzzleHttp\Client([
-                'base_uri' => $url_lms . '/webservice/rest/server.php',
-                'timeout' => 20.0,
-            ]);
+            'base_uri' => $url_lms . '/webservice/rest/server.php',
+            'timeout' => 20.0,
+        ]);
         $response = $client->request('POST', $url_lms . '/webservice/rest/server.php', [
             'form_params' => [
                 'wstoken' => $token_request['data'],

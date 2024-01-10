@@ -19,10 +19,11 @@ use Illuminate\Support\Facades\Route;
 Route::any('/', function () {
     return "Instancia no válida: No se ha lanzado correctamente "/*view('welcome')*/;
 });
-
+Route::get('/lti/get_time', [LtiController::class, 'getTime']);
 Route::any('/lti', [LtiController::class, 'saveSession']);
 Route::get('/lti/jwks', [LtiController::class, 'getJWKS']);
 Route::get('/lti/get_resource', [LtiController::class, 'getResource']);
+
 Route::get('/lti/get_server_info', [LtiController::class, 'getServerInfo']);
 Route::get('/lti/get_grade_module', [MoodleController::class, 'getGradeModule']);
 

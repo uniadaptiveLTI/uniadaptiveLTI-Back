@@ -1,0 +1,91 @@
+{
+    "visibleAdminButton": true,
+    "branding": {
+        "faviconx16_path": "icons/branding/favicon-16x16.png",
+        "faviconx32_path": "icons/branding/favicon-32x32.png",
+        "faviconx180_path": "icons/branding/apple-touch-icon.png",
+        "logo_path": "images/branding/logo.png",
+        "small_logo_path": "images/branding/small_logo.png",
+        "main": {
+            "fontColor": "",
+            "fontFamily": "",
+            "borderRadius": "",
+            "backgroundColor": "",
+            "secondaryBackgroundColor": "",
+            "tertiaryBackgroundColor": ""
+        },
+        "header": {
+            "fontColor": "",
+            "fontFamily": "",
+            "backgroundColor": "",
+            "userImageBorderRadius": "",
+            "userImageBorderWidth": "",
+            "userImageBorderColor": "",
+            "actionButtons": {
+                "borderRadius": "",
+                "backgroundColor": "",
+                "svgFilter": ""
+            },
+            "versionDropdown": {
+                "fontColor": "",
+                "fontFamily": "",
+                "backgroundColor": "",
+                "boxShadowColor": ""
+            }
+        },
+        "aside": {
+            "fontColor": "",
+            "fontFamily": "",
+            "backgroundColor": "",
+            "collapse": {
+                "fontColor": "",
+                "backgroundColor": ""
+            },
+            "logo": {
+                "backgroundColor": ""
+            }
+        },
+        "blockflow": {
+            "fontColor": "",
+            "fontFamily": "",
+            "backgroundColor": "",
+            "label": {
+                "fontColor": "",
+                "fontFamily": "",
+                "backgroundColor": ""
+            },
+            "hover": {
+                "fontColor": "",
+                "fontFamily": "",
+                "backgroundColor": ""
+            },
+            "innerBoxShadowColor": "",
+            "node": {
+                "borderRadius": "",
+                "borderWidth": "",
+                "borderColor": "",
+                "handlesBorderRadius": ""
+            },
+            "edge": {
+                "fontColor": "",
+                "backgroundColor": "",
+                "borderRadius": "",
+                "borderWidth": "",
+                "borderColor": ""
+            },
+            "controls": {
+                "border": "",
+                "button": {
+                    "fontColor": "",
+                    "backgroundColor": "",
+                    "border": "",
+                    "svgFilter": ""
+                }
+            },
+            "minimap": {
+                "border": "",
+                "backgroundColor": ""
+            }
+        }
+    }
+}

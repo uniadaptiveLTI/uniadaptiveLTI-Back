@@ -20,9 +20,4 @@ class Version extends Model
     {
         return $this->belongsTo('App\Models\Map');
     }
-
-    public function blocks()
-    {
-        return $this->hasMany('App\Models\Block');
-    }
 }
