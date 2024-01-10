@@ -481,6 +481,7 @@ class SakaiController extends Controller
         if ($modulesRequestStatus == 200) {
             $modulesData = json_decode($lessonGetRequest['requestBody']);
             if ($modulesData->contentsList != null && count($modulesData->contentsList) >= 1) {
+                error_log(print_r($modulesData->contentsList, true));
                 foreach ($modulesData->contentsList as $index => $module) {
                     $modulesData->contentsList[$index]->type = SakaiController::changeIdNameType($module);
                     if ($modulesData->contentsList[$index]->type == 'break') {
