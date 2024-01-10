@@ -29,6 +29,7 @@ return new class extends Migration
             $table->longText('profile_url');
             $table->mediumText('roles');
             $table->bigInteger('expires_at');
+            $table->bigInteger('session_active')->nullable();
             $table->timestamps();
         });
     }

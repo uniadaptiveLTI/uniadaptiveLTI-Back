@@ -5,12 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\Map;
 use App\Models\Version;
 use Error;
-use LonghornOpen\LaravelCelticLTI\LtiTool;
+use GuzzleHttp\Client;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use GuzzleHttp\Client;
+use LonghornOpen\LaravelCelticLTI\LtiTool;
 
 class LtiController extends Controller
 {
@@ -29,13 +29,13 @@ class LtiController extends Controller
             $_SERVER['SERVER_NAME'] = env('APP_PROXY');
             $_SERVER['SERVER_PORT'] = env('APP_PROXY_PORT');
         }
-        if (env('APP_HTTPS') != '') {
-            $_SERVER['HTTPS'] = env('APP_HTTPS');
-        }
+        // if (env('APP_HTTPS') != '') {
+        //     $_SERVER['HTTPS'] = env('APP_HTTPS');
+        // }
         $tool = LtiTool::getLtiTool();
         // dd($tool);
         $tool->handleRequest();
-        
+
         $jwt = $tool->getJWT();
         $fire = $tool->getMessageParameters();
         // dd($fire);
@@ -49,7 +49,7 @@ class LtiController extends Controller
             ['user_id', '=', $fire['user_id']],
             ['platform_id', '=', $fire['platform_id']],
             ['context_id', '=', $fire['context_id']],
-            ['expires_at', '>=', intval(Carbon::now()->valueOf())]
+            ['expires_at', '>=', intval(Carbon::now()->valueOf())],
         ])->first();
         if ($session) {
             // dd($session);
@@ -59,14 +59,14 @@ class LtiController extends Controller
                         ['user_id', '=', $fire['user_id']],
                         ['platform_id', '=', $fire['platform_id']],
                         ['context_id', '=', $fire['context_id']],
-                        ['expires_at', '>=', intval(Carbon::now()->valueOf())]
+                        ['expires_at', '>=', intval(Carbon::now()->valueOf())],
                     ])->update([
-                                'profile_url' => MoodleController::getImgUser(
-                                    $fire['platform_id'],
-                                    $fire['user_id']
-                                ),
-                                'lis_person_name_full' => $fire['lis_person_name_full']
-                            ]);
+                        'profile_url' => MoodleController::getImgUser(
+                            $fire['platform_id'],
+                            $fire['user_id']
+                        ),
+                        'lis_person_name_full' => $fire['lis_person_name_full'],
+                    ]);
                     break;
                 case 'sakai':
                     $jwtPayload = $jwt->getPayload();
@@ -84,13 +84,13 @@ class LtiController extends Controller
                         ['user_id', '=', $fire['user_id']],
                         ['platform_id', '=', $fire['platform_id']],
                         ['context_id', '=', $fire['context_id']],
-                        ['expires_at', '>=', intval(Carbon::now()->valueOf())]
+                        ['expires_at', '>=', intval(Carbon::now()->valueOf())],
                     ])->update([
-                                'profile_url' => SakaiController::getUrl($fire['platform_id'], $fire['context_id'], SakaiController::getId($fire['user_id'])),
-                                'lis_person_name_full' => $fire['lis_person_name_full'],
-                                'session_id' => $session_id
-                            ]);
-                // dd($session);
+                        'profile_url' => SakaiController::getUrl($fire['platform_id'], $fire['context_id'], SakaiController::getId($fire['user_id'])),
+                        'lis_person_name_full' => $fire['lis_person_name_full'],
+                        'session_id' => $session_id,
+                    ]);
+                    // dd($session);
                 default:
                     break;
             }
@@ -100,7 +100,7 @@ class LtiController extends Controller
             $session = DB::table('lti_info')->where([
                 ['user_id', '=', $fire['user_id']],
                 ['platform_id', '=', $fire['platform_id']],
-                ['context_id', '=', $fire['context_id']]
+                ['context_id', '=', $fire['context_id']],
             ])->delete();
             switch ($fire['tool_consumer_info_product_family_code']) {
                 case 'moodle':
@@ -115,7 +115,7 @@ class LtiController extends Controller
                         'token' => Str::uuid()->toString(),
                         'launch_presentation_return_url' => $fire['launch_presentation_return_url'],
                         'user_id' => (string) $fire['user_id'],
-                        'lis_person_name_full' => $fire['lis_person_name_full'] == ''? 'Usuario':$fire['lis_person_name_full'],
+                        'lis_person_name_full' => $fire['lis_person_name_full'] == '' ? 'Usuario' : $fire['lis_person_name_full'],
                         //
                         'profile_url' => MoodleController::getImgUser($fire['platform_id'], $fire['user_id']),
                         'roles' => $fire['roles'],
@@ -173,7 +173,7 @@ class LtiController extends Controller
             ['user_id', '=', $fire['user_id']],
             ['platform_id', '=', $fire['platform_id']],
             ['context_id', '=', $fire['context_id']],
-            ['expires_at', '>=', intval(Carbon::now()->valueOf())]
+            ['expires_at', '>=', intval(Carbon::now()->valueOf())],
         ])->first();
         $headers = @get_headers(env('FRONT_URL'));
         $canSee = false;
@@ -188,23 +188,28 @@ class LtiController extends Controller
         }
 
         if ($canSee) {
-            // URL is available
-            // Generate redirect response
-            // dd($session->token);
             return redirect()->to(env('FRONT_URL') . '?token=' . $session->token);
         } else {
-            // URL is not available
-            // Handle error
             return response('Error: No es posible redirigir al Front. Compruebe que el front esté funcionando correctamente. Compruebe la dirección en el .env o si se ha lanzado correctamente.', 500);
         }
+    }
+
+    public function getTime(Request $request)
+    {
+        $token = $request->token;
+        $time = DB::table('lti_info')->where([['token', '=', $token]])->first();
+        return response()->json(['time' => $time->session_active]);
     }
     // Function that returns the user and course data.
     public function getSession(Request $request)
     {
+        // header('Access-Control-Allow-Origin: ' . env('FRONT_URL'));
+
         if ($this->checkToken($request->token)) {
             $sessionData = DB::table('lti_info')
                 ->where('token', '=', $request->token)
                 ->first();
+            // dd($sessionData);
             $this->registerLog('getSession', $sessionData);
             switch ($sessionData->tool_consumer_info_product_family_code) {
                 case 'moodle':
@@ -325,7 +330,6 @@ class LtiController extends Controller
                     return response()->json(['ok' => false, 'error_type' => 'PLATFORM_NOT_SUPPORTED', 'data' => []]);
                     break;
             }
-
         } else {
             return response()->json(['ok' => false, 'error_type' => 'INVALID_OR_EXPIRED_TOKEN', 'data' => []]);
         }
@@ -338,19 +342,26 @@ class LtiController extends Controller
                 ->where('token', '=', $request->token)
                 ->first();
             $this->registerLog('addVersion', $sessionData);
-            switch ($sessionData->tool_consumer_info_product_family_code) {
-                case 'moodle':
-                    return MoodleController::addVersion($request);
-                    break;
-                case 'sakai':
-                    // return SakaiController::addVersion($request->saveData);
-                    break;
-                default:
-                    error_log('The platform you are using is not supported.');
-                    return response()->json(['ok' => false, 'error_type' => 'PLATFORM_NOT_SUPPORTED', 'data' => []]);
-                    break;
+            // header('Access-Control-Allow-Origin: *');
+            $version = $request->version;
+            // dd($request);
+            $dataMap = Map::where('created_id', $version['map_id'])
+                ->first();
+            // dd($dataMap->id);
+            try {
+                Version::create([
+                    'map_id' => $dataMap->id,
+                    'name' => $version['name'],
+                    'default' => boolval($version['default']),
+                    'blocks_data' => json_encode($version['blocks_data'])
+                ]);
+                return response()->json(['ok' => true, 'errorType' => '', 'data' => []]);
+            } catch (\Exception $e) {
+                // dd($e);
+                error_log($e);
+                abort(500, $e->getMessage());
+                return response()->json(['ok' => false, 'errorType' => 'ERROR_SAVING_VERSION']);
             }
-
         } else {
             return response()->json(['ok' => false, 'error_type' => 'INVALID_OR_EXPIRED_TOKEN', 'data' => []]);
         }
@@ -399,7 +410,7 @@ class LtiController extends Controller
         }
     }
     // This function deletes a map.
-    function deleteMap(Request $request)
+    public function deleteMap(Request $request)
     {
         if ($this->checkToken($request->token)) {
             $sessionData = DB::table('lti_info')
@@ -420,7 +431,7 @@ class LtiController extends Controller
         }
     }
     // This function checks if a token is valid to access the data of a session.
-    function checkToken($token)
+    public function checkToken($token)
     {
         $nowDate = intval(Carbon::now()->valueOf());
         $sessionData = DB::table('lti_info')
@@ -428,13 +439,17 @@ class LtiController extends Controller
             ->where('expires_at', '>=', $nowDate)
             ->first();
         if ($sessionData != null) {
+            DB::table('lti_info')->where('token', '=', $token)
+                ->update([
+                    'session_active' => intval(Carbon::now()->addMinutes(env('TIME_LIMIT'))->valueOf()),
+                ]);
             return true;
         } else {
             return false;
         }
     }
     // Define the function that gets the data from the database.
-    function registerLog($case, $userData)
+    public function registerLog($case, $userData)
     {
         // Obtain the current date in the format d-m-Y.
         $date = date("Y-m-d");
@@ -455,15 +470,6 @@ class LtiController extends Controller
             case 'getSession':
                 $message = 'User ID: ' . $userData->user_id . ' ("' . $userData->lis_person_name_full . '") from LMS: "' . $userData->platform_id . '" has accessed UNIAdaptive through course ID: ' . $userData->context_id . ' ("' . $userData->context_title . '")';
                 break;
-            // case 'getVersion':
-            //         $message = 'User ID: '.$userData->user_id.' ("'.$userData->lis_person_name_full.'") from LMS: "'.$userData->platform_id.'" has made a request to obtain the versions of course ID: '.$userData->context_id.' ("'.$userData->context_title.'")';
-            //     break;
-            // case 'getModules':
-            //         $message = 'User ID: '.$userData->user_id.' ("'.$userData->lis_person_name_full.'") from LMS: "'.$userData->platform_id.'" has made a request to obtain the modules of course ID: '.$userData->context_id.' ("'.$userData->context_title.'")';
-            //     break;
-            // case 'getModulesByType':
-            //         $message = 'User ID: '.$userData->user_id.' ("'.$userData->lis_person_name_full.'") from LMS: "'.$userData->platform_id.'" has made a request to obtain the modules list of course ID: '.$userData->context_id.' ("'.$userData->context_title.'")';
-            //     break;
             case 'storeVersion':
                 $message = 'User ID: ' . $userData->user_id . ' ("' . $userData->lis_person_name_full . '") from LMS: "' . $userData->platform_id . '" has made a request to store version of course ID: ' . $userData->context_id . ' ("' . $userData->context_title . '")';
                 break;
@@ -500,18 +506,21 @@ class LtiController extends Controller
     // This function authenticates the user as administrator.
     public function auth(Request $request)
     {
-        $password = $request->password;
+        // header('Access-Control-Allow-Origin: *');
+
+        $parameter = $request->password;
 
         $adminPassword = env('ADMIN_PASSWORD');
+        // dd($parameters, $adminPassword);
 
         try {
-            if ($adminPassword == $password) {
-                return response()->json(['ok' => true]);
+            if ($adminPassword == $parameter) {
+                return response()->json(['valid' => true]);
             } else {
-                return response()->json(['ok' => false, 'error_type' => 'INVALID_PASSWORD']);
+                return response()->json(['valid' => false, 'error_type' => 'INVALID_PASSWORD']);
             }
         } catch (Error $e) {
-            return response()->json(['ok' => false, 'error_type' => 'INVALID_REQUEST']);
+            return response()->json(['valid' => false, 'error_type' => 'INVALID_REQUEST']);
         }
     }
     // This function obtains resource usage data from the server.
@@ -544,7 +553,7 @@ class LtiController extends Controller
             $return = [
                 'ok' => false,
                 'data' => "[TokenNotConfigured]",
-                'error' => "A token has not been configured for this LMS, you must add the token generated in ({$url_lms}) in the configuration file."
+                'error' => "A token has not been configured for this LMS, you must add the token generated in ({$url_lms}) in the configuration file.",
             ];
             return $return;
         } else {
@@ -562,13 +571,13 @@ class LtiController extends Controller
                                     $return = [
                                         'ok' => false,
                                         'data' => "[TokenNotConfigured]",
-                                        'error' => "A token has not been configured for this LMS, you must add the token generated in ({$url_lms}) in the configuration file."
+                                        'error' => "A token has not been configured for this LMS, you must add the token generated in ({$url_lms}) in the configuration file.",
                                     ];
                                     return $return;
                                 }
                                 $return = [
                                     'ok' => true,
-                                    'data' => $token
+                                    'data' => $token,
                                 ];
                                 return $return;
                             }
@@ -588,8 +597,8 @@ class LtiController extends Controller
                                     'wstoken' => $token,
                                     'wsfunction' => 'local_uniadaptive_get_assignable_roles',
                                     'contextid' => 0,
-                                    'moodlewsrestformat' => 'json'
-                                ]
+                                    'moodlewsrestformat' => 'json',
+                                ],
                             ]);
 
                             $content = $response->getBody()->getContents();
@@ -599,14 +608,14 @@ class LtiController extends Controller
                                 $return = [
                                     'ok' => false,
                                     'data' => "[$data->errorcode]",
-                                    'error' => "$data->message"
+                                    'error' => "$data->message",
                                 ];
                                 return $return;
                             }
 
                             $return = [
                                 'ok' => true,
-                                'data' => $token
+                                'data' => $token,
                             ];
                             return $return;
                         }
@@ -615,7 +624,7 @@ class LtiController extends Controller
                     $return = [
                         'ok' => false,
                         'data' => "[TokenNotConfigured]",
-                        'error' => "A token has not been configured for this LMS, you must add the token generated in ({$url_lms}) in the configuration file."
+                        'error' => "A token has not been configured for this LMS, you must add the token generated in ({$url_lms}) in the configuration file.",
                     ];
                     return $return;
                     break;
@@ -626,20 +635,20 @@ class LtiController extends Controller
                             if ($validated) {
                                 $token = [
                                     'user' => trim($lms_data['user']),
-                                    'password' => trim($lms_data['password'])
+                                    'password' => trim($lms_data['password']),
                                 ];
                                 // dd($token);
                                 if (!isset($token['user']) || !isset($token['password'])) {
                                     $return = [
                                         'ok' => false,
                                         'data' => "[TokenNotConfigured]",
-                                        'error' => "A token has not been configured for this LMS, you must add the token generated in ({$url_lms}) in the configuration file."
+                                        'error' => "A token has not been configured for this LMS, you must add the token generated in ({$url_lms}) in the configuration file.",
                                     ];
                                     return $return;
                                 }
                                 $return = [
                                     'ok' => true,
-                                    'data' => $token
+                                    'data' => $token,
                                 ];
                                 return $return;
                             }
@@ -649,7 +658,7 @@ class LtiController extends Controller
                     $return = [
                         'ok' => false,
                         'data' => "[TokenNotConfigured]",
-                        'error' => "A token has not been configured for this LMS, you must add the token generated in ({$url_lms}) in the configuration file."
+                        'error' => "A token has not been configured for this LMS, you must add the token generated in ({$url_lms}) in the configuration file.",
                     ];
                     return $return;
                     break;
@@ -659,10 +668,53 @@ class LtiController extends Controller
             }
         }
     }
-    public static function ping(Request $request){
-        if(isset($request->ping)){
+    public static function getConfig()
+    {
+        $archivos = [
+            base_path('/config/frontendConfiguration.json'),
+            base_path('/config/frontendDefaultConfiguration.json'),
+        ];
+
+        foreach ($archivos as $archivo) {
+            if (file_exists($archivo)) {
+
+                $contenido = file_get_contents($archivo);
+                $json = json_decode($contenido, true);
+                if (json_last_error() === JSON_ERROR_NONE) {
+                    return $json;
+                }
+            }
+        }
+        return null;
+    }
+
+    public static function setConfig(Request $request)
+    {
+        $password = $request->password;
+
+        $json = $request->settings;
+
+        if ($password == env('ADMIN_PASSWORD')) {
+            // $decodedJson = json_encode($json, true);
+
+            if (json_last_error() === JSON_ERROR_NONE) {
+                $archivo = base_path('/config/frontendConfiguration.json');
+                if (file_put_contents($archivo, json_encode($json, true)) !== false) {
+
+                    return ['ok' => true];
+                }
+            }
+            return ['ok' => false, 'error' => 'FAILLURE_CHANGE_CONFIG'];
+        }
+
+        return ['ok' => false, 'error' => 'INVALID_PASSWORD'];
+    }
+
+    public static function ping(Request $request)
+    {
+        if (isset($request->ping)) {
             $return = [
-                'pong' => 'pong'
+                'pong' => 'pong',
             ];
             return $return;
         }

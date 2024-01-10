@@ -20,8 +20,7 @@ class SakaiController extends Controller
         );
         while (is_null($dataInstance->id)) {
             sleep(1);
-        }
-        ;
+        };
         return $dataInstance->id;
     }
 
@@ -33,16 +32,14 @@ class SakaiController extends Controller
         );
         while (is_null($dataInstance->id)) {
             sleep(1);
-        }
-        ;
+        };
         $dataCourse = Course::firstOrCreate(
             ['instance_id' => $dataInstance->id, 'course_id' => $course_id],
             ['instance_id' => $dataInstance->id, 'course_id' => $course_id, 'timestamps' => now()]
         );
         while (is_null($dataCourse->id)) {
             sleep(1);
-        }
-        ;
+        };
         $dataMaps = Map::select('id', 'created_id', 'course_id', 'name', 'updated_at')
             ->where('course_id', $dataCourse->id)
             ->get();
@@ -135,7 +132,7 @@ class SakaiController extends Controller
         return response()->json(['ok' => true, 'data' => $data]);
     }
 
-    
+
 
     public static function createSession($url_lms, $sakaiServerId, $data)
     {
@@ -481,6 +478,7 @@ class SakaiController extends Controller
         if ($modulesRequestStatus == 200) {
             $modulesData = json_decode($lessonGetRequest['requestBody']);
             if ($modulesData->contentsList != null && count($modulesData->contentsList) >= 1) {
+                error_log(print_r($modulesData->contentsList, true));
                 foreach ($modulesData->contentsList as $index => $module) {
                     $modulesData->contentsList[$index]->type = SakaiController::changeIdNameType($module);
                     if ($modulesData->contentsList[$index]->type == 'break') {
