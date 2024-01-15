@@ -1,5 +1,5 @@
 {
-    "name": "edf/uniadaptative",
+    "name": "edf/uniadaptive",
     "type": "project",
     "description": "The Laravel Framework.",
     "license": "GPL-3.0-or-later",
@@ -24,7 +24,11 @@
         "laravel/tinker": "^2.7",
         "llagerlof/moodlerest": "^2.4",
         "longhornopen/laravel-celtic-lti": "^0.4.9",
-        "tymon/jwt-auth": "dev-develop"
+        "tymon/jwt-auth": "dev-develop",
+        "symfony/yaml": "^6.0.0",
+        "symfony/string": "^6.0.0",
+        "symfony/css-selector": "^6.0.0",
+        "symfony/event-dispatcher": "^6.0.0"
     },
     "require-dev": {
         "fakerphp/faker": "^1.9.1",
