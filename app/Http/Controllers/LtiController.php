@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Course;
 use App\Models\Map;
 use App\Models\Version;
 use Error;
@@ -139,7 +140,6 @@ class LtiController extends Controller
                     } else {
                         return response()->json(['ok' => false, 'errorType' => "CREATE_SESSION_ERROR"]);
                     }
-
                     DB::table('lti_info')->insert([
                         'tool_consumer_info_product_family_code' => $fire['tool_consumer_info_product_family_code'],
                         'context_id' => $fire['context_id'],
@@ -312,23 +312,42 @@ class LtiController extends Controller
     // This function saves a version of a map.
     public function storeVersion(Request $request)
     {
+        // header('Access-Control-Allow-Origin: *');
+        // dd($request);
         // error_log('LLAMO A STOREVERSION!!');
         if ($this->checkToken($request->token)) {
             $sessionData = DB::table('lti_info')
                 ->where('token', '=', $request->token)
                 ->first();
             $this->registerLog('storeVersion', $sessionData);
-            switch ($sessionData->tool_consumer_info_product_family_code) {
-                case 'moodle':
-                    return MoodleController::storeVersion($request->saveData);
-                    break;
-                case 'sakai':
-                    return SakaiController::storeVersion($request->saveData);
-                    break;
-                default:
-                    error_log('The platform you are using is not supported.');
-                    return response()->json(['ok' => false, 'error_type' => 'PLATFORM_NOT_SUPPORTED', 'data' => []]);
-                    break;
+            $saveData = $request->saveData;
+            try {
+                $course = Course::where('instance_id', $saveData['instance_id'])
+                    ->where('course_id', $saveData['course_id'])
+                    ->select('id')
+                    ->first();
+
+                $mapData = $saveData['map'];
+
+                $map = Map::updateOrCreate(
+                    ['created_id' => $mapData['id'], 'course_id' => $course->id, 'user_id' => (string)$saveData['user_id']],
+                    ['name' => $mapData['name']]
+                );
+
+                $versionsData = $mapData['versions'];
+                foreach ($versionsData as $versionData) {
+                    // dd($versionData);
+                    Version::updateOrCreate(
+                        ['map_id' => $map->id, 'name' => $versionData['name']],
+                        ['default' => boolval($versionData['default']), 'blocks_data' => json_encode($versionData['blocks_data'])]
+                    );
+                }
+                return response()->json(['ok' => true, 'errorType' => '', 'data' => []]);
+            } catch (\Exception $e) {
+                // dd($e);
+                error_log($e);
+                abort(500, $e->getMessage());
+                return response()->json(['ok' => false, 'errorType' => 'ERROR_SAVING_VERSION']);
             }
         } else {
             return response()->json(['ok' => false, 'error_type' => 'INVALID_OR_EXPIRED_TOKEN', 'data' => []]);

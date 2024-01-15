@@ -1016,33 +1016,6 @@ class SakaiController extends Controller
         return current(array_filter($array, $callback));
     }
 
-    // Saves the user's session in the database and redirects to the front end.
-    public static function storeVersion($saveData)
-    {
-        try {
-            $course = Course::where('instance_id', $saveData['instance_id'])
-                ->where('course_id', $saveData['course_id'])
-                ->select('id')
-                ->first();
-            $mapData = $saveData['map'];
-
-            $map = Map::updateOrCreate(
-                ['created_id' => $mapData['id'], 'course_id' => $course->id, 'user_id' => $saveData['user_id']],
-                ['name' => $mapData['name']]
-            );
-
-            $versionData = $mapData['versions'];
-            Version::updateOrCreate(
-                ['map_id' => $map->id, 'name' => $versionData['name']],
-                ['default' => boolval($versionData['default']), 'blocks_data' => json_encode($versionData['blocksData'])]
-            );
-            return response()->json(['ok' => true, 'errorType' => '', 'data' => []]);
-        } catch (\Exception $e) {
-            error_log($e);
-            abort(500, $e->getMessage());
-            return response()->json(['ok' => false, 'errorType' => 'ERROR_SAVING_VERSION']);
-        }
-    }
 
     public static function exportVersion(Request $request, $sessionData)
     {

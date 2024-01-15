@@ -15,42 +15,6 @@ define('MOODLE_PLATFORM', 'moodle');
 
 class MoodleController extends Controller
 {
-    // Saves the user's session in the database and redirects to the front end.
-    public static function storeVersion($saveData)
-    {
-        // header('Access-Control-Allow-Origin: *');
-        // dd($saveData);
-
-        try {
-            $course = Course::where('instance_id', $saveData['instance_id'])
-                ->where('course_id', $saveData['course_id'])
-                ->select('id')
-                ->first();
-
-            $mapData = $saveData['map'];
-
-            $map = Map::updateOrCreate(
-                ['created_id' => $mapData['id'], 'course_id' => $course->id, 'user_id' => (string)$saveData['user_id']],
-                ['name' => $mapData['name']]
-            );
-
-            $versionsData = $mapData['versions'];
-            foreach ($versionsData as $versionData) {
-                // dd($versionData);
-                Version::updateOrCreate(
-                    ['map_id' => $map->id, 'name' => $versionData['name']],
-                    ['default' => boolval($versionData['default']), 'blocks_data' => json_encode($versionData['blocks_data'])]
-                );
-            }
-            return response()->json(['ok' => true, 'errorType' => '', 'data' => []]);
-        } catch (\Exception $e) {
-            // dd($e);
-            error_log($e);
-            abort(500, $e->getMessage());
-            return response()->json(['ok' => false, 'errorType' => 'ERROR_SAVING_VERSION']);
-        }
-    }
-
 
     // Returns the session stored in the database of a user who has logged on to the lti.
     public static function getSession(object $lastInserted)
@@ -549,7 +513,7 @@ class MoodleController extends Controller
     public static function exportVersion(Request $request)
     {
         // header('Access-Control-Allow-Origin: *');
-        // dd($request->getAll());
+        // dd($request);
         $sections = MoodleController::getModulesListBySectionsCourse($request->instance, $request->course);
         // dd($sections);
         $nodes = $request->nodes;
@@ -635,9 +599,23 @@ class MoodleController extends Controller
             }
         }
         // dd($sections);
+
         $statusUpdate = MoodleController::updateCourse($request->instance, $sections->sections, $nodes, $badges);
-        // dd($statusUpdate);
+        // dd($statusUpdate->status);
         if ($statusUpdate->status) {
+            $course = Course::select('id')->where('course_id', $request->course)->where('instance_id', $request->instance)->first();
+            $listMap = Map::select('id')->where('course_id', $course->id)->get();
+            // dd($listMap, $request->course);
+            foreach ($listMap as $map) {
+                // dd($map->id);
+                $listVersion = Version::select('id')->where('map_id', $map->id)->get();
+                foreach ($listVersion as $version) {
+                    DB::table('versions')->where('id', '=', $version->id)
+                        ->update([
+                            'default' => '0',
+                        ]);
+                }
+            }
         }
         return response()->json(['ok' => $statusUpdate->status, 'errorType' => $statusUpdate->error]);
     }
