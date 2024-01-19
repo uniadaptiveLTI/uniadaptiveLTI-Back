@@ -27,8 +27,19 @@ class LtiController extends Controller
         header('Access-Control-Allow-Origin: ' . env('FRONT_URL'));
         // dd('hla');
         if (env('APP_PROXY') != '') {
-            $_SERVER['SERVER_NAME'] = env('APP_PROXY');
+            $proxy = env('APP_PROXY');
+            // Check if 'http://' or 'https://' is present
+            if (strpos($proxy, 'http://') === false && strpos($proxy, 'https://') === false) {
+                $proxy = 'https://' . $proxy; // Default to 'https' if no protocol is specified
+            }
+            // Remove 'http://' or 'https://'
+            $serverName = str_replace(['http://', 'https://'], '', $proxy);
+            $_SERVER['SERVER_NAME'] = $serverName;
             $_SERVER['SERVER_PORT'] = env('APP_PROXY_PORT');
+            // If 'APP_PROXY' starts with 'https', set 'HTTPS' to 'on'
+            if (strpos($proxy, 'https://') === 0) {
+                $_SERVER['HTTPS'] = 'on';
+            }
         }
         // if (env('APP_HTTPS') != '') {
         //     $_SERVER['HTTPS'] = env('APP_HTTPS');
