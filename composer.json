@@ -18,17 +18,18 @@
     ],
     "require": {
         "php": "^8.0.2",
+        "doctrine/dbal": "^3.7",
         "guzzlehttp/guzzle": "^7.2",
         "laravel/framework": "^9.19",
         "laravel/sanctum": "^3.0",
         "laravel/tinker": "^2.7",
         "llagerlof/moodlerest": "^2.4",
         "longhornopen/laravel-celtic-lti": "^0.4.9",
-        "tymon/jwt-auth": "dev-develop",
-        "symfony/yaml": "^6.0.0",
-        "symfony/string": "^6.0.0",
         "symfony/css-selector": "^6.0.0",
-        "symfony/event-dispatcher": "^6.0.0"
+        "symfony/event-dispatcher": "^6.0.0",
+        "symfony/string": "^6.0.0",
+        "symfony/yaml": "^6.0.0",
+        "tymon/jwt-auth": "dev-develop"
     },
     "require-dev": {
         "fakerphp/faker": "^1.9.1",
