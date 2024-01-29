@@ -38,48 +38,51 @@ class MoodleController extends Controller
         $answerd = json_decode($content);
         // dd($answerd);
         // dd($lastInserted->context_id,(int) $lastInserted->user_id, $answerd);
-        switch ($answerd->authorized) {
-            case 4: //Gestor
-            case 3: //Teacher with permisions
-            case 1: //Student
-                $data = [
-                    [
-                        'user_id' => (int) $lastInserted->user_id,
-                        'name' => $lastInserted->lis_person_name_full,
-                        'profile_url' => $lastInserted->profile_url,
-                        'roles' => $lastInserted->roles
-                    ],
-                    [
-                        'platform' => $lastInserted->tool_consumer_info_product_family_code,
-                        'instance_id' => MoodleController::getinstance($lastInserted->tool_consumer_info_product_family_code, $lastInserted->platform_id),
-                        'course_id' => $lastInserted->context_id,
-                        'name' => $lastInserted->context_title,
-                        'lms_url' => $lastInserted->platform_id,
-                        'return_url' => $lastInserted->launch_presentation_return_url,
-                        'sections' => MoodleController::getSections($lastInserted->platform_id, $lastInserted->context_id),
-                        'groups' => MoodleController::getGroups($lastInserted->platform_id, $lastInserted->context_id),
-                        'groupings' => MoodleController::getGrupings($lastInserted->platform_id, $lastInserted->context_id),
-                        'badges' => MoodleController::getBadges($lastInserted->platform_id, $lastInserted->context_id),
-                        'grades' => MoodleController::getIdCoursegrades($lastInserted->platform_id, $lastInserted->context_id),
-                        'role_list' => MoodleController::getRoles($lastInserted->platform_id, $lastInserted->context_id),
-                        'skills' => MoodleController::getCompetencies($lastInserted->platform_id, $lastInserted->context_id)
-                    ],
-                    MoodleController::getCourse(
-                        $lastInserted->context_id,
-                        $lastInserted->tool_consumer_info_product_family_code,
-                        $lastInserted->platform_id,
-                        $lastInserted->user_id
-                    )
-                ];
-                return response()->json(['ok' => true, 'data' => $data]);
-                break;
+        if (isset($answerd->authorized)) {
+            switch ($answerd->authorized) {
+                case 4: //Gestor
+                case 3: //Teacher with permisions
+                case 1: //Student
+                    $data = [
+                        [
+                            'user_id' => (int) $lastInserted->user_id,
+                            'name' => $lastInserted->lis_person_name_full,
+                            'profile_url' => $lastInserted->profile_url,
+                            'roles' => $lastInserted->roles
+                        ],
+                        [
+                            'platform' => $lastInserted->tool_consumer_info_product_family_code,
+                            'instance_id' => MoodleController::getinstance($lastInserted->tool_consumer_info_product_family_code, $lastInserted->platform_id),
+                            'course_id' => $lastInserted->context_id,
+                            'name' => $lastInserted->context_title,
+                            'lms_url' => $lastInserted->platform_id,
+                            'return_url' => $lastInserted->launch_presentation_return_url,
+                            'sections' => MoodleController::getSections($lastInserted->platform_id, $lastInserted->context_id),
+                            'groups' => MoodleController::getGroups($lastInserted->platform_id, $lastInserted->context_id),
+                            'groupings' => MoodleController::getGrupings($lastInserted->platform_id, $lastInserted->context_id),
+                            'badges' => MoodleController::getBadges($lastInserted->platform_id, $lastInserted->context_id),
+                            'grades' => MoodleController::getIdCoursegrades($lastInserted->platform_id, $lastInserted->context_id),
+                            'role_list' => MoodleController::getRoles($lastInserted->platform_id, $lastInserted->context_id),
+                            'skills' => MoodleController::getCompetencies($lastInserted->platform_id, $lastInserted->context_id)
+                        ],
+                        MoodleController::getCourse(
+                            $lastInserted->context_id,
+                            $lastInserted->tool_consumer_info_product_family_code,
+                            $lastInserted->platform_id,
+                            $lastInserted->user_id
+                        )
+                    ];
+                    return response()->json(['ok' => true, 'data' => $data]);
+                    break;
 
-            case 2: //Teacher without permisions
+                case 2: //Teacher without permisions
 
-            default:
-                return response()->json(['ok' => false, 'errorType' => 'USER_UNAUTHORIZED', 'data' => []]);
-                break;
+                default:
+                    return response()->json(['ok' => false, 'errorType' => 'USER_UNAUTHORIZED', 'data' => []]);
+                    break;
+            }
         }
+        return response()->json(['ok' => false, 'errorType' => 'PLUGIN_ERROR', 'data' => [$answerd]]);
     }
     // Returns the instance.
     public static function getinstance($platform, $url_lms)
@@ -262,13 +265,13 @@ class MoodleController extends Controller
         ]);
         $content = $response->getBody()->getContents();
         $data = json_decode($content);
+        // dd($data);
         $modules = [];
         $module_grades = MoodleController::getCoursegrades($url_lms, $course);
         foreach ($data as $indexS => $section) {
             foreach ($section->modules as $indexM => $module) {
 
                 $has_grades = false;
-                $has_califications = MoodleController::getCalifications($url_lms, $module->id, $module->modname);
                 if (!empty($module_grades->module_grades)) {
                     $has_grades = in_array($module->name, $module_grades->module_grades);
                 }
@@ -284,7 +287,7 @@ class MoodleController extends Controller
                     'indent' => $module->indent,
                     'visible' => ($module->visible >= 1) ? 'show_unconditionally' : 'hidden'
                 ];
-                if ($module->availability != null) {
+                if (isset($module->availability)) {
                     $module_data['availability'] = MoodleController::importRecursiveConditionsChange($url_lms, json_decode($module->availability), $section->modules);
                 }
                 $modules[] = $module_data;
@@ -438,7 +441,7 @@ class MoodleController extends Controller
     // Function that returns the url of the user's image.
     public static function getImgUser($url_lms, $user_id)
     {
-        header('Access-Control-Allow-Origin: *');
+        // header('Access-Control-Allow-Origin: *');
         $token_request = LtiController::getLmsToken($url_lms, MOODLE_PLATFORM, true);
         // dd($url_lms, $user_id, $token_request);
         $client = new Client([
@@ -518,7 +521,7 @@ class MoodleController extends Controller
         // dd($sections);
         $nodes = $request->nodes;
         // dd($request);
-        //dd($nodes);
+        // dd($nodes);
         $badges = [];
         usort($nodes, function ($a, $b) {
             if (isset($a['section']) && isset($b['section'])) {
@@ -728,6 +731,7 @@ class MoodleController extends Controller
                         return $dates;
                         break;
                     default:
+
                         break;
                 }
                 break;

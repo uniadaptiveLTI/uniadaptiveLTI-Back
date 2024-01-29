@@ -21,3 +21,4 @@ storage/logs/*
 logs/*
 config/multiple_lms_config.php
 config/lms_config_test.php
+config/frontendConfiguration.json
