@@ -13,6 +13,7 @@ return new class extends Migration
      */
     public function up()
     {
+        //Change the max name long for Celtic Library
         Schema::table('lti2_consumer', function (Blueprint $table) {
             $table->string('name', 255)->change();
         });

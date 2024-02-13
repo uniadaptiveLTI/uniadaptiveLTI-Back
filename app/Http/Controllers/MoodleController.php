@@ -314,7 +314,7 @@ class MoodleController extends Controller
             }
 
             // Status code on moodle responses should be added
-            return app(MoodleController::class)->response($badges);
+            return app(LtiController::class)->response($badges);
         } else {
             $query = [
                 'query' => [
@@ -347,7 +347,7 @@ class MoodleController extends Controller
             }
 
             // Status code on moodle responses should be added
-            return app(MoodleController::class)->response($modules);
+            return app(LtiController::class)->response($modules);
         }
     }
     /**
@@ -504,6 +504,7 @@ class MoodleController extends Controller
      */
     public function getIdCoursegrades(string $token_request, string $url_lms, string $course_id)
     {
+        // header('Access-Control-Allow-Origin: *');
         $query = [
             'query' => [
                 'wstoken' => $token_request,
@@ -513,6 +514,7 @@ class MoodleController extends Controller
             ]
         ];
         $data = app(MoodleController::class)->requestWebServices($url_lms, $query);
+        // dd($data);
         $grades = app(MoodleController::class)->getCoursegrades($token_request, $url_lms, $course_id);
         $modulesCalificateds = [];
         foreach ($data as $section) {
@@ -933,7 +935,7 @@ class MoodleController extends Controller
                 'has_grades' => false
             ];
         }
-        return app(MoodleController::class)->response($modules);
+        return app(LtiController::class)->response($modules);
     }
     /**
      * This function gets the item id of a Moodle course that corresponds to a grade id.
@@ -1085,7 +1087,7 @@ class MoodleController extends Controller
         if (isset($data->exception)) {
             return response()->json(app(LtiController::class)->errorResponse($data), 500);
         }
-        return app(MoodleController::class)->response();
+        return app(LtiController::class)->response();
     }
 
     /**

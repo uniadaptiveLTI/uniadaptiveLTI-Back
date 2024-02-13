@@ -16,7 +16,7 @@ class SakaiController extends Controller
      * 
      * @return mixed
      */
-    public static function getinstance(string $platform, string $url_lms)
+    public function getinstance(string $platform, string $url_lms)
     {
 
         $dataInstance = Instance::firstOrCreate(
@@ -36,7 +36,7 @@ class SakaiController extends Controller
      * 
      * @return array
      */
-    public static function getCourse(string $course_id, string $platform, string $url_lms)
+    public function getCourse(string $course_id, string $platform, string $url_lms)
     {
         $dataInstance = Instance::firstOrCreate(
             ['platform' => $platform, 'url_lms' => $url_lms],
@@ -75,19 +75,19 @@ class SakaiController extends Controller
      * 
      * @return mixed
      */
-    public static function getSession(object $lastInserted)
+    public function getSession(object $lastInserted)
     {
 
-        $lessonGetRequest = SakaiController::getLessons($lastInserted->platform_id, $lastInserted->context_id, $lastInserted->session_id);
-        $successfulLessonRequest = SakaiController::requestChecker($lessonGetRequest);
+        $lessonGetRequest = app(SakaiController::class)->getLessons($lastInserted->platform_id, $lastInserted->context_id, $lastInserted->session_id);
+        $successfulLessonRequest = app(SakaiController::class)->requestChecker($lessonGetRequest);
         if ($successfulLessonRequest == true) {
             $lessons = $lessonGetRequest['data']['lessons'];
         } else {
             return response()->json($lessonGetRequest);
         }
 
-        $userMembersGetRequest = SakaiController::getUserMembers($lastInserted->platform_id, $lastInserted->context_id, $lastInserted->session_id);
-        $successfulUserRequest = SakaiController::requestChecker($userMembersGetRequest);
+        $userMembersGetRequest = app(SakaiController::class)->getUserMembers($lastInserted->platform_id, $lastInserted->context_id, $lastInserted->session_id);
+        $successfulUserRequest = app(SakaiController::class)->requestChecker($userMembersGetRequest);
 
         if ($successfulUserRequest == true) {
             $userMembers = $userMembersGetRequest['data']['users'];
@@ -95,8 +95,8 @@ class SakaiController extends Controller
             return response()->json($userMembersGetRequest);
         }
 
-        $groupsGetRequest = SakaiController::getGroups($lastInserted->platform_id, $lastInserted->context_id, $lastInserted->session_id);
-        $successfulGroupRequest = SakaiController::requestChecker($groupsGetRequest);
+        $groupsGetRequest = app(SakaiController::class)->getGroups($lastInserted->platform_id, $lastInserted->context_id, $lastInserted->session_id);
+        $successfulGroupRequest = app(SakaiController::class)->requestChecker($groupsGetRequest);
 
         if ($successfulGroupRequest == true) {
             $groups = $groupsGetRequest['data']['groups'];
@@ -106,14 +106,14 @@ class SakaiController extends Controller
 
         $data = [
             [
-                'user_id' => SakaiController::getId($lastInserted->user_id),
+                'user_id' => app(SakaiController::class)->getId($lastInserted->user_id),
                 'name' => $lastInserted->lis_person_name_full,
-                'profile_url' => SakaiController::getUrl($lastInserted->platform_id, $lastInserted->context_id, SakaiController::getId($lastInserted->user_id)),
+                'profile_url' => app(SakaiController::class)->getUrl($lastInserted->platform_id, $lastInserted->context_id, app(SakaiController::class)->getId($lastInserted->user_id)),
                 'roles' => $lastInserted->roles
             ],
             [
                 'name' => $lastInserted->context_title,
-                'instance_id' => SakaiController::getinstance($lastInserted->tool_consumer_info_product_family_code, $lastInserted->platform_id),
+                'instance_id' => app(SakaiController::class)->getinstance($lastInserted->tool_consumer_info_product_family_code, $lastInserted->platform_id),
                 'lessons' => $lessons,
                 'course_id' => $lastInserted->context_id,
                 'session_id' => $lastInserted->session_id,
@@ -123,14 +123,13 @@ class SakaiController extends Controller
                 'user_members' => $userMembers,
                 'sakai_groups' => $groups
             ],
-            SakaiController::getCourse(
+            app(SakaiController::class)->getCourse(
                 $lastInserted->context_id,
                 $lastInserted->tool_consumer_info_product_family_code,
                 $lastInserted->platform_id
             )
         ];
-        // dd($data);
-        return response()->json(['ok' => true, 'data' => $data]);
+        return response()->json(app(LtiController::class)->response($data));
     }
 
 
@@ -142,7 +141,7 @@ class SakaiController extends Controller
      * 
      * @return array
      */
-    public static function createSession(string $url_lms, string $sakaiServerId, array $data)
+    public function createSession(string $url_lms, string $sakaiServerId, array $data)
     {
         $client = new Client();
         $response = $client->request('GET', $url_lms . '/sakai-ws/rest/login/login?id=' . $data['user'] . '&pw=' . $data['password']);
@@ -151,9 +150,10 @@ class SakaiController extends Controller
 
         if (isset($statusCode) && $statusCode == 200) {
             $user_id = $content . '.' . $sakaiServerId;
-            return ['ok' => true, 'data' => ['user_id' => $user_id, 'status_code' => $statusCode]];
+            $data = ['user_id' => $user_id, 'status_code' => $statusCode];
+            return response()->json(app(LtiController::class)->response($data));
         } else {
-            return ['ok' => false, 'data' => ['error' => 'REQUEST_ERROR']];
+            return response()->json(app(LtiController::class)->errorResponse(null, 'REQUEST_ERROR'), 500);
         }
     }
 
@@ -164,11 +164,11 @@ class SakaiController extends Controller
      * 
      * @return array
      */
-    public static function getLessons(string $url_lms, string $context_id, string $session_id)
+    public function getLessons(string $url_lms, string $context_id, string $session_id)
     {
 
         // header('Access-Control-Allow-Origin: *');
-        $request = SakaiController::createClient($url_lms, $url_lms . '/direct/lessons/site/' . $context_id . '.json', $session_id);
+        $request = app(SakaiController::class)->createClient($url_lms, $url_lms . '/direct/lessons/site/' . $context_id . '.json', $session_id);
 
         $statusCode = $request['statusCode'];
 
@@ -176,8 +176,8 @@ class SakaiController extends Controller
         if ($statusCode == 200) {
             $data = json_decode(($request['requestBody']));
             foreach ($data->lessons_collection as $Lesson) {
-                $pageIdGetRequest = SakaiController::getPageIdLesson($url_lms, $Lesson->id, $session_id);
-                $successfulRequest = SakaiController::requestChecker($pageIdGetRequest);
+                $pageIdGetRequest = app(SakaiController::class)->getPageIdLesson($url_lms, $Lesson->id, $session_id);
+                $successfulRequest = app(SakaiController::class)->requestChecker($pageIdGetRequest);
 
                 if ($successfulRequest == true) {
                     array_push($lessons, [
@@ -189,9 +189,11 @@ class SakaiController extends Controller
                     return ['ok' => false, 'data' => ['error' => 'REQUEST_ERROR', 'lessons' => $lessons, 'status_code' => $statusCode]];
                 }
             }
-            return ['ok' => true, 'data' => ['lessons' => $lessons, 'status_code' => $statusCode]];
+            $data = ['lessons' => $lessons, 'status_code' => $statusCode];
+
+            return response()->json(app(LtiController::class)->response($data));
         } else {
-            return ['ok' => false, 'data' => ['error' => 'STATUS_ERROR', 'lessons' => $lessons, 'status_code' => $statusCode]];
+            return response()->json(app(LtiController::class)->errorResponse(null, 'STATUS_ERROR'), $statusCode);
         }
     }
 
@@ -202,17 +204,19 @@ class SakaiController extends Controller
      * 
      * @return array
      */
-    public static function getPageIdLesson(string $url_lms, string $context_id, string $session_id)
+    public function getPageIdLesson(string $url_lms, string $context_id, string $session_id)
     {
 
-        $request = SakaiController::createClient($url_lms, $url_lms . '/direct/lessons/lesson/' . $context_id . '.json', $session_id);
+        $request = app(SakaiController::class)->createClient($url_lms, $url_lms . '/direct/lessons/lesson/' . $context_id . '.json', $session_id);
         $data = json_decode($request['requestBody']);
         $statusCode = $request['statusCode'];
         if ($statusCode == 200) {
-            $data = json_decode($request['requestBody']);
-            return ['ok' => true, 'data' => ['page_founded' => $data->sakaiId, 'status_code' => $statusCode]];
+            $dates = json_decode($request['requestBody']);
+            $data = ['page_founded' => $dates->sakaiId, 'status_code' => $statusCode];
+
+            return response()->json(app(LtiController::class)->response($data));
         } else {
-            return ['ok' => false, 'data' => ['error' => 'STATUS_ERROR', 'status_code' => $statusCode]];
+            return response()->json(app(LtiController::class)->errorResponse(null, 'STATUS_ERROR'), $statusCode);
         }
     }
 
@@ -224,55 +228,58 @@ class SakaiController extends Controller
      * 
      * @return mixed
      */
-    public static function getModulesByType(Request $request, object $sessionData)
+    public function getModulesByType(Request $request, object $sessionData)
     {
 
         switch ($request->type) {
             case 'forum':
-                $forumsGetRequest = SakaiController::getForums($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id);
-                $successfulForumsRequest = SakaiController::requestChecker($forumsGetRequest);
+                $forumsGetRequest = app(SakaiController::class)->getForums($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id);
+                $successfulForumsRequest = app(SakaiController::class)->requestChecker($forumsGetRequest);
 
                 $forumsStatusCode = $forumsGetRequest['data']['status_code'];
 
                 if ($successfulForumsRequest == true) {
-                    return ['ok' => true, 'data' => ['items' => $forumsGetRequest['data']['forums'], 'status_code' => $forumsStatusCode]];
+                    $data = ['items' => $forumsGetRequest['data']['forums'], 'status_code' => $forumsStatusCode];
+                    return response()->json(app(LtiController::class)->response($data));
                 } else {
-                    return ['ok' => false, 'data' => ['error' => 'FORUM_ERROR', 'items' => [], 'status_code' => $forumsStatusCode]];
+                    return response()->json(app(LtiController::class)->errorResponse(null, 'FORUM_ERROR'), $forumsStatusCode);
                 }
             case 'exam':
-                $examsGetRequest = SakaiController::getAssesments($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id);
-                $successfulExamsRequest = SakaiController::requestChecker($examsGetRequest);
+                $examsGetRequest = app(SakaiController::class)->getAssesments($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id);
+                $successfulExamsRequest = app(SakaiController::class)->requestChecker($examsGetRequest);
 
                 $examsStatusCode = $examsGetRequest['data']['status_code'];
 
                 if ($successfulExamsRequest == true) {
-                    return ['ok' => true, 'data' => ['items' => $examsGetRequest['data']['assesments'], 'status_code' => $examsStatusCode]];
+                    $data = ['items' => $examsGetRequest['data']['assesments'], 'status_code' => $examsStatusCode];
+                    return response()->json(app(LtiController::class)->response($data));
                 } else {
-                    return ['ok' => false, 'data' => ['error' => 'EXAM_ERROR', 'items' => [], 'status_code' => $examsStatusCode]];
+                    return response()->json(app(LtiController::class)->errorResponse(null, 'EXAM_ERROR'), $examsStatusCode);
                 }
             case 'assign':
-                $assignmentsGetRequest = SakaiController::getAssignments($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id);
-                $successfulAssignmentsRequest = SakaiController::requestChecker($assignmentsGetRequest);
+                $assignmentsGetRequest = app(SakaiController::class)->getAssignments($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id);
+                $successfulAssignmentsRequest = app(SakaiController::class)->requestChecker($assignmentsGetRequest);
 
                 $assignmentsStatusCode = $assignmentsGetRequest['data']['status_code'];
 
                 if ($successfulAssignmentsRequest == true) {
-                    return ['ok' => true, 'data' => ['items' => $assignmentsGetRequest['data']['assignments'], 'status_code' => $assignmentsStatusCode]];
+                    $data = ['items' => $assignmentsGetRequest['data']['assignments'], 'status_code' => $assignmentsStatusCode];
+                    return response()->json(app(LtiController::class)->response($data));
                 } else {
-                    return ['ok' => false, 'data' => ['error' => 'ASSIGN_ERROR', 'items' => [], 'status_code' => $assignmentsStatusCode]];
+                    return response()->json(app(LtiController::class)->errorResponse(null, 'ASSIGN_ERROR'), $assignmentsStatusCode);
                 }
             case 'text':
-                return SakaiController::getResourcesByType($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id, 'plain');
+                return app(SakaiController::class)->getResourcesByType($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id, 'plain');
             case 'url':
-                return SakaiController::getResourcesByType($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id, 'url');
+                return app(SakaiController::class)->getResourcesByType($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id, 'url');
             case 'html':
-                return SakaiController::getResourcesByType($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id, 'html');
+                return app(SakaiController::class)->getResourcesByType($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id, 'html');
             case 'folder':
-                return SakaiController::getResourcesByType($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id, 'folder');
+                return app(SakaiController::class)->getResourcesByType($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id, 'folder');
             case 'resource':
-                return SakaiController::getResourcesByType($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id, 'resource');
+                return app(SakaiController::class)->getResourcesByType($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id, 'resource');
             default:
-                return response()->json(['ok' => false, 'data' => ['error' => 'TYPE_NOT_SUPPORTED']]);
+                return response()->json(app(LtiController::class)->errorResponse(null, 'TYPE_NOT_SUPPORTED'), 500);
         }
     }
 
@@ -284,18 +291,19 @@ class SakaiController extends Controller
      * 
      * @return array
      */
-    public static function getResourcesByType(string $platform_id, string $context_id, string $session_id, string $type)
+    public function getResourcesByType(string $platform_id, string $context_id, string $session_id, string $type)
     {
 
-        $resourcesGetRequest = SakaiController::getResources($platform_id, $context_id, $session_id, $type);
-        $successfulRequest = SakaiController::requestChecker($resourcesGetRequest);
+        $resourcesGetRequest = app(SakaiController::class)->getResources($platform_id, $context_id, $session_id, $type);
+        $successfulRequest = app(SakaiController::class)->requestChecker($resourcesGetRequest);
 
         $resourcesStatusCode = $resourcesGetRequest['data']['status_code'];
 
         if ($successfulRequest == true) {
-            return ['ok' => true, 'data' => ['items' => $resourcesGetRequest['data']['resources'], 'status_code' => $resourcesStatusCode]];
+            $data = ['items' => $resourcesGetRequest['data']['resources'], 'status_code' => $resourcesStatusCode];
+            return response()->json(app(LtiController::class)->response($data));
         } else {
-            return ['ok' => false, 'data' => ['error' => 'REQUEST_ERROR', 'items' => [], 'status_code' => $resourcesStatusCode]];
+            return response()->json(app(LtiController::class)->errorResponse(null, 'REQUEST_ERROR'), $resourcesStatusCode);
         }
     }
 
@@ -308,10 +316,10 @@ class SakaiController extends Controller
      * 
      * @return array
      */
-    public static function getForums(string $url_lms, string $context_id, string $session_id)
+    public function getForums(string $url_lms, string $context_id, string $session_id)
     {
 
-        $request = SakaiController::createClient($url_lms, $url_lms . '/direct/forums/site/' . $context_id . '.json', $session_id);
+        $request = app(SakaiController::class)->createClient($url_lms, $url_lms . '/direct/forums/site/' . $context_id . '.json', $session_id);
 
         $statusCode = $request['statusCode'];
 
@@ -324,9 +332,10 @@ class SakaiController extends Controller
                     'name' => $forum->title
                 );
             }
-            return ['ok' => true, 'data' => ['forums' => $forums, 'status_code' => $statusCode]];
+            $data = ['forums' => $forums, 'status_code' => $statusCode];
+            return response()->json(app(LtiController::class)->response($data));
         } else {
-            return ['ok' => false, 'data' => ['error' => 'REQUEST_ERROR', 'status_code' => $statusCode]];
+            return response()->json(app(LtiController::class)->errorResponse(null, 'REQUEST_ERROR'), $statusCode);
         }
     }
 
@@ -338,10 +347,10 @@ class SakaiController extends Controller
      * 
      * @return array
      */
-    public static function getForumById(string $url_lms, string $context_id, string $session_id, string $forumId)
+    public function getForumById(string $url_lms, string $context_id, string $session_id, string $forumId)
     {
 
-        $request = SakaiController::createClient($url_lms, $url_lms . '/direct/forums/site/' . $context_id . '.json', $session_id);
+        $request = app(SakaiController::class)->createClient($url_lms, $url_lms . '/direct/forums/site/' . $context_id . '.json', $session_id);
 
         $statusCode = $request['statusCode'];
 
@@ -349,11 +358,12 @@ class SakaiController extends Controller
             $dataForums = json_decode($request['requestBody']);
             foreach ($dataForums->forums_collection as $forum) {
                 if ($forum->id == $forumId) {
-                    return ['ok' => true, 'data' => ['forum_founded' => $forum, 'status_code' => $statusCode]];
+                    $data = ['forum_founded' => $forum, 'status_code' => $statusCode];
+                    return response()->json(app(LtiController::class)->response($data));
                 }
             }
         }
-        return ['ok' => false, 'data' => ['error' => 'REQUEST_ERROR', 'status_code' => $statusCode]];
+        return response()->json(app(LtiController::class)->errorResponse(null, 'REQUEST_ERROR'), $statusCode);
     }
     /**
      * Function that returns the assignments of a Sakai course
@@ -364,10 +374,10 @@ class SakaiController extends Controller
      * 
      * @return array
      */
-    public static function getAssignments(string $url_lms, string $context_id, string $session_id)
+    public function getAssignments(string $url_lms, string $context_id, string $session_id)
     {
 
-        $request = SakaiController::createClient($url_lms, $url_lms . '/direct/assignment/site/' . $context_id . '.json', $session_id);
+        $request = app(SakaiController::class)->createClient($url_lms, $url_lms . '/direct/assignment/site/' . $context_id . '.json', $session_id);
 
         $statusCode = $request['statusCode'];
         $assignments = [];
@@ -379,9 +389,10 @@ class SakaiController extends Controller
                     'name' => $assignment->entityTitle
                 );
             }
-            return ['ok' => true, 'data' => ['assignments' => $assignments, 'status_code' => $statusCode]];
+            $data = ['assignments' => $assignments, 'status_code' => $statusCode];
+            return response()->json(app(LtiController::class)->response($data));
         } else {
-            return ['ok' => false, 'data' => ['error' => 'REQUEST_ERROR', 'status_code' => $statusCode]];
+            return response()->json(app(LtiController::class)->errorResponse(null, 'REQUEST_ERROR'), $statusCode);
         }
     }
 
@@ -393,9 +404,9 @@ class SakaiController extends Controller
      * 
      * @return array
      */
-    public static function getAssignmentById(string $url_lms, string $context_id, string $session_id, string $assignmentId)
+    public function getAssignmentById(string $url_lms, string $context_id, string $session_id, string $assignmentId)
     {
-        $request = SakaiController::createClient($url_lms, $url_lms . '/direct/assignment/site/' . $context_id . '.json', $session_id);
+        $request = app(SakaiController::class)->createClient($url_lms, $url_lms . '/direct/assignment/site/' . $context_id . '.json', $session_id);
 
         $statusCode = $request['statusCode'];
 
@@ -403,11 +414,12 @@ class SakaiController extends Controller
             $dataAssignments = json_decode($request['requestBody']);
             foreach ($dataAssignments->assignment_collection as $assignment) {
                 if ($assignment->id == $assignmentId) {
-                    return ['ok' => true, 'data' => ['assignment_founded' => $assignment, 'status_code' => $statusCode]];
+                    $data = ['assignment_founded' => $assignment, 'status_code' => $statusCode];
+                    return response()->json(app(LtiController::class)->response($data));
                 }
             }
         }
-        return ['ok' => false, 'data' => ['error' => 'REQUEST_ERROR', 'status_code' => $statusCode]];
+        return response()->json(app(LtiController::class)->errorResponse(null, 'REQUEST_ERROR'), $statusCode);
     }
 
     /**
@@ -420,9 +432,9 @@ class SakaiController extends Controller
      * 
      * @return mixed
      */
-    public static function getResources(string $url_lms, string $context_id, string $session_id, string $type)
+    public function getResources(string $url_lms, string $context_id, string $session_id, string $type)
     {
-        $request = SakaiController::createClient($url_lms, $url_lms . '/direct/content/resources/group/' . $context_id . '.json?depth=3', $session_id);
+        $request = app(SakaiController::class)->createClient($url_lms, $url_lms . '/direct/content/resources/group/' . $context_id . '.json?depth=3', $session_id);
         $statusCode = $request['statusCode'];
 
         $resources = [];
@@ -475,10 +487,10 @@ class SakaiController extends Controller
             foreach ($dataContents->content_collection[0]->resourceChildren as $resource) {
                 process_resource($resource, $resources, $type);
             }
-
-            return ['ok' => true, 'data' => ['resources' => $resources, 'status_code' => $statusCode]];
+            $data = ['resources' => $resources, 'status_code' => $statusCode];
+            return response()->json(app(LtiController::class)->response($data));
         } else {
-            return ['ok' => false, 'data' => ['error' => 'REQUEST_ERROR', 'resources' => $resources, 'status_code' => $statusCode]];
+            return response()->json(app(LtiController::class)->errorResponse(null, 'REQUEST_ERROR'), $statusCode);
         }
     }
 
@@ -490,10 +502,10 @@ class SakaiController extends Controller
      * 
      * @return array
      */
-    public static function getResourceById(string $url_lms, string $context_id, string $session_id, string $resourceId)
+    public function getResourceById(string $url_lms, string $context_id, string $session_id, string $resourceId)
     {
 
-        $request = SakaiController::createClient($url_lms, $url_lms . '/api/sites/' . $context_id . '/entities/resources', $session_id);
+        $request = app(SakaiController::class)->createClient($url_lms, $url_lms . '/api/sites/' . $context_id . '/entities/resources', $session_id);
 
         $statusCode = $request['statusCode'];
 
@@ -501,11 +513,12 @@ class SakaiController extends Controller
             $modules = json_decode($request['requestBody']);
             foreach ($modules as $resource) {
                 if ($resource->id == $resourceId) {
-                    return ['ok' => true, 'data' => ['resource_founded' => $resource, 'status_code' => $statusCode]];
+                    $data = ['resource_founded' => $resource, 'status_code' => $statusCode];
+                    return response()->json(app(LtiController::class)->response($data));
                 }
             }
         }
-        return ['ok' => false, 'data' => ['error' => 'REQUEST_ERROR', 'status_code' => $statusCode]];
+        return response()->json(app(LtiController::class)->errorResponse(null, 'REQUEST_ERROR'), $statusCode);
     }
 
     /**
@@ -515,9 +528,9 @@ class SakaiController extends Controller
      * 
      * @return array
      */
-    public static function getUserMembers(string $url_lms, string $context_id, string $session_id)
+    public function getUserMembers(string $url_lms, string $context_id, string $session_id)
     {
-        $request = SakaiController::createClient($url_lms, $url_lms . '/direct/site/' . $context_id . '/memberships.json', $session_id);
+        $request = app(SakaiController::class)->createClient($url_lms, $url_lms . '/direct/site/' . $context_id . '/memberships.json', $session_id);
 
         $statusCode = $request['statusCode'];
 
@@ -530,10 +543,10 @@ class SakaiController extends Controller
                     'name' => $user->userDisplayName
                 );
             }
-
-            return ['ok' => true, 'data' => ['users' => $users, 'status_code' => $statusCode]];
+            $data = ['users' => $users, 'status_code' => $statusCode];
+            return response()->json(app(LtiController::class)->response($data));
         } else {
-            return ['ok' => false, 'data' => ['error' => 'REQUEST_ERROR', 'status_code' => $statusCode]];
+            return response()->json(app(LtiController::class)->errorResponse(null, 'REQUEST_ERROR'), $statusCode);
         }
     }
     /**
@@ -543,10 +556,10 @@ class SakaiController extends Controller
      * 
      * @return array
      */
-    public static function getGroups(string $url_lms, string $context_id, string $session_id)
+    public function getGroups(string $url_lms, string $context_id, string $session_id)
     {
 
-        $request = SakaiController::createClient($url_lms, $url_lms . '/direct/site/' . $context_id . '/groups.json', $session_id);
+        $request = app(SakaiController::class)->createClient($url_lms, $url_lms . '/direct/site/' . $context_id . '/groups.json', $session_id);
 
         $dataGroups = json_decode($request['requestBody']);
         $statusCode = $request['statusCode'];
@@ -559,9 +572,10 @@ class SakaiController extends Controller
                     'name' => $group->title
                 );
             }
-            return ['ok' => true, 'data' => ['groups' => $groups, 'status_code' => $statusCode]];
+            $data = ['groups' => $groups, 'status_code' => $statusCode];
+            return response()->json(app(LtiController::class)->response($data));
         } else {
-            return ['ok' => false, 'data' => ['error' => 'REQUEST_ERROR', 'status_code' => $statusCode]];
+            return response()->json(app(LtiController::class)->errorResponse(null, 'REQUEST_ERROR'), $statusCode);
         }
     }
 
@@ -573,9 +587,9 @@ class SakaiController extends Controller
      * 
      * @return mixed
      */
-    public static function getModules(string $url_lms, int $lesson_id, string $session_id, string $context_id)
+    public function getModules(string $url_lms, int $lesson_id, string $session_id, string $context_id)
     {
-        $lessonGetRequest = SakaiController::createClient($url_lms, $url_lms . '/direct/lessons/lesson/' . $lesson_id . '.json', $session_id);
+        $lessonGetRequest = app(SakaiController::class)->createClient($url_lms, $url_lms . '/direct/lessons/lesson/' . $lesson_id . '.json', $session_id);
 
         $modulesRequestStatus = $lessonGetRequest['statusCode'];
 
@@ -589,7 +603,7 @@ class SakaiController extends Controller
             if ($modulesData->contentsList != null && count($modulesData->contentsList) >= 1) {
                 error_log(print_r($modulesData->contentsList, true));
                 foreach ($modulesData->contentsList as $index => $module) {
-                    $modulesData->contentsList[$index]->type = SakaiController::changeIdNameType($module);
+                    $modulesData->contentsList[$index]->type = app(SakaiController::class)->changeIdNameType($module);
                     if ($modulesData->contentsList[$index]->type == 'break') {
                         $format = isset($modulesData->contentsList[$index]->format);
                         if ($format) {
@@ -610,8 +624,8 @@ class SakaiController extends Controller
                         if ($modulesData->contentsList[$index]->type == "folder") {
                             $modulesData->contentsList[$index]->dataDirectory = str_replace("//", "/", $modulesData->contentsList[$index]->dataDirectory);
                         }
-                        $sakaiId = SakaiController::nodeSakaiIdUpdater($modulesData->contentsList[$index]);
-                        $itemFounded = SakaiController::getLessonItemById($modulesData->contentsList[$index], $url_lms, $context_id, $session_id, $sakaiId);
+                        $sakaiId = app(SakaiController::class)->nodeSakaiIdUpdater($modulesData->contentsList[$index]);
+                        $itemFounded = app(SakaiController::class)->getLessonItemById($modulesData->contentsList[$index], $url_lms, $context_id, $session_id, $sakaiId);
 
                         if (isset($itemFounded)) {
                             $moduleAlreadyExists = false;
@@ -767,8 +781,8 @@ class SakaiController extends Controller
                                         break;
                                 }
 
-                                $updatedModuleWithDates = SakaiController::parseItemDates($module);
-                                $updatedModuleWithExceptionDates = SakaiController::parseItemExceptionDates($updatedModuleWithDates);
+                                $updatedModuleWithDates = app(SakaiController::class)->parseItemDates($module);
+                                $updatedModuleWithExceptionDates = app(SakaiController::class)->parseItemExceptionDates($updatedModuleWithDates);
 
                                 array_push(
                                     $modules,
@@ -779,22 +793,22 @@ class SakaiController extends Controller
                     }
                 }
 
-                $conditionGetRequest = SakaiController::createClient($url_lms, $url_lms . '/api/sites/' . $context_id . '/conditions', $session_id);
+                $conditionGetRequest = app(SakaiController::class)->createClient($url_lms, $url_lms . '/api/sites/' . $context_id . '/conditions', $session_id);
 
                 $conditionsData = json_decode($conditionGetRequest['requestBody']);
                 $conditionsRequestStatus = $conditionGetRequest['statusCode'];
 
                 if ($conditionsRequestStatus == 200 || ($conditionsData != null && count($conditionsData) >= 1)) {
-                    $parsedModules = SakaiController::linkConditionToLessonItem($modules, $conditionsData);
-                    return response()->json(['ok' => true, 'data' => $parsedModules]);
+                    $parsedModules = app(SakaiController::class)->linkConditionToLessonItem($modules, $conditionsData);
+                    return response()->json(app(LtiController::class)->response($parsedModules));
                 } else {
-                    return response()->json(['ok' => true, 'data' => $modules, 'extraInfo' => 'conditions_not']);
+                    return response()->json(app(LtiController::class)->response($modules));
                 }
             } else {
-                return response()->json(['ok' => true]);
+                return response()->json(app(LtiController::class)->response());
             }
         } else {
-            return response()->json(['ok' => false, 'data' => ['error' => 'MODULES_ERROR']]);
+            return response()->json(app(LtiController::class)->errorResponse(null, 'MODULES_ERROR'), 500);
         }
     }
 
@@ -803,7 +817,7 @@ class SakaiController extends Controller
      * 
      * @return mixed
      */
-    public static function nodeSakaiIdUpdater(object $item)
+    public function nodeSakaiIdUpdater(object $item)
     {
 
         if (isset($item) && isset($item->type)) {
@@ -811,7 +825,7 @@ class SakaiController extends Controller
                 case "exam":
                 case "assign":
                 case "forum":
-                    return SakaiController::parseSakaiId($item);
+                    return app(SakaiController::class)->parseSakaiId($item);
                 case "folder":
                     return $item->dataDirectory;
                 case "html":
@@ -834,14 +848,14 @@ class SakaiController extends Controller
      * 
      * @return mixed
      */
-    public static function getLessonItemById(object $item, string $url_lms, string $context_id, string $session_id, string $sakaiId)
+    public function getLessonItemById(object $item, string $url_lms, string $context_id, string $session_id, string $sakaiId)
     {
 
         if (isset($item) && isset($item->type)) {
             switch ($item->type) {
                 case "exam":
-                    $examFounded = SakaiController::getAssesmentById($url_lms, $context_id, $session_id, $sakaiId);
-                    $successfulExamRequest = SakaiController::requestChecker($examFounded);
+                    $examFounded = app(SakaiController::class)->getAssesmentById($url_lms, $context_id, $session_id, $sakaiId);
+                    $successfulExamRequest = app(SakaiController::class)->requestChecker($examFounded);
 
                     if ($successfulExamRequest == true) {
                         return $examFounded['data']['assesment_founded'];
@@ -849,8 +863,8 @@ class SakaiController extends Controller
                         return null;
                     }
                 case "assign":
-                    $assignmentFounded = SakaiController::getAssignmentById($url_lms, $context_id, $session_id, $sakaiId);
-                    $successfulAssignmentRequest = SakaiController::requestChecker($assignmentFounded);
+                    $assignmentFounded = app(SakaiController::class)->getAssignmentById($url_lms, $context_id, $session_id, $sakaiId);
+                    $successfulAssignmentRequest = app(SakaiController::class)->requestChecker($assignmentFounded);
 
                     if ($successfulAssignmentRequest == true) {
                         return $assignmentFounded['data']['assignment_founded'];
@@ -858,8 +872,8 @@ class SakaiController extends Controller
                         return null;
                     }
                 case "forum":
-                    $forumFounded = SakaiController::getForumById($url_lms, $context_id, $session_id, $sakaiId);
-                    $successfulForumRequest = SakaiController::requestChecker($forumFounded);
+                    $forumFounded = app(SakaiController::class)->getForumById($url_lms, $context_id, $session_id, $sakaiId);
+                    $successfulForumRequest = app(SakaiController::class)->requestChecker($forumFounded);
 
                     if ($successfulForumRequest == true) {
                         return $forumFounded['data']['forum_founded'];
@@ -868,8 +882,8 @@ class SakaiController extends Controller
                     }
                 case 'folder':
                 case "resource":
-                    $resourceFounded = SakaiController::getResourceById($url_lms, $context_id, $session_id, $sakaiId);
-                    $successfulResourceRequest = SakaiController::requestChecker($resourceFounded);
+                    $resourceFounded = app(SakaiController::class)->getResourceById($url_lms, $context_id, $session_id, $sakaiId);
+                    $successfulResourceRequest = app(SakaiController::class)->requestChecker($resourceFounded);
 
                     if ($successfulResourceRequest == true) {
                         return $resourceFounded['data']['resource_founded'];
@@ -889,7 +903,7 @@ class SakaiController extends Controller
      * 
      * @return array
      */
-    public static function parseItemDates(array $module)
+    public function parseItemDates(array $module)
     {
         if (!isset($module['openDate'])) {
             $newOpenDate = date('Y-m-d\TH:i', time());
@@ -922,7 +936,7 @@ class SakaiController extends Controller
      * 
      * @return array
      */
-    public static function parseItemExceptionDates(array $module)
+    public function parseItemExceptionDates(array $module)
     {
         if ($module['modname'] == "exam") {
             if (
@@ -964,7 +978,7 @@ class SakaiController extends Controller
      * 
      * @return object
      */
-    public static function parseSakaiId(object $contentListIndex)
+    public function parseSakaiId(object $contentListIndex)
     {
         $a = substr($contentListIndex->sakaiId, 1);
         $dataSakaiId = explode('/', $a);
@@ -979,7 +993,7 @@ class SakaiController extends Controller
      * 
      * @return mixed
      */
-    public static function linkConditionToLessonItem(array $modules, array $conditions, bool $assign = true)
+    public function linkConditionToLessonItem(array $modules, array $conditions, bool $assign = true)
     {
         if ($assign == true) {
             foreach ($modules as &$module) {
@@ -1019,7 +1033,7 @@ class SakaiController extends Controller
      * 
      * @return string
      */
-    public static function changeIdNameType(object $module)
+    public function changeIdNameType(object $module)
     {
         switch ($module->type) {
             case 1:
@@ -1063,9 +1077,9 @@ class SakaiController extends Controller
      * 
      * @return array
      */
-    public static function getAssesments(string $url_lms, string $context_id, string $session_id)
+    public function getAssesments(string $url_lms, string $context_id, string $session_id)
     {
-        $request = SakaiController::createClient($url_lms, $url_lms . '/api/sites/' . $context_id . '/entities/assessments', $session_id);
+        $request = app(SakaiController::class)->createClient($url_lms, $url_lms . '/api/sites/' . $context_id . '/entities/assessments', $session_id);
 
         $statusCode = $request['statusCode'];
 
@@ -1078,9 +1092,10 @@ class SakaiController extends Controller
                     'name' => $assesment->title
                 );
             }
-            return ['ok' => true, 'data' => ['assesments' => $assesments, 'status_code' => $statusCode]];
+            $data = ['assesments' => $assesments, 'status_code' => $statusCode];
+            return response()->json(app(LtiController::class)->response($data));
         } else {
-            return ['ok' => false, 'data' => ['error' => 'REQUEST_ERROR', 'status_code' => $statusCode]];
+            return response()->json(app(LtiController::class)->errorResponse(null, 'REQUEST_ERROR'), $statusCode);
         }
     }
 
@@ -1090,11 +1105,11 @@ class SakaiController extends Controller
      * @param string $session_id
      * @param string $assesmentId
      * 
-     * @return [type]
+     * @return mixed
      */
-    public static function getAssesmentById(string $url_lms, string $context_id, string $session_id, string $assesmentId)
+    public function getAssesmentById(string $url_lms, string $context_id, string $session_id, string $assesmentId)
     {
-        $request = SakaiController::createClient($url_lms, $url_lms . '/api/sites/' . $context_id . '/entities/assessments', $session_id);
+        $request = app(SakaiController::class)->createClient($url_lms, $url_lms . '/api/sites/' . $context_id . '/entities/assessments', $session_id);
 
         $statusCode = $request['statusCode'];
 
@@ -1102,11 +1117,12 @@ class SakaiController extends Controller
             $modules = json_decode($request['requestBody']);
             foreach ($modules as $assesment) {
                 if ($assesment->id == $assesmentId) {
-                    return ['ok' => true, 'data' => ['assesment_founded' => $assesment, 'status_code' => $statusCode]];
+                    $data = ['assesment_founded' => $assesment, 'status_code' => $statusCode];
+                    return response()->json(app(LtiController::class)->response($data));
                 }
             }
         }
-        return ['ok' => false, 'data' => ['error' => 'REQUEST_ERROR', 'status_code' => $statusCode]];
+        return response()->json(app(LtiController::class)->errorResponse(null, 'REQUEST_ERROR'), $statusCode);
     }
 
     /**
@@ -1118,7 +1134,7 @@ class SakaiController extends Controller
      * 
      * @return mixed
      */
-    public static function createClient(string $lms_url, string $url, string $session_id, $type = 'GET', $bodyData = [])
+    public function createClient(string $lms_url, string $url, string $session_id, $type = 'GET', $bodyData = [])
     {
         $lmsInstance = app(LtiController::class)->getLmsToken($lms_url, "sakai");
         $cookieName = "JSESSIONID";
@@ -1161,7 +1177,7 @@ class SakaiController extends Controller
                 break;
             default:
                 // Handle unsupported request types here
-                return ['ok' => false, 'data' => ['error' => 'UNSUPORTED_REQUEST_TYPE']];
+                return response()->json(app(LtiController::class)->errorResponse(null, 'UNSUPORTED_REQUEST_TYPE'), 500);
         }
         $content = $response->getBody()->getContents();
         $statusCode = $response->getStatusCode();
@@ -1176,7 +1192,7 @@ class SakaiController extends Controller
      * 
      * @return string
      */
-    public static function getId(string $user_id)
+    public function getId(string $user_id)
     {
         $url = explode('/', $user_id);
         return $url[count($url) - 1];
@@ -1189,7 +1205,7 @@ class SakaiController extends Controller
      * 
      * @return string
      */
-    public static function getUrl(string $url_lms, string $context_id, string $user_id)
+    public function getUrl(string $url_lms, string $context_id, string $user_id)
     {
         return ($url_lms . '/direct/profile/' . $user_id . '/image/thumb?siteId=' . $context_id);
     }
@@ -1200,7 +1216,7 @@ class SakaiController extends Controller
      * 
      * @return string
      */
-    public static function find(array $array, string $callback)
+    public function find(array $array, string $callback)
     {
         return current(array_filter($array, $callback));
     }
@@ -1212,7 +1228,7 @@ class SakaiController extends Controller
      * 
      * @return array
      */
-    public static function exportVersion(Request $request, object $sessionData)
+    public function exportVersion(Request $request, object $sessionData)
     {
         $nodes = $request->nodes;
 
@@ -1239,10 +1255,10 @@ class SakaiController extends Controller
         }
 
         if ($allHaveSamePageId) {
-            $lessonCopyRequest = SakaiController::createClient($sessionData->platform_id, $sessionData->platform_id . '/direct/lessons/lesson/' . $request->lessonId . '.json', $sessionData->session_id);
+            $lessonCopyRequest = app(SakaiController::class)->createClient($sessionData->platform_id, $sessionData->platform_id . '/direct/lessons/lesson/' . $request->lessonId . '.json', $sessionData->session_id);
             $lessonStatusCode = $lessonCopyRequest['statusCode'];
 
-            $conditionsCopyRequest = SakaiController::createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/conditions', $sessionData->session_id);
+            $conditionsCopyRequest = app(SakaiController::class)->createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/conditions', $sessionData->session_id);
             $conditionsStatusCode = $conditionsCopyRequest['statusCode'];
 
             if ($lessonStatusCode == 200 && $conditionsStatusCode == 200) {
@@ -1250,31 +1266,31 @@ class SakaiController extends Controller
                 $conditionsCopy = $conditionsCopyRequest['requestBody'];
 
                 if (count($nodesToUpdate) >= 1) {
-                    $nodesUpdateRequest = SakaiController::createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/entities', $sessionData->session_id, 'PATCH', $nodesToUpdate);
+                    $nodesUpdateRequest = app(SakaiController::class)->createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/entities', $sessionData->session_id, 'PATCH', $nodesToUpdate);
                     $nodesUpdateStatusCode = $nodesUpdateRequest['statusCode'];
 
                     if ($nodesUpdateStatusCode !== 200) {
-                        return response()->json(['ok' => false, 'data' => ['error' => 'NODE_UPDATE_ERROR']]);
+                        return response()->json(app(LtiController::class)->errorResponse(null, 'NODE_UPDATE_ERROR'), 500);
                     }
                 }
 
-                $conditionsDelete = SakaiController::createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/conditions', $sessionData->session_id, 'DELETE');
+                $conditionsDelete = app(SakaiController::class)->createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/conditions', $sessionData->session_id, 'DELETE');
                 $conditionsDeleteStatusCode = $conditionsDelete;
 
-                $lessonItemsDelete = SakaiController::createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/items', $sessionData->session_id, 'DELETE');
+                $lessonItemsDelete = app(SakaiController::class)->createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/items', $sessionData->session_id, 'DELETE');
                 $lessonItemsDeleteStatusCode = $lessonItemsDelete;
 
                 if ($conditionsDeleteStatusCode === 200 && $lessonItemsDeleteStatusCode === 200) {
-                    $nodesCreationRequest = SakaiController::createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/items/bulk', $sessionData->session_id, 'POST', $nodes);
+                    $nodesCreationRequest = app(SakaiController::class)->createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/items/bulk', $sessionData->session_id, 'POST', $nodes);
                     $nodesCreationStatusCode = $nodesCreationRequest['statusCode'];
 
                     if ($nodesCreationStatusCode == 200) {
                         if (($conditionList != null && count($conditionList) >= 1)) {
                             $nodesCreated = $nodesCreationRequest['requestBody'];
-                            $filteredArray = SakaiController::conditionIdParse(json_decode($nodesCreated), $conditionList);
+                            $filteredArray = app(SakaiController::class)->conditionIdParse(json_decode($nodesCreated), $conditionList);
 
                             $conditionsParsedList = (array_values($filteredArray));
-                            $conditionsCreationRequest = SakaiController::createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/conditions/bulk', $sessionData->session_id, 'POST', $conditionsParsedList);
+                            $conditionsCreationRequest = app(SakaiController::class)->createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/conditions/bulk', $sessionData->session_id, 'POST', $conditionsParsedList);
                             $conditionsCreationStatusCode = $conditionsCreationRequest['statusCode'];
 
                             if ($conditionsCreationStatusCode == 200) {
@@ -1286,37 +1302,37 @@ class SakaiController extends Controller
                             return response()->json(['ok' => true, 'successType' => 'SUCCESSFUL_EXPORT_WITHOUT_CONDITIONS']);
                         }
                     } else {
-                        $parsedNodes = SakaiController::parseSakaiLessonCopy($lessonCopy->contentsList, false);
-                        $parsedNodesWithId = SakaiController::parseSakaiLessonCopy($lessonCopy->contentsList, true);
-                        $nodesCopyCreationRequest = SakaiController::createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/items/bulk', $sessionData->session_id, 'POST', $parsedNodes);
+                        $parsedNodes = app(SakaiController::class)->parseSakaiLessonCopy($lessonCopy->contentsList, false);
+                        $parsedNodesWithId = app(SakaiController::class)->parseSakaiLessonCopy($lessonCopy->contentsList, true);
+                        $nodesCopyCreationRequest = app(SakaiController::class)->createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/items/bulk', $sessionData->session_id, 'POST', $parsedNodes);
                         $nodesCopyCreationStatusCode = $nodesCopyCreationRequest['statusCode'];
                         if ($nodesCopyCreationStatusCode == 200) {
                             $nodesCopyCreation = ($nodesCopyCreationRequest['requestBody']);
-                            $parsedConditions = SakaiController::conditionItemIdAdder(($parsedNodesWithId), json_decode($conditionsCopy));
+                            $parsedConditions = app(SakaiController::class)->conditionItemIdAdder(($parsedNodesWithId), json_decode($conditionsCopy));
                             $parsedConditionsJson = json_decode(json_encode($parsedConditions), true);
-                            $filteredArray = SakaiController::conditionIdParse(json_decode($nodesCopyCreation), $parsedConditionsJson);
+                            $filteredArray = app(SakaiController::class)->conditionIdParse(json_decode($nodesCopyCreation), $parsedConditionsJson);
                             $conditionsCopyParsedList = (array_values($filteredArray));
 
-                            $conditionsCopyCreationRequest = SakaiController::createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/conditions/bulk', $sessionData->session_id, 'POST', $conditionsCopyParsedList);
+                            $conditionsCopyCreationRequest = app(SakaiController::class)->createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/conditions/bulk', $sessionData->session_id, 'POST', $conditionsCopyParsedList);
                             $conditionsCopyCreationStatusCode = $conditionsCopyCreationRequest['statusCode'];
 
                             if ($conditionsCopyCreationStatusCode == 200) {
-                                return response()->json(['ok' => false, 'data' => ['error' => 'LESSON_ITEMS_CREATION_ERROR']]);
+                                return response()->json(app(LtiController::class)->errorResponse(null, 'LESSON_ITEMS_CREATION_ERROR'), 500);
                             } else {
-                                return response()->json(['ok' => false, 'data' => ['error' => 'LESSON_ITEMS_WITHOUT_CONDITIONS_CREATION_ERROR']]);
+                                return response()->json(app(LtiController::class)->errorResponse(null, 'LESSON_ITEMS_WITHOUT_CONDITIONS_CREATION_ERROR'), 500);
                             }
                         } else {
-                            return response()->json(['ok' => false, 'data' => ['error' => 'FATAL_ERROR']]);
+                            return response()->json(app(LtiController::class)->errorResponse(null, 'FATAL_ERROR'), 500);
                         }
                     }
                 } else {
-                    return response()->json(['ok' => false, 'data' => ['error' => 'LESSON_DELETE_ERROR']]);
+                    return response()->json(app(LtiController::class)->errorResponse(null, 'LESSON_DELETE_ERROR'), 500);
                 }
             } else {
-                return response()->json(['ok' => false, 'data' => ['error' => 'LESSON_COPY_ERROR']]);
+                return response()->json(app(LtiController::class)->errorResponse(null, 'LESSON_COPY_ERROR'), 500);
             }
         } else {
-            return response()->json(['ok' => false, 'data' => ['error' => 'PAGE_EXPORT_ERROR']]);
+            return response()->json(app(LtiController::class)->errorResponse(null, 'PAGE_EXPORT_ERROR'), 500);
         }
     }
 
@@ -1326,7 +1342,7 @@ class SakaiController extends Controller
      * 
      * @return array
      */
-    public static function conditionItemIdAdder(array $nodes, array $conditionList)
+    public function conditionItemIdAdder(array $nodes, array $conditionList)
     {
         $nodesIdList = [];
         foreach ($nodes as $node) {
@@ -1384,7 +1400,7 @@ class SakaiController extends Controller
      * 
      * @return array
      */
-    public static function conditionIdParse(array $nodesCreated, array $conditionList)
+    public function conditionIdParse(array $nodesCreated, array $conditionList)
     {
         $nodesIdList = [];
         foreach ($nodesCreated as $node) {
@@ -1464,7 +1480,7 @@ class SakaiController extends Controller
      * 
      * @return array
      */
-    public static function parseSakaiLessonCopy(array $contentsList, bool $idAdder)
+    public function parseSakaiLessonCopy(array $contentsList, bool $idAdder)
     {
         $parsedSakaiLessonCopy = [];
         if (isset($contentsList) && $contentsList != null) {
@@ -1494,7 +1510,7 @@ class SakaiController extends Controller
      * 
      * @return bool
      */
-    public static function requestChecker(array $getRequest)
+    public function requestChecker(array $getRequest)
     {
         if (
             isset($getRequest) && isset($getRequest['ok']) && $getRequest['ok'] == true && isset($getRequest['data']) &&

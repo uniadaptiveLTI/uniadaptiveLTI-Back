@@ -58,11 +58,7 @@ class LtiController extends Controller
         } elseif ($platform == "moodle") {
             $result = app(MoodleController::class)->checkToken($fire['platform_id'], $token_request);
             if (!$result['ok']) {
-                return response()->json([
-                    'error' => $result['data']['error'],
-                    'error_code' => $result['data']['error_code'],
-                    'message' => $result['data']['message']
-                ], 500);
+                return response()->json(app(LtiController::class)->errorResponse($result['data'], ''), 500);
             }
         }
 
@@ -94,12 +90,12 @@ class LtiController extends Controller
                     $jwtPayload = $jwt->getPayload();
                     $sakai_serverid = $jwtPayload->{'https://www.sakailms.org/spec/lti/claim/extension'}->sakai_serverid;
 
-                    $sessionIdRequest = SakaiController::createSession($fire['platform_id'], $sakai_serverid, $token_request);
+                    $sessionIdRequest = app(SakaiController::class)->createSession($fire['platform_id'], $sakai_serverid, $token_request);
 
                     if (isset($sessionIdRequest) && isset($sessionIdRequest['ok']) && $sessionIdRequest['ok'] === true) {
                         $session_id = $sessionIdRequest['data']['user_id'];
                     } else {
-                        return response()->json(['ok' => false, 'data' => ['error' => "CREATE_SESSION_ERROR"]], 500);
+                        return response()->json(app(LtiController::class)->errorResponse(null, "CREATE_SESSION_ERROR"), 500);
                     }
 
                     DB::table('lti_info')->where([
@@ -108,7 +104,7 @@ class LtiController extends Controller
                         ['context_id', '=', $fire['context_id']],
                         ['expires_at', '>=', intval(Carbon::now()->valueOf())],
                     ])->update([
-                        'profile_url' => SakaiController::getUrl($fire['platform_id'], $fire['context_id'], SakaiController::getId($fire['user_id'])),
+                        'profile_url' => app(SakaiController::class)->getUrl($fire['platform_id'], $fire['context_id'], app(SakaiController::class)->getId($fire['user_id'])),
                         'lis_person_name_full' => $fire['lis_person_name_full'],
                         'session_id' => $session_id,
                     ]);
@@ -148,12 +144,12 @@ class LtiController extends Controller
                     $locale = $jwtPayload->locale;
                     $sakai_serverid = $jwtPayload->{'https://www.sakailms.org/spec/lti/claim/extension'}->sakai_serverid;
 
-                    $sessionIdRequest = SakaiController::createSession($fire['platform_id'], $sakai_serverid, $token_request);
+                    $sessionIdRequest = app(SakaiController::class)->createSession($fire['platform_id'], $sakai_serverid, $token_request);
 
                     if (isset($sessionIdRequest) && isset($sessionIdRequest['ok']) && $sessionIdRequest['ok'] === true) {
                         $session_id = $sessionIdRequest['data']['user_id'];
                     } else {
-                        return response()->json(['ok' => false, 'data' => ['error' => "CREATE_SESSION_ERROR"]], 500);
+                        return response()->json(app(LtiController::class)->errorResponse(null, "CREATE_SESSION_ERROR"), 500);
                     }
                     DB::table('lti_info')->insert([
                         'tool_consumer_info_product_family_code' => $fire['tool_consumer_info_product_family_code'],
@@ -167,7 +163,7 @@ class LtiController extends Controller
                         'launch_presentation_return_url' => $fire['platform_id'] . '/portal/site/' . $fire['context_id'],
                         'user_id' => $fire['user_id'],
                         'lis_person_name_full' => $fire['lis_person_name_full'],
-                        'profile_url' => SakaiController::getUrl($fire['platform_id'], $fire['context_id'], SakaiController::getId($fire['user_id'])),
+                        'profile_url' => app(SakaiController::class)->getUrl($fire['platform_id'], $fire['context_id'], app(SakaiController::class)->getId($fire['user_id'])),
                         'roles' => $fire['roles'],
                         'expires_at' => $expDate,
                         'created_at' => $currentDate,
@@ -249,7 +245,7 @@ class LtiController extends Controller
                     return app(MoodleController::class)->getSession($sessionData, $token_request);
                     break;
                 case 'sakai':
-                    return SakaiController::getSession($sessionData);
+                    return app(SakaiController::class)->getSession($sessionData);
                     break;
                 default:
                     return response()->json(app(LtiController::class)->errorResponse(null, 'PLATFORM_NOT_SUPPORTED'), 500);
@@ -268,6 +264,7 @@ class LtiController extends Controller
      */
     public function getMap(Request $request)
     {
+        // header('Access-Control-Allow-Origin: ' . env('FRONT_URL'));
         if ($this->checkToken($request->token)) {
             $dataMap = Map::where('created_id', $request->map_id)
                 ->first();
@@ -275,7 +272,8 @@ class LtiController extends Controller
 
                 return response()->json(app(LtiController::class)->errorResponse(null, 'INVALID_MAP'), 500);
             }
-            $dataMap = json_decode($dataMap);
+            // $dataMap = json_decode($dataMap);
+
             return response()->json(app(LtiController::class)->response($dataMap));
         } else {
             return response()->json(app(LtiController::class)->errorResponse(null, 'INVALID_OR_EXPIRED_TOKEN'), 500);
@@ -295,7 +293,7 @@ class LtiController extends Controller
                 ->where('created_id', $request->map_id)
                 ->first();
             // dd($mapId);
-            $dataVersions = Version::select('id', 'map_id', 'name')
+            $dataVersions = Version::selectRaw('created_id as id, map_id, name')
                 ->where('map_id', $mapId->id)
                 ->get();
 
@@ -318,8 +316,11 @@ class LtiController extends Controller
     public function getVersion(Request $request)
     {
         if ($this->checkToken($request->token)) {
-            $dataVersion = Version::where('id', $request->version_id)
+
+            $dataVersion = Version::selectRaw('created_id as id, map_id, name, blocks_data')
+                ->where('created_id', $request->version_id)
                 ->first();
+
             if ($dataVersion == null) {
                 return response()->json(app(LtiController::class)->errorResponse(null, 'INVALID_VERSION'), 500);
             }
@@ -348,7 +349,7 @@ class LtiController extends Controller
                     break;
                 case 'sakai':
                     if (isset($request->lesson)) {
-                        return SakaiController::getModules($sessionData->platform_id, $request->lesson, $sessionData->session_id, $sessionData->context_id);
+                        return app(SakaiController::class)->getModules($sessionData->platform_id, $request->lesson, $sessionData->session_id, $sessionData->context_id);
                     } else {
                         return response()->json(app(LtiController::class)->errorResponse(null, 'LESSON_NOT_VALID'), 500);
                     }
@@ -385,7 +386,7 @@ class LtiController extends Controller
                     }
                     break;
                 case 'sakai':
-                    return SakaiController::getModulesByType($request, $sessionData);
+                    return app(SakaiController::class)->getModulesByType($request, $sessionData);
                     break;
                 default:
                     break;
@@ -427,8 +428,9 @@ class LtiController extends Controller
 
                 $versionsData = $mapData['versions'];
                 foreach ($versionsData as $versionData) {
+
                     Version::updateOrCreate(
-                        ['map_id' => $map->id, 'name' => $versionData['name']],
+                        ['map_id' => $map->id, 'created_id' => $versionData['id'], 'name' => $versionData['name']],
                         ['default' => boolval($versionData['default']), 'blocks_data' => json_encode($versionData['blocks_data'])]
                     );
                 }
@@ -461,6 +463,7 @@ class LtiController extends Controller
                 ->first();
             try {
                 Version::create([
+                    'created_id' => $version['id'],
                     'map_id' => $dataMap->id,
                     'name' => $version['name'],
                     'default' => boolval($version['default']),
@@ -493,7 +496,7 @@ class LtiController extends Controller
                     return app(MoodleController::class)->exportVersion($request);
                     break;
                 case 'sakai':
-                    return SakaiController::exportVersion($request, $sessionData);
+                    return app(SakaiController::class)->exportVersion($request, $sessionData);
                     break;
                 default:
                     return response()->json(app(LtiController::class)->errorResponse(null, 'PLATFORM_NOT_SUPPORTED'), 500);
@@ -826,11 +829,11 @@ class LtiController extends Controller
         }
     }
     /**
-     * @param array|null $data
+     * @param array|object|null $data
      * 
      * @return array
      */
-    public function response(array $data = null)
+    public function response($data = null)
     {
         if ($data != null) {
             // dd($data);

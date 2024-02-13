@@ -15,6 +15,7 @@ return new class extends Migration
     {
         Schema::create('versions', function (Blueprint $table) {
             $table->id();
+            $table->unsignedBigInteger('created_id');
             $table->unsignedBigInteger('map_id');
             $table->string('name');
             $table->boolean('default');
