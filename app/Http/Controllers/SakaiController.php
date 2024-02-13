@@ -5,10 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Course;
 use App\Models\Instance;
 use App\Models\Map;
-use App\Models\Version;
 use GuzzleHttp\Client;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class SakaiController extends Controller
 {
@@ -1122,7 +1120,7 @@ class SakaiController extends Controller
      */
     public static function createClient(string $lms_url, string $url, string $session_id, $type = 'GET', $bodyData = [])
     {
-        $lmsInstance = LtiController::getLmsToken($lms_url, "sakai");
+        $lmsInstance = app(LtiController::class)->getLmsToken($lms_url, "sakai");
         $cookieName = "JSESSIONID";
         if ($lmsInstance != '') {
             if (isset($lmsInstance['cookieName'])) {

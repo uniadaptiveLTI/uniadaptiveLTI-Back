@@ -22,7 +22,7 @@ class MoodleControllerTest extends TestCase
     public function testGetImgUser()
     {
         $controller = new MoodleController();
-        $response = $controller->getImgUser($this->test_config['lms_url'], $this->test_config['user_id']);
+        $response = $controller->getImgUser($this->test_config['token_request'], $this->test_config['lms_url'], $this->test_config['user_id']);
 
         $this->assertIsString($response);
     }
@@ -30,7 +30,7 @@ class MoodleControllerTest extends TestCase
     public function testGetGroups()
     {
         $controller = new MoodleController();
-        $response = $controller->getGroups($this->test_config['lms_url'], $this->test_config['course_id']);
+        $response = $controller->getGroups($this->test_config['token_request'], $this->test_config['lms_url'], $this->test_config['course_id']);
 
         $this->assertIsArray($response);
 
@@ -44,7 +44,7 @@ class MoodleControllerTest extends TestCase
     public function testGetGrupings()
     {
         $controller = new MoodleController();
-        $response = $controller->getGrupings($this->test_config['lms_url'], $this->test_config['course_id']);
+        $response = $controller->getGrupings($this->test_config['token_request'], $this->test_config['lms_url'], $this->test_config['course_id']);
 
         $this->assertIsArray($response);
 
@@ -100,7 +100,7 @@ class MoodleControllerTest extends TestCase
     public function testGetSections()
     {
         $controller = new MoodleController();
-        $response = $controller->getSections($this->test_config['lms_url'], $this->test_config['course_id']);
+        $response = $controller->getSections($this->test_config['token_request'], $this->test_config['lms_url'], $this->test_config['course_id']);
 
         $this->assertIsArray($response);
 
@@ -115,7 +115,7 @@ class MoodleControllerTest extends TestCase
     public function testGetBadges()
     {
         $controller = new MoodleController();
-        $response = $controller->getBadges($this->test_config['lms_url'], $this->test_config['course_id']);
+        $response = $controller->getBadges($this->test_config['token_request'], $this->test_config['lms_url'], $this->test_config['course_id']);
 
         $this->assertIsArray($response);
         foreach ($response as $badge) {
@@ -166,40 +166,44 @@ class MoodleControllerTest extends TestCase
 
     public function testGetCoursegrades()
     {
-        $result = MoodleController::getCoursegrades($this->test_config['lms_url'], $this->test_config['course_id']);
+        $controller = new MoodleController();
+        $result = $controller->getCoursegrades($this->test_config['token_request'], $this->test_config['lms_url'], $this->test_config['course_id']);
 
         $this->assertInstanceOf(stdClass::class, $result);
     }
 
     public function testGetIdCoursegrades()
     {
-        $result = MoodleController::getIdCoursegrades($this->test_config['lms_url'], $this->test_config['course_id']);
+        $controller = new MoodleController();
+        $result = $controller->getIdCoursegrades($this->test_config['token_request'], $this->test_config['lms_url'], $this->test_config['course_id']);
 
         $this->assertIsArray($result);
     }
 
     public function testGetUrlLms()
     {
-        $result = MoodleController::getUrlLms($this->test_config['instance_id']);
+        $controller = new MoodleController();
+        $result = $controller->getUrlLms($this->test_config['instance_id']);
 
         if ($result) {
             $this->assertIsString($result);
         }
         if (!$result) {
             $this->assertNull($result);
-
         }
     }
 
     public function testGetModuleById()
     {
-        $result = MoodleController::getModuleById($this->test_config['instance_id'], $this->test_config['item_id']);
+        $controller = new MoodleController();
+        $result = $controller->getModuleById($this->test_config['instance_id'], $this->test_config['item_id']);
 
         $this->assertInstanceOf(stdClass::class, $result);
     }
 
     public function testGetIdGrade()
     {
+        $controller = new MoodleController();
         $module = new stdClass();
         $module->cm = new stdClass();
         $module->cm->course = $this->test_config['cm_course_id'];
@@ -207,7 +211,8 @@ class MoodleControllerTest extends TestCase
         $module->cm->modname = $this->test_config['cm_modname'];
         $module->cm->instance = $this->test_config['cm_instance'];
 
-        $result = MoodleController::getIdGrade($this->test_config['instance_id'], $module);
+
+        $result = $controller->getIdGrade($this->test_config['instance_id'], $module);
 
         if ($result) {
             $this->assertIsInt($result);
@@ -220,14 +225,16 @@ class MoodleControllerTest extends TestCase
 
     public function testGetIdCoursegrade()
     {
-        $result = MoodleController::getIdCoursegrade($this->test_config['instance_id'], $this->test_config['course_id']);
+        $controller = new MoodleController();
+        $result = $controller->getIdCoursegrade($this->test_config['instance_id'], $this->test_config['course_id']);
 
         $this->assertNotNull($result);
     }
 
     public function testGetModulesListBySectionsCourse()
     {
-        $result = MoodleController::getModulesListBySectionsCourse($this->test_config['instance_id'], $this->test_config['course_id']);
+        $controller = new MoodleController();
+        $result = $controller->getModulesListBySectionsCourse($this->test_config['instance_id'], $this->test_config['course_id']);
 
         $this->assertInstanceOf(stdClass::class, $result);
     }
@@ -235,28 +242,32 @@ class MoodleControllerTest extends TestCase
 
     public function testGetGradeModule()
     {
-        $result = MoodleController::getGradeModule($this->test_config['lms_url'], $this->test_config['grade_id']);
+        $controller = new MoodleController();
+        $result = $controller->getGradeModule($this->test_config['lms_url'], $this->test_config['grade_id']);
 
         $this->assertInstanceOf(stdClass::class, $result);
     }
 
     public function testGetRoles()
     {
-        $result = MoodleController::getRoles($this->test_config['lms_url'], $this->test_config['course_id']);
+        $controller = new MoodleController();
+        $result = $controller->getRoles($this->test_config['token_request'], $this->test_config['lms_url'], $this->test_config['course_id']);
 
         $this->assertIsArray($result);
     }
 
     public function testGetCompetencies()
     {
-        $result = MoodleController::getCompetencies($this->test_config['lms_url'], $this->test_config['course_id']);
+        $controller = new MoodleController();
+        $result = $controller->getCompetencies($this->test_config['token_request'], $this->test_config['lms_url'], $this->test_config['course_id']);
 
         $this->assertIsArray($result);
     }
 
     public function testGetCalifications()
     {
-        $result = MoodleController::getCalifications($this->test_config['lms_url'], $this->test_config['module_id'], $this->test_config['cm_modname']);
+        $controller = new MoodleController();
+        $result = $controller->getCalifications($this->test_config['lms_url'], $this->test_config['module_id'], $this->test_config['cm_modname']);
 
         if ($result) {
             $this->assertInstanceOf(stdClass::class, $result);
