@@ -145,7 +145,6 @@ class LtiController extends Controller
                     $sakai_serverid = $jwtPayload->{'https://www.sakailms.org/spec/lti/claim/extension'}->sakai_serverid;
 
                     $sessionIdRequest = app(SakaiController::class)->createSession($fire['platform_id'], $sakai_serverid, $token_request);
-
                     if (isset($sessionIdRequest) && isset($sessionIdRequest['ok']) && $sessionIdRequest['ok'] === true) {
                         $session_id = $sessionIdRequest['data']['user_id'];
                     } else {
@@ -845,13 +844,18 @@ class LtiController extends Controller
     /**
      * @param object|null $data
      * @param string $error
+     * @param int $errorCode
      * 
      * @return array
      */
-    public function errorResponse(object $data = null, $error = '')
+    public function errorResponse(object $data = null, $error = '', $errorCode = 0)
     {
         if ($error != '') {
-            return ['ok' => false,  'data' => ['error' => $error]];
+            if ($errorCode != 0) {
+                return ['ok' => false,  'data' => ['error' => $error, 'error_code' => $errorCode]];
+            } else {
+                return ['ok' => false,  'data' => ['error' => $error]];
+            }
         }
         return ['ok' => false,  'data' => ['error' => strtoupper($data->exception), 'error_code' => $data->errorcode], 'message' => $data->message];
     }
