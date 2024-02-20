@@ -36,14 +36,14 @@ class MoodleController extends Controller
                 'moodlewsrestformat' => 'json'
             ]
         ];
-        $answerd = app(MoodleController::class)->requestWebServices($lmsUrl, $query);
+        $answerd = $this->requestWebServices($lmsUrl, $query);
         if (isset($answerd->exception)) {
             return response()->json(app(LtiController::class)->errorResponse($answerd), 500);
         }
         switch ($answerd->authorized) {
             case 4: //Gestor
             case 3: //Teacher with permisions
-                $data = app(MoodleController::class)->getDataLMS($token_request, $lastInserted);
+                $data = $this->getDataLMS($token_request, $lastInserted);
                 if (isset($lastInserted->platform_name)) {
                     $data[1]['platform_name'] = $lastInserted->platform_name;
                 }
@@ -89,14 +89,14 @@ class MoodleController extends Controller
                 'roles' => $lastInserted->roles
             ],
             [
-                'instance_id' => app(MoodleController::class)->getInstance($lastInserted->tool_consumer_info_product_family_code, $lmsUrl),
+                'instance_id' => $this->getInstance($lastInserted->tool_consumer_info_product_family_code, $lmsUrl),
                 'platform' => $lastInserted->tool_consumer_info_product_family_code,
                 'course_id' => $courseId,
                 'name' => $lastInserted->context_title,
                 'lms_url' => $lmsUrl,
                 'return_url' => $lastInserted->launch_presentation_return_url
             ],
-            app(MoodleController::class)->getCourse(
+            $this->getCourse(
                 $courseId,
                 $lastInserted->tool_consumer_info_product_family_code,
                 $lmsUrl,
@@ -107,7 +107,7 @@ class MoodleController extends Controller
         foreach ($functions as $function => $value) {
             [$key, $params] = $value;
 
-            $result = app(MoodleController::class)->$function(...$params);
+            $result = $this->$function(...$params);
             if ($function == 'getIdCoursegrades') {
             }
             if (isset($result['data'])) {
@@ -213,7 +213,7 @@ class MoodleController extends Controller
                 'moodlewsrestformat' => 'json'
             ]
         ];
-        $data = app(MoodleController::class)->requestWebServices($url_lms, $query);
+        $data = $this->requestWebServices($url_lms, $query);
         if (isset($data->exception)) {
             return response()->json(app(LtiController::class)->errorResponse($data), 500);
         }
@@ -252,12 +252,12 @@ class MoodleController extends Controller
                 'moodlewsrestformat' => 'json'
             ]
         ];
-        $data = app(MoodleController::class)->requestWebServices($url_lms, $query);
+        $data = $this->requestWebServices($url_lms, $query);
         if (isset($data->exception)) {
             return response()->json(app(LtiController::class)->errorResponse($data), 500);
         }
         $modules = [];
-        $module_grades = app(MoodleController::class)->getCoursegrades($token_request, $url_lms, $course);
+        $module_grades = $this->getCoursegrades($token_request, $url_lms, $course);
         foreach ($data as $indexS => $section) {
             foreach ($section->modules as $indexM => $module) {
 
@@ -271,14 +271,14 @@ class MoodleController extends Controller
                     'modname' => e($module->modname),
                     'id' => e($module->id),
                     'has_califications' => $has_grades,
-                    'g' => app(MoodleController::class)->getCalifications($url_lms, $module->id, $module->modname),
+                    'g' => $this->getCalifications($url_lms, $module->id, $module->modname),
                     'order' => $indexM,
                     'section' => $indexS,
                     'indent' => $module->indent,
                     'visible' => ($module->visible >= 1) ? 'show_unconditionally' : 'hidden'
                 ];
                 if (isset($module->availability)) {
-                    $module_data['availability'] = app(MoodleController::class)->importRecursiveConditionsChange($url_lms, json_decode($module->availability), $section->modules);
+                    $module_data['availability'] = $this->importRecursiveConditionsChange($url_lms, json_decode($module->availability), $section->modules);
                 }
                 $modules[] = $module_data;
             }
@@ -301,7 +301,7 @@ class MoodleController extends Controller
         $token_request = app(LtiController::class)->getLmsToken($url_lms, MOODLE_PLATFORM, true);
 
         if ($request->type === "badge") {
-            $badges = app(MoodleController::class)->getBadges($token_request, $sessionData->platform_id, $sessionData->context_id);
+            $badges = $this->getBadges($token_request, $sessionData->platform_id, $sessionData->context_id);
             if ($badges != null && count($badges) >= 1) {
                 foreach ($badges as $badge) {
                     if (property_exists($badge, 'params')) {
@@ -327,11 +327,11 @@ class MoodleController extends Controller
                 ]
             ];
 
-            $data = app(MoodleController::class)->requestWebServices($url_lms, $query);
+            $data = $this->requestWebServices($url_lms, $query);
             if (isset($data->exception)) {
                 return response()->json(app(LtiController::class)->errorResponse($data), 500);
             }
-            $module_grades = app(MoodleController::class)->getCoursegrades($token_request, $sessionData->platform_id, $sessionData->context_id);
+            $module_grades = $this->getCoursegrades($token_request, $sessionData->platform_id, $sessionData->context_id);
             $modules = [];
 
             foreach ($data as $modules_data) {
@@ -368,7 +368,7 @@ class MoodleController extends Controller
                 'moodlewsrestformat' => 'json'
             ]
         ];
-        $data = app(MoodleController::class)->requestWebServices($url_lms, $query);
+        $data = $this->requestWebServices($url_lms, $query);
         if (isset($data->exception)) {
             return response()->json(app(LtiController::class)->errorResponse($data), 500);
         }
@@ -401,7 +401,7 @@ class MoodleController extends Controller
             ]
         ];
 
-        $data = app(MoodleController::class)->requestWebServices($url_lms, $query);
+        $data = $this->requestWebServices($url_lms, $query);
         if (isset($data->exception)) {
             return  response()->json(app(LtiController::class)->errorResponse($data), 500);
         }
@@ -435,7 +435,7 @@ class MoodleController extends Controller
             ]
         ];
 
-        $data = app(MoodleController::class)->requestWebServices($url_lms, $query);
+        $data = $this->requestWebServices($url_lms, $query);
         if (isset($data->exception)) {
             return response()->json(app(LtiController::class)->errorResponse($data), 500);
         }
@@ -461,7 +461,7 @@ class MoodleController extends Controller
                 'moodlewsrestformat' => 'json'
             ]
         ];
-        $data = app(MoodleController::class)->requestWebServices($url_lms, $query);
+        $data = $this->requestWebServices($url_lms, $query);
         if (isset($data->exception)) {
             return response()->json(app(LtiController::class)->errorResponse($data), 500);
         }
@@ -488,7 +488,7 @@ class MoodleController extends Controller
             ]
         ];
 
-        $data = app(MoodleController::class)->requestWebServices($url_lms, $query);
+        $data = $this->requestWebServices($url_lms, $query);
         if (isset($data->exception)) {
             return response()->json(app(LtiController::class)->errorResponse($data), 500);
         }
@@ -513,9 +513,10 @@ class MoodleController extends Controller
                 'moodlewsrestformat' => 'json'
             ]
         ];
-        $data = app(MoodleController::class)->requestWebServices($url_lms, $query);
-        // dd($data);
-        $grades = app(MoodleController::class)->getCoursegrades($token_request, $url_lms, $course_id);
+
+        $data = $this->requestWebServices($url_lms, $query);
+
+        $grades = $this->getCoursegrades($token_request, $url_lms, $course_id);
         $modulesCalificateds = [];
         foreach ($data as $section) {
             foreach ($section->modules as $module) {
@@ -536,8 +537,7 @@ class MoodleController extends Controller
     public function exportVersion(Request $request)
     {
         // header('Access-Control-Allow-Origin: *');
-
-        $sections = app(MoodleController::class)->getModulesListBySectionsCourse($request->instance, $request->course);
+        $sections = $this->getModulesListBySectionsCourse($request->instance, $request->course);
         $nodes = $request->nodes;
         $badges = [];
         usort($nodes, function ($a, $b) {
@@ -553,20 +553,22 @@ class MoodleController extends Controller
             }
             return 0;
         });
-
+        // dd($nodes);
         foreach ($nodes as $index => $data) {
             if (isset($nodes[$index]['actionType'])) {
                 unset($nodes[$index]['actionType']);
-                if (isset($nodes[$index]['conditions']) && is_array($nodes[$index]['conditions']) && count($nodes[$index]['conditions']) >= 1) {
-                    foreach ($nodes[$index]['conditions'] as $key => $condition) {
-                        if ($condition['description'] === null) {
-                            $nodes[$index]['conditions'][$key]['description'] = "";
-                        }
-                    }
-                }
+                // if (isset($nodes[$index]['conditions']) && is_array($nodes[$index]['conditions']) && count($nodes[$index]['conditions']) >= 1) {
+                //     // foreach ($nodes[$index]['conditions'] as $key => $condition) {
+
+                //     //     if ($condition['description'] === null) {
+                //     //         $nodes[$index]['conditions']['descriptionformat'] = "";
+                //     //     }
+                //     // }
+                // }
                 array_push($badges, $nodes[$index]);
                 unset($nodes[$index]);
             } else {
+
                 switch ($data['lmsVisibility']) {
                     case 'show_unconditionally':
                         $nodes[$index]['lmsVisibility'] = 1;
@@ -589,7 +591,7 @@ class MoodleController extends Controller
                     unset($nodes[$index]['children']);
                 }
                 if (isset($nodes[$index]['c']['c'])) {
-                    $nodes[$index]['c'] = app(MoodleController::class)->exportRecursiveConditionsChange($request->instance, $request->course, $nodes[$index]['c']);
+                    $nodes[$index]['c'] = $this->exportRecursiveConditionsChange($request->instance, $request->course, $nodes[$index]['c']);
                 } else {
                     $nodes[$index]['c'] = null;
                 }
@@ -615,7 +617,7 @@ class MoodleController extends Controller
                 unset($section->sequence);
             }
         }
-        $statusUpdate = app(MoodleController::class)->updateCourse($request->instance, $sections->sections, $nodes, $badges);
+        $statusUpdate = $this->updateCourse($request->instance, $sections->sections, $nodes, $badges);
         if ($statusUpdate->status) {
             $course = Course::select('id')->where('course_id', $request->course)->where('instance_id', $request->instance)->first();
             $listMap = Map::select('id')->where('course_id', $course->id)->get();
@@ -628,7 +630,7 @@ class MoodleController extends Controller
                         ]);
                 }
             }
-            return response()->json(['ok' => $statusUpdate->status]);
+            return response()->json(['ok' => $statusUpdate->status, 'data' => $sections]);
         } else {
             return response()->json(['ok' => $statusUpdate->status, 'data' => ['error' => 'ERROR_UPDATING_COURSE',]]);
         }
@@ -649,14 +651,14 @@ class MoodleController extends Controller
             case isset($data->c):
                 $c = [];
                 foreach ($data->c as $condition) {
-                    array_push($c, app(MoodleController::class)->importRecursiveConditionsChange($url_lms, $condition, $modules));
+                    array_push($c, $this->importRecursiveConditionsChange($url_lms, $condition, $modules));
                 }
                 $data->c = $c;
                 break;
             case isset($data->type):
                 switch ($data->type) {
                     case 'grade':
-                        $grade_module = app(MoodleController::class)->getGradeModule($url_lms, $data->id);
+                        $grade_module = $this->getGradeModule($url_lms, $data->id);
                         if (isset($grade_module->itemtype) && $grade_module->itemtype === "course") {
                             $data->courseId = "$grade_module->itemid";
                             $data->type = "courseGrade";
@@ -669,7 +671,7 @@ class MoodleController extends Controller
                         // header('Access-Control-Allow-Origin: *');
                         foreach ($modules as $module) {
                             if ($data->cm == $module->id && $data->e > 1) {
-                                $g = app(MoodleController::class)->getCalifications($url_lms, $module->id, $module->modname);
+                                $g = $this->getCalifications($url_lms, $module->id, $module->modname);
                                 if (!$g->hasToBeQualified) {
                                     switch ($data->e) {
                                         case 2:
@@ -703,6 +705,7 @@ class MoodleController extends Controller
      */
     public function exportRecursiveConditionsChange(int $instance_id, string $course_id, array $data, array $json = [])
     {
+        // header('Access-Control-Allow-Origin: *');
 
         switch ($data) {
             case isset($data['c']):
@@ -712,8 +715,15 @@ class MoodleController extends Controller
                     unset($data);
                 } else {
                     $c = [];
+
+
+
                     foreach ($data['c'] as $index => $condition) {
-                        $result = app(MoodleController::class)->exportRecursiveConditionsChange($instance_id, $course_id, $data['c'][$index], $json);
+
+                        if (isset($condition['type']) && $condition['type'] == 'conditionsGroup') {
+                            unset($data['c'][$index]['type']);
+                        }
+                        $result = $this->exportRecursiveConditionsChange($instance_id, $course_id, $data['c'][$index], $json);
                         // Only add the result to the array if it's not null
                         if ($result !== null) {
                             array_push($c, $result);
@@ -734,13 +744,13 @@ class MoodleController extends Controller
                         return $data;
                         break;
                     case 'grade':
-                        $data['id'] = app(MoodleController::class)->getIdGrade($instance_id, app(MoodleController::class)->getModuleById($instance_id, $data['id']));
+                        $data['id'] = $this->getIdGrade($instance_id, $this->getModuleById($instance_id, $data['id']));
                         return $data;
                         break;
                     case 'courseGrade':
                         $dates = [
                             'type' => 'grade',
-                            'id' => app(MoodleController::class)->getIdCourseGrade($instance_id, $data['id'])
+                            'id' => $this->getIdCourseGrade($instance_id, $data['id'])
                         ];
                         if (isset($data['min'])) {
                             $dates['min'] = $data['min'];
@@ -794,7 +804,7 @@ class MoodleController extends Controller
     public function getModuleById(int $instance, int $item_id)
     {
         // header('Access-Control-Allow-Origin: *');
-        $url_lms = app(MoodleController::class)->getUrlLms($instance);
+        $url_lms = $this->getUrlLms($instance);
         $token_request = app(LtiController::class)->getLmsToken($url_lms, MOODLE_PLATFORM, true);
 
         $query = [
@@ -805,7 +815,7 @@ class MoodleController extends Controller
                 'moodlewsrestformat' => 'json'
             ]
         ];
-        $data = app(MoodleController::class)->requestWebServices($url_lms, $query);
+        $data = $this->requestWebServices($url_lms, $query);
         if (isset($data->exception)) {
             return response()->json(app(LtiController::class)->errorResponse($data), 500);
         }
@@ -822,7 +832,7 @@ class MoodleController extends Controller
     public function getIdGrade(int $instance, object $module)
     {
 
-        $url_lms = app(MoodleController::class)->getUrlLms($instance);
+        $url_lms = $this->getUrlLms($instance);
         $token_request = app(LtiController::class)->getLmsToken($url_lms, MOODLE_PLATFORM, true);
 
         $query = [
@@ -837,7 +847,7 @@ class MoodleController extends Controller
             ]
         ];
 
-        $data = app(MoodleController::class)->requestWebServices($url_lms, $query);
+        $data = $this->requestWebServices($url_lms, $query);
         if (isset($data->exception)) {
             return response()->json(app(LtiController::class)->errorResponse($data), 500);
         }
@@ -854,7 +864,7 @@ class MoodleController extends Controller
     public function getIdCourseGrade(int $instance, int $course_id)
     {
 
-        $url_lms = app(MoodleController::class)->getUrlLms($instance);
+        $url_lms = $this->getUrlLms($instance);
         $token_request = app(LtiController::class)->getLmsToken($url_lms, MOODLE_PLATFORM, true);
         $query = [
             'query' => [
@@ -864,7 +874,7 @@ class MoodleController extends Controller
                 'moodlewsrestformat' => 'json'
             ]
         ];
-        $data = app(MoodleController::class)->requestWebServices($url_lms, $query, 'POST');
+        $data = $this->requestWebServices($url_lms, $query, 'POST');
         if (isset($data->exception)) {
             return response()->json(app(LtiController::class)->errorResponse($data), 500);
         }
@@ -881,7 +891,7 @@ class MoodleController extends Controller
     public function getModulesListBySectionsCourse(int $instance, string $course_id)
     {
 
-        $url_lms = app(MoodleController::class)->getUrlLms($instance);
+        $url_lms = $this->getUrlLms($instance);
         $token_request = app(LtiController::class)->getLmsToken($url_lms, MOODLE_PLATFORM, true);
 
         $query = [
@@ -892,7 +902,7 @@ class MoodleController extends Controller
                 'moodlewsrestformat' => 'json'
             ]
         ];
-        $data = app(MoodleController::class)->requestWebServices($url_lms, $query);
+        $data = $this->requestWebServices($url_lms, $query);
 
         if (isset($data->exception)) {
             return response()->json(app(LtiController::class)->errorResponse($data), 500);
@@ -922,7 +932,7 @@ class MoodleController extends Controller
                 'moodlewsrestformat' => 'json'
             ]
         ];
-        $data = app(MoodleController::class)->requestWebServices($url_lms, $query);
+        $data = $this->requestWebServices($url_lms, $query);
         if (isset($data->exception)) {
             return response()->json(app(LtiController::class)->errorResponse($data), 500);
         }
@@ -955,7 +965,7 @@ class MoodleController extends Controller
                 'moodlewsrestformat' => 'json'
             ]
         ];
-        $data = app(MoodleController::class)->requestWebServices($url_lms, $query);
+        $data = $this->requestWebServices($url_lms, $query);
         return $data;
     }
 
@@ -977,7 +987,7 @@ class MoodleController extends Controller
                 'contextid' => $course_id
             ]
         ];
-        $data = app(MoodleController::class)->requestWebServices($url_lms, $query);
+        $data = $this->requestWebServices($url_lms, $query);
         return $data;
     }
     /**
@@ -998,7 +1008,7 @@ class MoodleController extends Controller
                 'idnumber' => $course_id
             ]
         ];
-        $data = app(MoodleController::class)->requestWebServices($url_lms, $query);
+        $data = $this->requestWebServices($url_lms, $query);
         return $data;
     }
     /**
@@ -1013,7 +1023,7 @@ class MoodleController extends Controller
      */
     public function updateCourse(int $instance, array $sections, array $modules, array $badges)
     {
-
+        // dd($instance, $sections, $modules, $badges);
         if ($modules !== null && is_array($modules) && count($modules) > 0) {
             foreach ($modules as &$module) {
                 if (isset($module['c'])) {
@@ -1021,8 +1031,8 @@ class MoodleController extends Controller
                 }
             }
         }
-
-        $url_lms = app(MoodleController::class)->getUrlLms($instance);
+        // dd($modules);
+        $url_lms = $this->getUrlLms($instance);
         $token_request = app(LtiController::class)->getLmsToken($url_lms, MOODLE_PLATFORM, true);
         $query = [
             'form_params' => [
@@ -1036,7 +1046,7 @@ class MoodleController extends Controller
                 'moodlewsrestformat' => 'json'
             ]
         ];
-        $data = app(MoodleController::class)->requestWebServices($url_lms, $query, 'POST');
+        $data = $this->requestWebServices($url_lms, $query, 'POST');
         return $data;
     }
     /**
@@ -1059,7 +1069,7 @@ class MoodleController extends Controller
                 'moodlewsrestformat' => 'json'
             ]
         ];
-        $data = app(MoodleController::class)->requestWebServices($url_lms, $query);
+        $data = $this->requestWebServices($url_lms, $query);
 
         $min = (float) number_format($data->data->data->min, 5);
         $max = (float) number_format($data->data->data->max, 5);
@@ -1083,9 +1093,9 @@ class MoodleController extends Controller
                 'moodlewsrestformat' => 'json'
             ]
         ];
-        $data = app(MoodleController::class)->requestWebServices($url_lms, $query, 'POST');
+        $data = $this->requestWebServices($url_lms, $query, 'POST');
         if (isset($data->exception)) {
-            return response()->json(app(LtiController::class)->errorResponse($data), 500);
+            return app(LtiController::class)->errorResponse($data);
         }
         return app(LtiController::class)->response();
     }
