@@ -2,10 +2,9 @@
 /public/build
 /public/hot
 /public/storage
-# /storage/*.key
 /vendor
 .env
-.env.backup
+.env.backup 
 .env.production
 .phpunit.result.cache
 Homestead.json
@@ -21,3 +20,4 @@ storage/logs/*
 logs/*
 config/multiple_lms_config.php
 config/lms_config_test.php
+config/frontendConfiguration.json

@@ -5,15 +5,22 @@ namespace App\Http\Controllers;
 use App\Models\Course;
 use App\Models\Instance;
 use App\Models\Map;
-use App\Models\Version;
 use GuzzleHttp\Client;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+
+use function PHPSTORM_META\type;
 
 class SakaiController extends Controller
 {
-    public static function getinstance($platform, $url_lms)
+    /**
+     * @param string $platform
+     * @param string $url_lms
+     * 
+     * @return mixed
+     */
+    public function getinstance(string $platform, string $url_lms)
     {
+
         $dataInstance = Instance::firstOrCreate(
             ['platform' => $platform, 'url_lms' => $url_lms],
             ['platform' => $platform, 'url_lms' => $url_lms, 'timestamps' => now()]
@@ -24,7 +31,14 @@ class SakaiController extends Controller
         return $dataInstance->id;
     }
 
-    public static function getCourse($course_id, $platform, $url_lms)
+    /**
+     * @param string $course_id
+     * @param string $platform
+     * @param string $url_lms
+     * 
+     * @return array
+     */
+    public function getCourse(string $course_id, string $platform, string $url_lms)
     {
         $dataInstance = Instance::firstOrCreate(
             ['platform' => $platform, 'url_lms' => $url_lms],
@@ -45,74 +59,53 @@ class SakaiController extends Controller
             ->get();
         $maps = [];
         foreach ($dataMaps as $map) {
-            $dataVersions = Version::select('id', 'map_id', 'name', 'blocks_data', 'updated_at', 'default')
-                ->where('map_id', $map->id)
-                ->get();
-            $versions = [];
-            foreach ($dataVersions as $version) {
-
-                array_push($versions, [
-                    'id' => $version->id,
-                    'map_id' => $version->map_id,
-                    'name' => $version->name,
-                    'updated_at' => $version->updated_at,
-                    'default' => $version->default,
-                    'blocksData' => json_decode($version->blocks_data),
-                ]);
-            }
-            array_push($maps, [
+            $maps[] = [
                 'id' => $map->created_id,
                 'course_id' => $map->course_id,
                 'name' => $map->name,
-                'versions' => $versions,
-            ]);
+            ];
         }
-        $course = [
-            'maps' => $maps,
-        ];
 
-        return $course;
+        return $maps;
     }
-
-    // Función que devuelve los datos del usuario y del curso
-    public static function getSession(object $lastInserted)
+    /**
+     * Function that returns user and course data
+     * 
+     * @param object $lastInserted
+     * 
+     * @return mixed
+     */
+    //FIXME: this function can be more efficient
+    public function getSession(object $lastInserted)
     {
-        $lessonGetRequest = SakaiController::getLessons($lastInserted->platform_id, $lastInserted->context_id, $lastInserted->session_id);
-        $successfulLessonRequest = SakaiController::requestChecker($lessonGetRequest);
-        if ($successfulLessonRequest == true) {
-            $lessons = $lessonGetRequest['data']['lessons'];
-        } else {
-            return response()->json($lessonGetRequest);
+        // header('Access-Control-Allow-Origin: *');
+        $lessonGetRequest = $this->getLessons($lastInserted->platform_id, $lastInserted->context_id, $lastInserted->session_id);
+        if (!$lessonGetRequest['ok']) {
+            return response()->json($lessonGetRequest, $lessonGetRequest['data']['error_code']);
         }
-
-        $userMembersGetRequest = SakaiController::getUserMembers($lastInserted->platform_id, $lastInserted->context_id, $lastInserted->session_id);
-        $successfulUserRequest = SakaiController::requestChecker($userMembersGetRequest);
-
-        if ($successfulUserRequest == true) {
-            $userMembers = $userMembersGetRequest['data']['users'];
-        } else {
-            return response()->json($userMembersGetRequest);
+        $lessons = $lessonGetRequest['data']['lessons'];
+        $userMembersGetRequest = $this->getUserMembers($lastInserted->platform_id, $lastInserted->context_id, $lastInserted->session_id);
+        if (!$userMembersGetRequest['ok']) {
+            return response()->json($userMembersGetRequest, $userMembersGetRequest['data']['error_code']);
         }
+        $userMembers = $userMembersGetRequest['data']['users'];
 
-        $groupsGetRequest = SakaiController::getGroups($lastInserted->platform_id, $lastInserted->context_id, $lastInserted->session_id);
-        $successfulGroupRequest = SakaiController::requestChecker($groupsGetRequest);
-
-        if ($successfulGroupRequest == true) {
-            $groups = $groupsGetRequest['data']['groups'];
-        } else {
-            return response()->json($groupsGetRequest);
+        $groupsGetRequest = $this->getGroups($lastInserted->platform_id, $lastInserted->context_id, $lastInserted->session_id);
+        if (!$groupsGetRequest['ok']) {
+            return response()->json($groupsGetRequest, $groupsGetRequest['data']['error_code']);
         }
+        $groups = $groupsGetRequest['data']['groups'];
 
         $data = [
             [
-                'user_id' => SakaiController::getId($lastInserted->user_id),
+                'user_id' => $this->getId($lastInserted->user_id),
                 'name' => $lastInserted->lis_person_name_full,
-                'profile_url' => SakaiController::getUrl($lastInserted->platform_id, $lastInserted->context_id, SakaiController::getId($lastInserted->user_id)),
+                'profile_url' => $this->getUrl($lastInserted->platform_id, $lastInserted->context_id, $this->getId($lastInserted->user_id)),
                 'roles' => $lastInserted->roles
             ],
             [
                 'name' => $lastInserted->context_title,
-                'instance_id' => SakaiController::getinstance($lastInserted->tool_consumer_info_product_family_code, $lastInserted->platform_id),
+                'instance_id' => $this->getinstance($lastInserted->tool_consumer_info_product_family_code, $lastInserted->platform_id),
                 'lessons' => $lessons,
                 'course_id' => $lastInserted->context_id,
                 'session_id' => $lastInserted->session_id,
@@ -122,19 +115,25 @@ class SakaiController extends Controller
                 'user_members' => $userMembers,
                 'sakai_groups' => $groups
             ],
-            SakaiController::getCourse(
+            $this->getCourse(
                 $lastInserted->context_id,
                 $lastInserted->tool_consumer_info_product_family_code,
                 $lastInserted->platform_id
             )
         ];
-        // dd($data);
-        return response()->json(['ok' => true, 'data' => $data]);
+        return response()->json(app(LtiController::class)->response($data));
     }
 
 
 
-    public static function createSession($url_lms, $sakaiServerId, $data)
+    /**
+     * @param string $url_lms
+     * @param string $sakaiServerId
+     * @param array $data
+     * 
+     * @return array
+     */
+    public function createSession(string $url_lms, string $sakaiServerId, array $data)
     {
         $client = new Client();
         $response = $client->request('GET', $url_lms . '/sakai-ws/rest/login/login?id=' . $data['user'] . '&pw=' . $data['password']);
@@ -143,212 +142,228 @@ class SakaiController extends Controller
 
         if (isset($statusCode) && $statusCode == 200) {
             $user_id = $content . '.' . $sakaiServerId;
-            return ['ok' => true, 'data' => ['user_id' => $user_id, 'status_code' => $statusCode]];
+            $data = ['user_id' => $user_id, 'status_code' => $statusCode];
+            return app(LtiController::class)->response($data);
         } else {
-            return ['ok' => false, 'data' => []];
+            return app(LtiController::class)->errorResponse(null, 'REQUEST_ERROR');
         }
     }
 
-    public static function getLessons($url_lms, $context_id, $session_id)
+    /**
+     * @param string $url_lms
+     * @param string $context_id
+     * @param string $session_id
+     * 
+     * @return array
+     */
+    public function getLessons(string $url_lms, string $context_id, string $session_id)
     {
-        // header('Access-Control-Allow-Origin: *');
-        $request = SakaiController::createClient($url_lms, $url_lms . '/direct/lessons/site/' . $context_id . '.json', $session_id);
-
-        $statusCode = $request['statusCode'];
+        $request = $this->createClient($url_lms, $url_lms . '/direct/lessons/site/' . $context_id . '.json', $session_id);
 
         $lessons = [];
-        if ($statusCode == 200) {
-            $data = json_decode(($request['requestBody']));
-            foreach ($data->lessons_collection as $Lesson) {
-                $pageIdGetRequest = SakaiController::getPageIdLesson($url_lms, $Lesson->id, $session_id);
-                $successfulRequest = SakaiController::requestChecker($pageIdGetRequest);
+        // dd($request);
+        if ($request['ok']) {
+            $dates = $request['data']['requestBody'];
+            foreach ($dates->lessons_collection as $lesson) {
 
-                if ($successfulRequest == true) {
-                    array_push($lessons, [
-                        'id' => $Lesson->id,
-                        'name' => $Lesson->lessonTitle,
-                        'page_id' => $pageIdGetRequest['data']['page_founded']
-                    ]);
+                $pageIdGetRequest = $this->getPageIdLesson($url_lms, $lesson->id, $session_id);
+                if (!$pageIdGetRequest['ok']) {
+
+                    return app(LtiController::class)->errorResponse(null, $pageIdGetRequest['data']['error'], $pageIdGetRequest['data']['error_code']);
                 } else {
-                    return ['ok' => false, 'data' => ['lessons' => $lessons, 'status_code' => $statusCode]];
+                    $lessons[] = [
+                        'id' => $lesson->id,
+                        'name' => $lesson->lessonTitle,
+                        'page_id' => $pageIdGetRequest['data']['page_founded']
+                    ];
                 }
             }
-            return ['ok' => true, 'data' => ['lessons' => $lessons, 'status_code' => $statusCode]];
+            $data = ['lessons' => $lessons, 'status_code' => $request['data']['statusCode']];
+
+            return app(LtiController::class)->response($data);
         } else {
-            return ['ok' => false, 'data' => ['lessons' => $lessons, 'status_code' => $statusCode]];
+            return app(LtiController::class)->errorResponse(null, $request['data']['error'], $request['data']['error_code']);
         }
     }
 
-    public static function getPageIdLesson($url_lms, $context_id, $session_id)
+    /**
+     * @param string $url_lms
+     * @param string $context_id
+     * @param string $session_id
+     * 
+     * @return array
+     */
+    public function getPageIdLesson(string $url_lms, string $context_id, string $session_id)
     {
-        $request = SakaiController::createClient($url_lms, $url_lms . '/direct/lessons/lesson/' . $context_id . '.json', $session_id);
-        $data = json_decode($request['requestBody']);
-        $statusCode = $request['statusCode'];
-        if ($statusCode == 200) {
-            $data = json_decode($request['requestBody']);
-            return ['ok' => true, 'data' => ['page_founded' => $data->sakaiId, 'status_code' => $statusCode]];
+
+        $request = $this->createClient($url_lms, $url_lms . '/direct/lessons/lesson/' . $context_id . '.json', $session_id);
+
+        if ($request['ok']) {
+            $dates = $request['data']['requestBody'];
+            $data = ['page_founded' => $dates->sakaiId, 'status_code' => $request['data']['statusCode']];
+            return app(LtiController::class)->response($data);
         } else {
-            return ['ok' => false, 'data' => ['status_code' => $statusCode]];
+            return app(LtiController::class)->errorResponse(null, $request['data']['error'], $request['data']['error_code']);
         }
     }
 
-    // Función que devuelve los modulos con tipo en concreto de un curso
-    public static function getModulesByType(Request $request, $sessionData)
+    /**
+     * Function that returns the modules of a specific type of a course
+     * 
+     * @param Request $request
+     * @param object $sessionData
+     * 
+     * @return mixed
+     */
+    public function getModulesByType(Request $request, object $sessionData)
     {
+        // header('Access-Control-Allow-Origin: *');
         switch ($request->type) {
             case 'forum':
-                $forumsGetRequest = SakaiController::getForums($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id);
-                $successfulForumsRequest = SakaiController::requestChecker($forumsGetRequest);
-
-                $forumsStatusCode = $forumsGetRequest['data']['status_code'];
-
-                if ($successfulForumsRequest == true) {
-                    return ['ok' => true, 'data' => ['items' => $forumsGetRequest['data']['forums'], 'status_code' => $forumsStatusCode]];
-                } else {
-                    return ['ok' => false, 'data' => ['items' => [], 'status_code' => $forumsStatusCode]];
-                }
+                return $this->getForums($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id);
             case 'exam':
-                $examsGetRequest = SakaiController::getAssesments($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id);
-                $successfulExamsRequest = SakaiController::requestChecker($examsGetRequest);
-
-                $examsStatusCode = $examsGetRequest['data']['status_code'];
-
-                if ($successfulExamsRequest == true) {
-                    return ['ok' => true, 'data' => ['items' => $examsGetRequest['data']['assesments'], 'status_code' => $examsStatusCode]];
-                } else {
-                    return ['ok' => false, 'data' => ['items' => [], 'status_code' => $examsStatusCode]];
-                }
+                return $this->getAssesments($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id);
             case 'assign':
-                $assignmentsGetRequest = SakaiController::getAssignments($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id);
-                $successfulAssignmentsRequest = SakaiController::requestChecker($assignmentsGetRequest);
-
-                $assignmentsStatusCode = $assignmentsGetRequest['data']['status_code'];
-
-                if ($successfulAssignmentsRequest == true) {
-                    return ['ok' => true, 'data' => ['items' => $assignmentsGetRequest['data']['assignments'], 'status_code' => $assignmentsStatusCode]];
-                } else {
-                    return ['ok' => false, 'data' => ['items' => [], 'status_code' => $assignmentsStatusCode]];
-                }
+                return $this->getAssignments($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id);
             case 'text':
-                return SakaiController::getResourcesByType($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id, 'plain');
+                return $this->getResources($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id, 'plain');
             case 'url':
-                return SakaiController::getResourcesByType($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id, 'url');
             case 'html':
-                return SakaiController::getResourcesByType($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id, 'html');
             case 'folder':
-                return SakaiController::getResourcesByType($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id, 'folder');
             case 'resource':
-                return SakaiController::getResourcesByType($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id, 'resource');
+                return $this->getResources($sessionData->platform_id, $sessionData->context_id, $sessionData->session_id, $request->type);
             default:
-                return response()->json(['ok' => false, 'errorType' => 'TYPE_NOT_SUPPORTED', 'data' => '']);
+                return app(LtiController::class)->errorResponse(null, 'TYPE_NOT_SUPPORTED', 500);
         }
     }
 
-    public static function getResourcesByType($platform_id, $context_id, $session_id, $type)
+    /**
+     * Function that returns the forums of a Sakai course
+     * 
+     * @param string $url_lms
+     * @param string $context_id
+     * @param string $session_id
+     * 
+     * @return array
+     */
+    public function getForums(string $url_lms, string $context_id, string $session_id)
     {
-        $resourcesGetRequest = SakaiController::getResources($platform_id, $context_id, $session_id, $type);
-        $successfulRequest = SakaiController::requestChecker($resourcesGetRequest);
 
-        $resourcesStatusCode = $resourcesGetRequest['data']['status_code'];
-
-        if ($successfulRequest == true) {
-            return ['ok' => true, 'data' => ['items' => $resourcesGetRequest['data']['resources'], 'status_code' => $resourcesStatusCode]];
-        } else {
-            return ['ok' => false, 'data' => ['items' => [], 'status_code' => $resourcesStatusCode]];
-        }
-    }
-
-    // Función que devuelve los foros de un curso de Sakai
-    public static function getForums($url_lms, $context_id, $session_id)
-    {
-        $request = SakaiController::createClient($url_lms, $url_lms . '/direct/forums/site/' . $context_id . '.json', $session_id);
-
-        $statusCode = $request['statusCode'];
+        $request = $this->createClient($url_lms, $url_lms . '/direct/forums/site/' . $context_id . '.json', $session_id);
 
         $forums = [];
-        if ($statusCode == 200) {
-            $dataForums = json_decode($request['requestBody']);
+        if ($request['ok']) {
+            $dataForums = $request['data']['requestBody'];
             foreach ($dataForums->forums_collection as $forum) {
-                $forums[] = array(
+                $forums[] = [
                     'id' => $forum->entityId,
                     'name' => $forum->title
-                );
+                ];
             }
-            return ['ok' => true, 'data' => ['forums' => $forums, 'status_code' => $statusCode]];
+            return app(LtiController::class)->response($forums);
         } else {
-            return ['ok' => false, 'data' => ['status_code' => $statusCode]];
+            return app(LtiController::class)->errorResponse(null, 'REQUEST_ERROR', $request['data']['error_code']);
         }
     }
 
-    public static function getForumById($url_lms, $context_id, $session_id, $forumId)
+    /**
+     * @param string $url_lms
+     * @param string $context_id
+     * @param string $session_id
+     * @param string $forumId
+     * 
+     * @return array
+     */
+    public function getForumById(string $url_lms, string $context_id, string $session_id, string $forumId)
     {
-        $request = SakaiController::createClient($url_lms, $url_lms . '/direct/forums/site/' . $context_id . '.json', $session_id);
 
-        $statusCode = $request['statusCode'];
-
-        if ($statusCode == 200) {
-            $dataForums = json_decode($request['requestBody']);
+        $request = $this->createClient($url_lms, $url_lms . '/direct/forums/site/' . $context_id . '.json', $session_id);
+        if ($request['ok']) {
+            $dataForums = $request['data']['requestBody'];
+            // dd($dataForums->forums_collection, $forumId);
             foreach ($dataForums->forums_collection as $forum) {
-                if ($forum->id == $forumId) {
-                    return ['ok' => true, 'data' => ['forum_founded' => $forum, 'status_code' => $statusCode]];
+                // dd($forum);
+                if ($forum->entityId == $forumId) {
+                    $data = ['forum_founded' => $forum, 'status_code' => $request['data']['statusCode']];
+                    return app(LtiController::class)->response($data);
                 }
             }
-            return ['ok' => false, 'data' => ['status_code' => $statusCode]];
-        } else {
-            return ['ok' => false, 'data' => ['status_code' => $statusCode]];
         }
+        //FIXME:
+        return app(LtiController::class)->errorResponse(null, 'REQUEST_ERROR', $request['statusCode']);
     }
-
-    // Función que devuelve las tareas de un curso de Sakai
-    public static function getAssignments($url_lms, $context_id, $session_id)
+    /**
+     * Function that returns the assignments of a Sakai course
+     * 
+     * @param string $url_lms
+     * @param string $context_id
+     * @param string $session_id
+     * 
+     * @return array
+     */
+    public function getAssignments(string $url_lms, string $context_id, string $session_id)
     {
-        $request = SakaiController::createClient($url_lms, $url_lms . '/direct/assignment/site/' . $context_id . '.json', $session_id);
 
-        $statusCode = $request['statusCode'];
+        $request = $this->createClient($url_lms, $url_lms . '/direct/assignment/site/' . $context_id . '.json', $session_id);
+
         $assignments = [];
-        if ($statusCode == 200) {
-            $dataAssignments = json_decode($request['requestBody']);
+        if ($request['ok']) {
+            $dataAssignments = $request['data']['requestBody'];
             foreach ($dataAssignments->assignment_collection as $assignment) {
                 $assignments[] = array(
                     'id' => $assignment->entityId,
                     'name' => $assignment->entityTitle
                 );
             }
-            return ['ok' => true, 'data' => ['assignments' => $assignments, 'status_code' => $statusCode]];
+            return app(LtiController::class)->response($assignments);
         } else {
-            return ['ok' => false, 'data' => ['status_code' => $statusCode]];
+            return app(LtiController::class)->errorResponse(null, 'REQUEST_ERROR', $request['data']['error_code']);
         }
     }
 
-    public static function getAssignmentById($url_lms, $context_id, $session_id, $assignmentId)
+    /**
+     * @param string $url_lms
+     * @param string $context_id
+     * @param string $session_id
+     * @param string $assignmentId
+     * 
+     * @return array
+     */
+    public function getAssignmentById(string $url_lms, string $context_id, string $session_id, string $assignmentId)
     {
-        $request = SakaiController::createClient($url_lms, $url_lms . '/direct/assignment/site/' . $context_id . '.json', $session_id);
+        $request = $this->createClient($url_lms, $url_lms . '/direct/assignment/site/' . $context_id . '.json', $session_id);
 
-        $statusCode = $request['statusCode'];
 
-        if ($statusCode == 200) {
-            $dataAssignments = json_decode($request['requestBody']);
+        if ($request['ok']) {
+            $dataAssignments = $request['data']['requestBody'];
             foreach ($dataAssignments->assignment_collection as $assignment) {
                 if ($assignment->id == $assignmentId) {
-                    return ['ok' => true, 'data' => ['assignment_founded' => $assignment, 'status_code' => $statusCode]];
+                    $data = ['assignment_founded' => $assignment, 'status_code' => $request['data']['statusCode']];
+                    return app(LtiController::class)->response($data);
                 }
             }
-            return ['ok' => false, 'data' => ['status_code' => $statusCode]];
-        } else {
-            return ['ok' => false, 'data' => ['status_code' => $statusCode]];
         }
+        return app(LtiController::class)->errorResponse(null, 'REQUEST_ERROR',  $request['data']['error_code']);
     }
 
-    // Función que devuelve los recursos de un curso de Sakai dependiendo de su tipo
-    public static function getResources($url_lms, $context_id, $session_id, $type)
+    /**
+     * Function that returns the resources of a Sakai course depending on its type
+     * 
+     * @param string $url_lms
+     * @param string $context_id
+     * @param string $session_id
+     * @param string $type
+     * 
+     * @return mixed
+     */
+    public function getResources(string $url_lms, string $context_id, string $session_id, string $type)
     {
-        $request = SakaiController::createClient($url_lms, $url_lms . '/direct/content/resources/group/' . $context_id . '.json?depth=3', $session_id);
-        $statusCode = $request['statusCode'];
+        $request = $this->createClient($url_lms, $url_lms . '/direct/content/resources/group/' . $context_id . '.json?depth=3', $session_id);
 
         $resources = [];
 
-        if ($statusCode == 200) {
-            $dataContents = json_decode($request['requestBody']);
+        if ($request['ok']) {
+            $dataContents = $request['data']['requestBody'];
             function decode_unicode($str)
             {
                 $str = preg_replace_callback('/\\\\u([0-9a-fA-F]{4})/', function ($match) {
@@ -395,92 +410,116 @@ class SakaiController extends Controller
             foreach ($dataContents->content_collection[0]->resourceChildren as $resource) {
                 process_resource($resource, $resources, $type);
             }
-
-            return ['ok' => true, 'data' => ['resources' => $resources, 'status_code' => $statusCode]];
+            return app(LtiController::class)->response($resources);
         } else {
-            return ['ok' => false, 'data' => ['resources' => $resources, 'status_code' => $statusCode]];
+            return app(LtiController::class)->errorResponse(null, 'REQUEST_ERROR', $request['data']['error_code']);
         }
     }
 
-    public static function getResourceById($url_lms, $context_id, $session_id, $resourceId)
+    /**
+     * @param string $url_lms
+     * @param string $context_id
+     * @param string $session_id
+     * @param string $resourceId
+     * 
+     * @return array
+     */
+    public function getResourceById(string $url_lms, string $context_id, string $session_id, string $resourceId)
     {
-        $request = SakaiController::createClient($url_lms, $url_lms . '/api/sites/' . $context_id . '/entities/resources', $session_id);
+        // dd($url_lms, $context_id, $session_id, $resourceId);
+        $request = $this->createClient($url_lms, $url_lms . '/api/sites/' . $context_id . '/entities/resources', $session_id);
 
-        $statusCode = $request['statusCode'];
-
-        if ($statusCode == 200) {
-            $modules = json_decode($request['requestBody']);
+        if ($request['ok']) {
+            $modules = $request['data']['requestBody'];
             foreach ($modules as $resource) {
                 if ($resource->id == $resourceId) {
-                    return ['ok' => true, 'data' => ['resource_founded' => $resource, 'status_code' => $statusCode]];
+                    $data = ['resource_founded' => $resource, 'status_code' => $request['data']['statusCode']];
+                    return app(LtiController::class)->response($data);
                 }
             }
-            return ['ok' => false, 'data' => ['status_code' => $statusCode]];
-        } else {
-            return ['ok' => false, 'data' => ['status_code' => $statusCode]];
         }
+        return $request;
     }
 
-    public static function getUserMembers($url_lms, $context_id, $session_id)
+    /**
+     * @param string $url_lms
+     * @param string $context_id
+     * @param string $session_id
+     * 
+     * @return array
+     */
+    public function getUserMembers(string $url_lms, string $context_id, string $session_id)
     {
-        $request = SakaiController::createClient($url_lms, $url_lms . '/direct/site/' . $context_id . '/memberships.json', $session_id);
-
-        $statusCode = $request['statusCode'];
+        $request = $this->createClient($url_lms, $url_lms . '/direct/site/' . $context_id . '/memberships.json', $session_id);
 
         $users = [];
-        if ($statusCode == 200) {
-            $dataUsers = json_decode($request['requestBody']);
-            foreach ($dataUsers->membership_collection as $user) {
-                $users[] = array(
+
+        if ($request['ok']) {
+            $dates = $request['data']['requestBody'];
+            foreach ($dates->membership_collection as $user) {
+                $users[] = [
                     'id' => $user->userId,
                     'name' => $user->userDisplayName
-                );
+                ];
             }
+            $data = ['users' => $users, 'status_code' => $request['data']['statusCode']];
 
-            return ['ok' => true, 'data' => ['users' => $users, 'status_code' => $statusCode]];
+            return app(LtiController::class)->response($data);
         } else {
-            return ['ok' => false, 'data' => ['status_code' => $statusCode]];
+            return app(LtiController::class)->errorResponse(null, $request['data']['error'], $request['data']['error_code']);
         }
     }
-    public static function getGroups($url_lms, $context_id, $session_id)
+    /**
+     * @param string $url_lms
+     * @param string $context_id
+     * @param string $session_id
+     * 
+     * @return array
+     */
+    public function getGroups(string $url_lms, string $context_id, string $session_id)
     {
-        $request = SakaiController::createClient($url_lms, $url_lms . '/direct/site/' . $context_id . '/groups.json', $session_id);
-
-        $dataGroups = json_decode($request['requestBody']);
-        $statusCode = $request['statusCode'];
-
+        $request = $this->createClient($url_lms, $url_lms . '/direct/site/' . $context_id . '/groups.json', $session_id);
         $groups = [];
-        if ($statusCode == 200) {
-            foreach ($dataGroups as $group) {
-                $groups[] = array(
+
+        if ($request['ok']) {
+            $dates = $request['data']['requestBody'];
+            foreach ($dates as $group) {
+                $groups[] = [
                     'id' => $group->reference,
                     'name' => $group->title
-                );
+                ];
             }
-            return ['ok' => true, 'data' => ['groups' => $groups, 'status_code' => $statusCode]];
+            $data = ['groups' => $groups, 'status_code' => $request['data']['statusCode']];
+            return app(LtiController::class)->response($data);
         } else {
-            return ['ok' => false, 'data' => ['status_code' => $statusCode]];
+            return app(LtiController::class)->errorResponse(null, $request['data']['error'], $request['data']['error_code']);
         }
     }
 
-    public static function getModules($url_lms, $site_id, $lesson_id, $session_id, $context_id)
+    /**
+     * @param string $url_lms
+     * @param string $lesson_id
+     * @param string $session_id
+     * @param string $context_id
+     * 
+     * @return mixed
+     */
+    public function getModules(string $url_lms, int $lesson_id, string $session_id, string $context_id)
     {
         // header('Access-Control-Allow-Origin: *');
-        // dd($url_lms.'/direct/lessons/lesson/'.$context_id.'.json');
-        $lessonGetRequest = SakaiController::createClient($url_lms, $url_lms . '/direct/lessons/lesson/' . $lesson_id . '.json', $session_id);
-        $modulesRequestStatus = $lessonGetRequest['statusCode'];
 
+        $lessonGetRequest = $this->createClient($url_lms, $url_lms . '/direct/lessons/lesson/' . $lesson_id . '.json', $session_id);
         $modules = [];
         $section = 0;
         $column = 0;
         $order = 1;
 
-        if ($modulesRequestStatus == 200) {
-            $modulesData = json_decode($lessonGetRequest['requestBody']);
-            if ($modulesData->contentsList != null && count($modulesData->contentsList) >= 1) {
-                error_log(print_r($modulesData->contentsList, true));
+        if ($lessonGetRequest['ok']) {
+            $modulesData = $lessonGetRequest['data']['requestBody'];
+            if ($modulesData->contentsList != null && count($modulesData->contentsList) > 0) {
                 foreach ($modulesData->contentsList as $index => $module) {
-                    $modulesData->contentsList[$index]->type = SakaiController::changeIdNameType($module);
+                    $modulesData->contentsList[$index]->type = $this->changeIdNameType($module);
+                    // dd($modulesData->contentsList[$index]->type);
                     if ($modulesData->contentsList[$index]->type == 'break') {
                         $format = isset($modulesData->contentsList[$index]->format);
                         if ($format) {
@@ -497,15 +536,19 @@ class SakaiController extends Controller
                             $section++;
                         }
                         $order = 1;
-                    } else if ($modulesData->contentsList[$index]->type != 'break') {
+                    } else {
+
                         if ($modulesData->contentsList[$index]->type == "folder") {
                             $modulesData->contentsList[$index]->dataDirectory = str_replace("//", "/", $modulesData->contentsList[$index]->dataDirectory);
                         }
-                        $sakaiId = SakaiController::nodeSakaiIdUpdater($modulesData->contentsList[$index]);
-                        // $modulesData->contentsList[$index]->section = $section;
-                        $itemFounded = SakaiController::getLessonItemById($modulesData->contentsList[$index], $url_lms, $context_id, $session_id, $sakaiId);
+                        $sakaiId = $this->nodeSakaiIdUpdater($modulesData->contentsList[$index]);
+                        $itemFounded = $this->getLessonItemById($modulesData->contentsList[$index], $url_lms, $context_id, $session_id, $sakaiId);
 
-                        if (isset($itemFounded)) {
+                        // dd($itemFounded);
+                        if ($itemFounded['ok']) {
+
+                            $founded = $itemFounded['data'];
+
                             $moduleAlreadyExists = false;
                             foreach ($modules as $existingModule) {
                                 if ($existingModule["sakaiId"] === $sakaiId) {
@@ -525,31 +568,31 @@ class SakaiController extends Controller
                                     "indent" => $column,
                                     "order" => $order++,
                                 ];
-
                                 switch ($modulesData->contentsList[$index]->type) {
                                     case 'exam':
-                                        if (isset($itemFounded)) {
-                                            if (isset($itemFounded->openDate)) {
-                                                $openDate = date('Y-m-d\TH:i', $itemFounded->openDate);
+
+                                        if (isset($founded['assessment_founded'])) {
+                                            if (isset($founded['assessment_founded']->openDate)) {
+                                                $openDate = date('Y-m-d\TH:i', $founded['assessment_founded']->openDate);
                                                 $module['openDate'] = $openDate;
                                             }
 
-                                            if (isset($itemFounded->dueDate)) {
-                                                $dueDate = date('Y-m-d\TH:i', $itemFounded->dueDate);
+                                            if (isset($founded['assessment_founded']->dueDate)) {
+                                                $dueDate = date('Y-m-d\TH:i', $founded['assessment_founded']->dueDate);
                                                 $module['dueDate'] = $dueDate;
                                             }
 
-                                            if (isset($itemFounded->closeDate)) {
-                                                $closeDate = date('Y-m-d\TH:i', $itemFounded->closeDate);
+                                            if (isset($founded['assessment_founded']->closeDate)) {
+                                                $closeDate = date('Y-m-d\TH:i', $founded['assessment_founded']->closeDate);
                                                 $module['closeDate'] = $closeDate;
                                             }
 
                                             if (
-                                                isset($itemFounded->timeExceptions) &&
-                                                is_array($itemFounded->timeExceptions) && count($itemFounded->timeExceptions) > 0
+                                                isset($founded['assessment_founded']->timeExceptions) &&
+                                                is_array($founded['assessment_founded']->timeExceptions) && count($founded['assessment_founded']->timeExceptions) > 0
                                             ) {
                                                 $module['timeExceptions'] = [];
-                                                foreach ($itemFounded->timeExceptions as $exception) {
+                                                foreach ($founded['assessment_founded']->timeExceptions as $exception) {
                                                     if (isset($exception->forEntityRef)) {
                                                         $exceptionData = [];
 
@@ -573,83 +616,93 @@ class SakaiController extends Controller
                                             }
 
                                             if (
-                                                isset($itemFounded->groupRefs) &&
-                                                is_array($itemFounded->groupRefs) && count($itemFounded->groupRefs) > 0
+                                                isset($founded['assessment_founded']->groupRefs) &&
+                                                is_array($founded['assessment_founded']->groupRefs) && count($founded['assessment_founded']->groupRefs) > 0
                                             ) {
-                                                $module['groups'] = $itemFounded->groupRefs;
+                                                $module['groups'] = $founded['assessment_founded']->groupRefs;
+                                            }
+                                        }
+                                        break;
+                                    case 'assign':
+                                        if (isset($founded['assignment_founded'])) {
+                                            if (isset($founded['assignment_founded']->openTime) && isset($founded['assignment_founded']->openTime->epochSecond)) {
+                                                $openDate = date('Y-m-d\TH:i', $founded['assignment_founded']->openTime->epochSecond);
+                                                $module['openDate'] = $openDate;
+                                            }
+
+                                            if (isset($founded['assignment_founded']->dueTime) && isset($founded['assignment_founded']->dueTime->epochSecond)) {
+                                                $dueDate = date('Y-m-d\TH:i', $founded['assignment_founded']->dueTime->epochSecond);
+                                                $module['dueDate'] = $dueDate;
+                                            }
+
+                                            if (isset($founded['assignment_founded']->closeTime) && isset($founded['assignment_founded']->closeTime->epochSecond)) {
+                                                $closeDate = date('Y-m-d\TH:i', $founded['assignment_founded']->closeTime->epochSecond);
+                                                $module['closeDate'] = $closeDate;
+                                            }
+
+                                            if (
+                                                isset($founded->groups) &&
+                                                is_array($founded->groups) && count($founded->groups) > 0
+                                            ) {
+                                                $module['groups'] = $founded->groups;
                                             }
                                         }
 
-                                        break;
-                                    case 'assign':
-                                        if (isset($itemFounded) && isset($itemFounded->openTime) && isset($itemFounded->openTime->epochSecond)) {
-                                            $openDate = date('Y-m-d\TH:i', $itemFounded->openTime->epochSecond);
-                                            $module['openDate'] = $openDate;
-                                        }
-
-                                        if (isset($itemFounded) && isset($itemFounded->dueTime) && isset($itemFounded->dueTime->epochSecond)) {
-                                            $dueDate = date('Y-m-d\TH:i', $itemFounded->dueTime->epochSecond);
-                                            $module['dueDate'] = $dueDate;
-                                        }
-
-                                        if (isset($itemFounded) && isset($itemFounded->closeTime) && isset($itemFounded->closeTime->epochSecond)) {
-                                            $closeDate = date('Y-m-d\TH:i', $itemFounded->closeTime->epochSecond);
-                                            $module['closeDate'] = $closeDate;
-                                        }
-
-                                        if (
-                                            isset($itemFounded->groups) &&
-                                            is_array($itemFounded->groups) && count($itemFounded->groups) > 0
-                                        ) {
-                                            $module['groups'] = $itemFounded->groups;
-                                        }
 
                                         break;
                                     case 'forum':
-                                        if (isset($itemFounded) && isset($itemFounded->openDate)) {
-                                            $openDate = date('Y-m-d\TH:i', $itemFounded->openDate);
-                                            $module['openDate'] = $openDate;
+                                        if (isset($founded['forum_founded'])) {
+                                            if (isset($founded['forum_founded']->openDate)) {
+                                                $openDate = date('Y-m-d\TH:i', $founded['forum_founded']->openDate);
+                                                $module['openDate'] = $openDate;
+                                            }
+
+                                            if (isset($founded['forum_founded']->closeDate)) {
+                                                $closeDate = date('Y-m-d\TH:i', $founded['forum_founded']->closeDate);
+                                                $module['dueDate'] = $closeDate;
+                                            }
                                         }
 
-                                        if (isset($itemFounded) && isset($itemFounded->closeDate)) {
-                                            $closeDate = date('Y-m-d\TH:i', $itemFounded->closeDate);
-                                            $module['dueDate'] = $closeDate;
-                                        }
 
                                         break;
                                     case 'folder':
-                                        $module['name'] = $itemFounded->title;
+                                        if (isset($founded['resource_founded'])) {
+                                            $module['name'] = $founded['resource_founded']->title;
 
-                                        if (isset($itemFounded) && isset($itemFounded->openDate)) {
-                                            $openDate = date('Y-m-d\TH:i', $itemFounded->openDate);
-                                            $module['openDate'] = $openDate;
-                                        }
+                                            if (isset($founded['resource_founded']->openDate)) {
+                                                $openDate = date('Y-m-d\TH:i', $founded['resource_founded']->openDate);
+                                                $module['openDate'] = $openDate;
+                                            }
 
-                                        if (isset($itemFounded) && isset($itemFounded->closeDate)) {
-                                            $closeDate = date('Y-m-d\TH:i', $itemFounded->closeDate);
-                                            $module['dueDate'] = $closeDate;
+                                            if (isset($founded['resource_founded']->closeDate)) {
+                                                $closeDate = date('Y-m-d\TH:i', $founded['resource_founded']->closeDate);
+                                                $module['dueDate'] = $closeDate;
+                                            }
                                         }
                                         break;
                                     case 'text':
                                     case 'url':
                                     case 'html':
                                     case 'resource':
-                                        if (isset($itemFounded) && isset($itemFounded->openDate)) {
-                                            $openDate = date('Y-m-d\TH:i', $itemFounded->openDate);
-                                            $module['openDate'] = $openDate;
+                                        if (isset($founded['resource_founded'])) {
+                                            if (isset($founded['resource_founded']->openDate)) {
+                                                $openDate = date('Y-m-d\TH:i', $founded['resource_founded']->openDate);
+                                                $module['openDate'] = $openDate;
+                                            }
+
+                                            if (isset($founded['resource_founded']->closeDate)) {
+                                                $closeDate = date('Y-m-d\TH:i', $founded['resource_founded']->closeDate);
+                                                $module['dueDate'] = $closeDate;
+                                            }
+
+                                            if (
+                                                isset($founded['resource_founded']->groupRefs) &&
+                                                is_array($founded['resource_founded']->groupRefs) && count($founded['resource_founded']->groupRefs) > 0
+                                            ) {
+                                                $module['groups'] = $founded['resource_founded']->groupRefs;
+                                            }
                                         }
 
-                                        if (isset($itemFounded) && isset($itemFounded->closeDate)) {
-                                            $closeDate = date('Y-m-d\TH:i', $itemFounded->closeDate);
-                                            $module['dueDate'] = $closeDate;
-                                        }
-
-                                        if (
-                                            isset($itemFounded->groupRefs) &&
-                                            is_array($itemFounded->groupRefs) && count($itemFounded->groupRefs) > 0
-                                        ) {
-                                            $module['groups'] = $itemFounded->groupRefs;
-                                        }
                                         break;
                                     default:
                                         array_push(
@@ -659,8 +712,8 @@ class SakaiController extends Controller
                                         break;
                                 }
 
-                                $updatedModuleWithDates = SakaiController::parseItemDates($module);
-                                $updatedModuleWithExceptionDates = SakaiController::parseItemExceptionDates($updatedModuleWithDates);
+                                $updatedModuleWithDates = $this->parseItemDates($module);
+                                $updatedModuleWithExceptionDates = $this->parseItemExceptionDates($updatedModuleWithDates);
 
                                 array_push(
                                     $modules,
@@ -670,34 +723,36 @@ class SakaiController extends Controller
                         }
                     }
                 }
+                $conditionGetRequest = $this->createClient($url_lms, $url_lms . '/api/sites/' . $context_id . '/conditions', $session_id);
 
-                $conditionGetRequest = SakaiController::createClient($url_lms, $url_lms . '/api/sites/' . $context_id . '/conditions', $session_id);
-
-                $conditionsData = json_decode($conditionGetRequest['requestBody']);
-                $conditionsRequestStatus = $conditionGetRequest['statusCode'];
-
-                if ($conditionsRequestStatus == 200 || ($conditionsData != null && count($conditionsData) >= 1)) {
-                    $parsedModules = SakaiController::linkConditionToLessonItem($modules, $conditionsData);
-                    return response()->json(['ok' => true, 'data' => $parsedModules]);
+                if ($conditionGetRequest['ok']) {
+                    $parsedModules = $this->linkConditionToLessonItem($modules, $conditionGetRequest['data']['requestBody']);
+                    return app(LtiController::class)->response($parsedModules);
                 } else {
-                    return response()->json(['ok' => true, 'data' => $modules, 'extraInfo' => 'conditions_not']);
+                    return app(LtiController::class)->response($modules);
                 }
             } else {
-                return response()->json(['ok' => true, 'data' => []]);
+                return app(LtiController::class)->response();
             }
         } else {
-            return response()->json(['ok' => false, 'errorType' => 'MODULES_ERROR']);
+            return app(LtiController::class)->errorResponse(null, 'MODULES_ERROR', $lessonGetRequest['error_code']);
         }
     }
 
-    public static function nodeSakaiIdUpdater($item)
+    /**
+     * @param object $item
+     * 
+     * @return mixed
+     */
+    public function nodeSakaiIdUpdater(object $item)
     {
+
         if (isset($item) && isset($item->type)) {
             switch ($item->type) {
                 case "exam":
                 case "assign":
                 case "forum":
-                    return SakaiController::parseSakaiId($item);
+                    return $this->parseSakaiId($item);
                 case "folder":
                     return $item->dataDirectory;
                 case "html":
@@ -711,56 +766,53 @@ class SakaiController extends Controller
         }
     }
 
-    public static function getLessonItemById($item, $url_lms, $context_id, $session_id, $sakaiId)
+    /**
+     * @param object $item
+     * @param string $url_lms
+     * @param string $context_id
+     * @param string $session_id
+     * @param string $sakaiId
+     * 
+     * @return mixed
+     */
+    //FIXME:
+    public function getLessonItemById(object $item, string $url_lms, string $context_id, string $session_id, string $sakaiId)
     {
         if (isset($item) && isset($item->type)) {
             switch ($item->type) {
                 case "exam":
-                    $examFounded = SakaiController::getAssesmentById($url_lms, $context_id, $session_id, $sakaiId);
-                    $successfulExamRequest = SakaiController::requestChecker($examFounded);
-
-                    if ($successfulExamRequest == true) {
-                        return $examFounded['data']['assesment_founded'];
-                    } else {
-                        return null;
-                    }
+                    $examFounded = $this->getAssessmentById($url_lms, $context_id, $session_id, $sakaiId);
+                    return $examFounded;
+                    break;
                 case "assign":
-                    $assignmentFounded = SakaiController::getAssignmentById($url_lms, $context_id, $session_id, $sakaiId);
-                    $successfulAssignmentRequest = SakaiController::requestChecker($assignmentFounded);
-
-                    if ($successfulAssignmentRequest == true) {
-                        return $assignmentFounded['data']['assignment_founded'];
-                    } else {
-                        return null;
-                    }
+                    $assignmentFounded = $this->getAssignmentById($url_lms, $context_id, $session_id, $sakaiId);
+                    return $assignmentFounded;
+                    break;
                 case "forum":
-                    $forumFounded = SakaiController::getForumById($url_lms, $context_id, $session_id, $sakaiId);
-                    $successfulForumRequest = SakaiController::requestChecker($forumFounded);
+                    $forumFounded = $this->getForumById($url_lms, $context_id, $session_id, $sakaiId);
 
-                    if ($successfulForumRequest == true) {
-                        return $forumFounded['data']['forum_founded'];
-                    } else {
-                        return null;
-                    }
+                    return $forumFounded;
+                    break;
                 case 'folder':
                 case "resource":
-                    $resourceFounded = SakaiController::getResourceById($url_lms, $context_id, $session_id, $sakaiId);
-                    $successfulResourceRequest = SakaiController::requestChecker($resourceFounded);
-
-                    if ($successfulResourceRequest == true) {
-                        return $resourceFounded['data']['resource_founded'];
-                    } else {
-                        return null;
-                    }
+                    $resourceFounded = $this->getResourceById($url_lms, $context_id, $session_id, $sakaiId);
+                    return $resourceFounded;
+                    break;
                 default:
-                    return ['type' => 'generic'];
+                    return app(LtiController::class)->response(['type' => 'generic']);
+                    break;
             }
         } else {
             return null;
         }
     }
 
-    public static function parseItemDates($module)
+    /**
+     * @param array $module
+     * 
+     * @return array
+     */
+    public function parseItemDates(array $module)
     {
         if (!isset($module['openDate'])) {
             $newOpenDate = date('Y-m-d\TH:i', time());
@@ -788,7 +840,12 @@ class SakaiController extends Controller
         return $module;
     }
 
-    public static function parseItemExceptionDates($module)
+    /**
+     * @param array $module
+     * 
+     * @return array
+     */
+    public function parseItemExceptionDates(array $module)
     {
         if ($module['modname'] == "exam") {
             if (
@@ -825,7 +882,12 @@ class SakaiController extends Controller
         return $module;
     }
 
-    public static function parseSakaiId($contentListIndex)
+    /**
+     * @param object $contentListIndex
+     * 
+     * @return object
+     */
+    public function parseSakaiId(object $contentListIndex)
     {
         $a = substr($contentListIndex->sakaiId, 1);
         $dataSakaiId = explode('/', $a);
@@ -833,7 +895,14 @@ class SakaiController extends Controller
         return $sakaiId;
     }
 
-    public static function linkConditionToLessonItem($modules, $conditions, $assign = true)
+    /**
+     * @param object $modules
+     * @param array $conditions
+     * @param bool $assign
+     * 
+     * @return mixed
+     */
+    public function linkConditionToLessonItem(array $modules, array $conditions, bool $assign = true)
     {
         if ($assign == true) {
             foreach ($modules as &$module) {
@@ -868,7 +937,12 @@ class SakaiController extends Controller
         }
     }
 
-    public static function changeIdNameType($module)
+    /**
+     * @param object $module
+     * 
+     * @return string
+     */
+    public function changeIdNameType(object $module)
     {
         switch ($module->type) {
             case 1:
@@ -904,59 +978,86 @@ class SakaiController extends Controller
                 return 'generic';
         }
     }
-    public static function getAssesments($url_lms, $context_id, $session_id)
+
+    /**
+     * @param string $url_lms
+     * @param string $context_id
+     * @param string $session_id
+     * 
+     * @return array
+     */
+    public function getAssesments(string $url_lms, string $context_id, string $session_id)
     {
-        $request = SakaiController::createClient($url_lms, $url_lms . '/api/sites/' . $context_id . '/entities/assessments', $session_id);
-
-        $statusCode = $request['statusCode'];
-
-        $assesments = [];
-        if ($statusCode == 200) {
-            $modules = json_decode($request['requestBody']);
-            foreach ($modules as $assesment) {
-                $assesments[] = array(
-                    'id' => $assesment->id,
-                    'name' => $assesment->title
-                );
+        // header('Access-Control-Allow-Origin: *');
+        $request = $this->createClient($url_lms, $url_lms . '/api/sites/' . $context_id . '/entities/assessments', $session_id);
+        // dd($url_lms . '/api/sites/' . $context_id . '/entities/assessments');
+        $assessments = [];
+        if ($request['ok']) {
+            $modules = $request['data']['requestBody'];
+            foreach ($modules as $assessment) {
+                $assessments[] = [
+                    'id' => $assessment->id,
+                    'name' => $assessment->title
+                ];
             }
-            return ['ok' => true, 'data' => ['assesments' => $assesments, 'status_code' => $statusCode]];
+            // dd($assessments);
+            return app(LtiController::class)->response($assessments);
         } else {
-            return ['ok' => false, 'data' => ['status_code' => $statusCode]];
+            return app(LtiController::class)->errorResponse(null, 'REQUEST_ERROR', $request['data']['error_code']);
         }
     }
 
-    public static function getAssesmentById($url_lms, $context_id, $session_id, $assesmentId)
+    /**
+     * @param string $url_lms
+     * @param string $context_id
+     * @param string $session_id
+     * @param string $assesmentId
+     * 
+     * @return mixed
+     */
+    //FIXME:
+    public function getAssessmentById(string $url_lms, string $context_id, string $session_id, string $assessmentId)
     {
-        $request = SakaiController::createClient($url_lms, $url_lms . '/api/sites/' . $context_id . '/entities/assessments', $session_id);
+        // header('Access-Control-Allow-Origin: *');
+        $request = $this->createClient($url_lms, $url_lms . '/api/sites/' . $context_id . '/entities/assessments', $session_id);
+        // dd($url_lms . '/api/sites/' . $context_id . '/entities/assessments');
 
-        $statusCode = $request['statusCode'];
-
-        if ($statusCode == 200) {
-            $modules = json_decode($request['requestBody']);
-            foreach ($modules as $assesment) {
-                if ($assesment->id == $assesmentId) {
-                    return ['ok' => true, 'data' => ['assesment_founded' => $assesment, 'status_code' => $statusCode]];
+        if ($request['ok']) {
+            // dd($request);
+            $modules = $request['data']['requestBody'];
+            foreach ($modules as $assessment) {
+                if ($assessment->id == $assessmentId) {
+                    $data = ['assessment_founded' => $assessment, 'status_code' => $request['data']['statusCode']];
+                    return app(LtiController::class)->response($data);
                 }
             }
-            return ['ok' => false, 'data' => ['status_code' => $statusCode]];
-        } else {
-            return ['ok' => false, 'data' => ['status_code' => $statusCode]];
         }
+
+        return app(LtiController::class)->errorResponse(null, 'REQUEST_ERROR', $request['data']['error_code']);
     }
 
-    public static function createClient($lms_url, $url, $session_id, $type = 'GET', $bodyData = [])
+    /**
+     * @param string $lms_url
+     * @param string $url
+     * @param string $session_id
+     * @param string $type
+     * @param array $bodyData
+     * 
+     * @return mixed
+     */
+    public function createClient(string $lms_url, string $url, string $session_id, $type = 'GET', $bodyData = [])
     {
-        $lmsInstance = LtiController::getLmsToken($lms_url, "sakai", true);
-        if (
-            isset($lmsInstance) && isset($lmsInstance['ok']) && $lmsInstance['ok'] == true
-        ) {
-            if (isset($lmsInstance['data']) && isset($lmsInstance['data']['cookieName'])) {
-                $cookieName = $lmsInstance['data']['cookieName'];
-            } else {
-                $cookieName = "JSESSIONID";
+        // dd($lms_url, $url, $session_id);
+
+        $lmsInstance = app(LtiController::class)->getLmsToken($lms_url, "sakai");
+        // dd($lmsInstance);
+        $cookieName = "JSESSIONID";
+        if ($lmsInstance != '') {
+            if (isset($lmsInstance['cookieName'])) {
+                $cookieName = $lmsInstance['cookieName'];
             }
         } else {
-            return ['requestBody' => [], 'statusCode' => 400];
+            return app(LtiController::class)->errorResponse(null, 'INSTANCE_ERROR', 500);
         }
 
         $client = new Client();
@@ -965,60 +1066,91 @@ class SakaiController extends Controller
                 'Cookie' => $cookieName . '=' . $session_id
             ],
         ];
+        $response = '';
+        try {
+            switch ($type) {
+                case "GET":
+                case "DELETE":
+                    // Both GET and DELETE share the same request options
+                    $response = $client->request($type, $url, $options);
+                    // dd($response);
+                    if ($type === "DELETE") {
+                        $response->getStatusCode = $response->getStatusCode();
+                    }
+                    break;
 
-        switch ($type) {
-            case "GET":
-            case "DELETE":
-                // Both GET and DELETE share the same request options
-                $response = $client->request($type, $url, $options);
-                if ($type === "DELETE") {
-                    $statusCode = $response->getStatusCode();
-                    return $statusCode;
-                }
-                break;
+                case "PATCH":
+                case "POST":
+                    // Convert the $bodyData array to JSON
 
-            case "PATCH":
-            case "POST":
-                // Convert the $bodyData array to JSON
-                $options['json'] = $bodyData;
-                $options['headers']['Content-Type'] = 'application/json';
-                if ($type == "POST") {
-                    $response = $client->post($url, $options);
-                } else {
-                    $response = $client->patch($url, $options);
-                }
-                break;
-            default:
-                // Handle unsupported request types here
-                return ['error' => 'Unsupported request type'];
+                    $options['json'] = $bodyData;
+                    $options['headers']['Content-Type'] = 'application/json';
+                    // dd($url, $options);
+                    if ($type == "POST") {
+                        $response = $client->post($url, $options);
+                    } else {
+                        $response = $client->patch($url, $options);
+                    }
+                    break;
+                default:
+                    // Handle unsupported request types here
+                    return app(LtiController::class)->errorResponse(null, 'UNSUPORTED_REQUEST_TYPE', 500);
+            }
+        } catch (\Exception $e) {
+            return app(LtiController::class)->errorResponse(null, 'REQUEST_ERROR', $e->getCode());
         }
-        $content = $response->getBody()->getContents();
+        $content = $response->getBody();
         $statusCode = $response->getStatusCode();
         $responseData = [
-            'requestBody' => $content,
+            'requestBody' => json_decode($content),
             'statusCode' => $statusCode,
         ];
-        return $responseData;
+        return app(LtiController::class)->response($responseData);
     }
-    public static function getId($user_id)
+    /**
+     * @param string $user_id
+     * 
+     * @return string
+     */
+    public function getId(string $user_id)
     {
         $url = explode('/', $user_id);
         return $url[count($url) - 1];
     }
 
-    public static function getUrl($url_lms, $context_id, $user_id)
+    /**
+     * @param string $url_lms
+     * @param string $context_id
+     * @param string $user_id
+     * 
+     * @return string
+     */
+    public function getUrl(string $url_lms, string $context_id, string $user_id)
     {
         return ($url_lms . '/direct/profile/' . $user_id . '/image/thumb?siteId=' . $context_id);
     }
 
-    public static function find($array, $callback)
+    /**
+     * @param array $array
+     * @param string $callback
+     * 
+     * @return string
+     */
+    public function find(array $array, string $callback)
     {
         return current(array_filter($array, $callback));
     }
 
 
-    public static function exportVersion(Request $request, $sessionData)
+    /**
+     * @param Request $request
+     * @param object $sessionData
+     * 
+     * @return array
+     */
+    public function exportVersion(Request $request, object $sessionData)
     {
+        // header('Access-Control-Allow-Origin: *');
         $nodes = $request->nodes;
 
         $nodes = array_map(function ($item) {
@@ -1044,45 +1176,38 @@ class SakaiController extends Controller
         }
 
         if ($allHaveSamePageId) {
-            $lessonCopyRequest = SakaiController::createClient($sessionData->platform_id, $sessionData->platform_id . '/direct/lessons/lesson/' . $request->lessonId . '.json', $sessionData->session_id);
-            $lessonStatusCode = $lessonCopyRequest['statusCode'];
+            $lessonCopyRequest = $this->createClient($sessionData->platform_id, $sessionData->platform_id . '/direct/lessons/lesson/' . $request->lessonId . '.json', $sessionData->session_id);
 
-            $conditionsCopyRequest = SakaiController::createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/conditions', $sessionData->session_id);
-            $conditionsStatusCode = $conditionsCopyRequest['statusCode'];
+            $conditionsCopyRequest = $this->createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/conditions', $sessionData->session_id);
 
-            if ($lessonStatusCode == 200 && $conditionsStatusCode == 200) {
-                $lessonCopy = json_decode($lessonCopyRequest['requestBody']);
-                $conditionsCopy = $conditionsCopyRequest['requestBody'];
+            if ($lessonCopyRequest['ok'] && $conditionsCopyRequest['ok']) {
+                $lessonCopy = $lessonCopyRequest['data']['requestBody'];
+                $conditionsCopy = $conditionsCopyRequest['data']['requestBody'];
 
                 if (count($nodesToUpdate) >= 1) {
-                    $nodesUpdateRequest = SakaiController::createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/entities', $sessionData->session_id, 'PATCH', $nodesToUpdate);
-                    $nodesUpdateStatusCode = $nodesUpdateRequest['statusCode'];
-
-                    if ($nodesUpdateStatusCode !== 200) {
-                        return response()->json(['ok' => false, 'errorType' => 'NODE_UPDATE_ERROR', 'data' => '']);
+                    $nodesUpdateRequest = $this->createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/entities', $sessionData->session_id, 'PATCH', $nodesToUpdate);
+                    // dd($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/entities', $sessionData->session_id, 'PATCH', $nodesToUpdate);
+                    if (!$nodesUpdateRequest['ok']) {
+                        return app(LtiController::class)->errorResponse(null, 'NODE_UPDATE_ERROR', $nodesUpdateRequest['data']['error_code']);
                     }
                 }
 
-                $conditionsDelete = SakaiController::createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/conditions', $sessionData->session_id, 'DELETE');
-                $conditionsDeleteStatusCode = $conditionsDelete;
+                $conditionsDelete = $this->createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/conditions', $sessionData->session_id, 'DELETE');
 
-                $lessonItemsDelete = SakaiController::createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/items', $sessionData->session_id, 'DELETE');
-                $lessonItemsDeleteStatusCode = $lessonItemsDelete;
+                $lessonItemsDelete = $this->createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/items', $sessionData->session_id, 'DELETE');
 
-                if ($conditionsDeleteStatusCode === 200 && $lessonItemsDeleteStatusCode === 200) {
-                    $nodesCreationRequest = SakaiController::createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/items/bulk', $sessionData->session_id, 'POST', $nodes);
-                    $nodesCreationStatusCode = $nodesCreationRequest['statusCode'];
+                if ($conditionsDelete['ok'] && $lessonItemsDelete['ok']) {
+                    $nodesCreationRequest = $this->createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/items/bulk', $sessionData->session_id, 'POST', $nodes);
 
-                    if ($nodesCreationStatusCode == 200) {
+                    if ($nodesCreationRequest['ok']) {
                         if (($conditionList != null && count($conditionList) >= 1)) {
-                            $nodesCreated = $nodesCreationRequest['requestBody'];
-                            $filteredArray = SakaiController::conditionIdParse(json_decode($nodesCreated), $conditionList);
+                            $nodesCreated = $nodesCreationRequest['data']['requestBody'];
+                            $filteredArray = $this->conditionIdParse($nodesCreated, $conditionList);
 
                             $conditionsParsedList = (array_values($filteredArray));
-                            $conditionsCreationRequest = SakaiController::createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/conditions/bulk', $sessionData->session_id, 'POST', $conditionsParsedList);
-                            $conditionsCreationStatusCode = $conditionsCreationRequest['statusCode'];
+                            $conditionsCreationRequest = $this->createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/conditions/bulk', $sessionData->session_id, 'POST', $conditionsParsedList);
 
-                            if ($conditionsCreationStatusCode == 200) {
+                            if ($conditionsCreationRequest['ok']) {
                                 return response()->json(['ok' => true, 'successType' => 'SUCCESSFUL_EXPORT']);
                             } else {
                                 return response()->json(['ok' => true, 'successType' => 'SUCCESSFUL_EXPORT_WITHOUT_CONDITIONS']);
@@ -1091,41 +1216,45 @@ class SakaiController extends Controller
                             return response()->json(['ok' => true, 'successType' => 'SUCCESSFUL_EXPORT_WITHOUT_CONDITIONS']);
                         }
                     } else {
-                        $parsedNodes = SakaiController::parseSakaiLessonCopy($lessonCopy->contentsList, false);
-                        $parsedNodesWithId = SakaiController::parseSakaiLessonCopy($lessonCopy->contentsList, true);
-                        $nodesCopyCreationRequest = SakaiController::createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/items/bulk', $sessionData->session_id, 'POST', $parsedNodes);
-                        $nodesCopyCreationStatusCode = $nodesCopyCreationRequest['statusCode'];
-                        if ($nodesCopyCreationStatusCode == 200) {
-                            $nodesCopyCreation = ($nodesCopyCreationRequest['requestBody']);
-                            $parsedConditions = SakaiController::conditionItemIdAdder(($parsedNodesWithId), json_decode($conditionsCopy));
+                        $parsedNodes = $this->parseSakaiLessonCopy($lessonCopy->contentsList, false);
+                        $parsedNodesWithId = $this->parseSakaiLessonCopy($lessonCopy->contentsList, true);
+                        $nodesCopyCreationRequest = $this->createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/lessons/' . $request->lessonId . '/items/bulk', $sessionData->session_id, 'POST', $parsedNodes);
+                        if ($nodesCopyCreationRequest['ok']) {
+                            $nodesCopyCreation = ($nodesCopyCreationRequest['data']['requestBody']);
+                            $parsedConditions = $this->conditionItemIdAdder(($parsedNodesWithId), $conditionsCopy);
                             $parsedConditionsJson = json_decode(json_encode($parsedConditions), true);
-                            $filteredArray = SakaiController::conditionIdParse(json_decode($nodesCopyCreation), $parsedConditionsJson);
+                            $filteredArray = $this->conditionIdParse(json_decode($nodesCopyCreation), $parsedConditionsJson);
                             $conditionsCopyParsedList = (array_values($filteredArray));
 
-                            $conditionsCopyCreationRequest = SakaiController::createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/conditions/bulk', $sessionData->session_id, 'POST', $conditionsCopyParsedList);
-                            $conditionsCopyCreationStatusCode = $conditionsCopyCreationRequest['statusCode'];
+                            $conditionsCopyCreationRequest = $this->createClient($sessionData->platform_id, $sessionData->platform_id . '/api/sites/' . $sessionData->context_id . '/conditions/bulk', $sessionData->session_id, 'POST', $conditionsCopyParsedList);
 
-                            if ($conditionsCopyCreationStatusCode == 200) {
-                                return response()->json(['ok' => false, 'errorType' => 'LESSON_ITEMS_CREATION_ERROR']);
+                            if ($conditionsCopyCreationRequest['ok']) {
+                                return response()->json(app(LtiController::class)->errorResponse(null, 'LESSON_ITEMS_CREATION_ERROR'), 500);
                             } else {
-                                return response()->json(['ok' => false, 'errorType' => 'LESSON_ITEMS_WITHOUT_CONDITIONS_CREATION_ERROR']);
+                                return response()->json(app(LtiController::class)->errorResponse(null, 'LESSON_ITEMS_WITHOUT_CONDITIONS_CREATION_ERROR'), 500);
                             }
                         } else {
-                            return response()->json(['ok' => false, 'errorType' => 'FATAL_ERROR']);
+                            return response()->json(app(LtiController::class)->errorResponse(null, 'FATAL_ERROR'), 500);
                         }
                     }
                 } else {
-                    return response()->json(['ok' => false, 'errorType' => 'LESSON_DELETE_ERROR']);
+                    return response()->json(app(LtiController::class)->errorResponse(null, 'LESSON_DELETE_ERROR'), 500);
                 }
             } else {
-                return response()->json(['ok' => false, 'errorType' => 'LESSON_COPY_ERROR']);
+                return response()->json(app(LtiController::class)->errorResponse(null, 'LESSON_COPY_ERROR'), 500);
             }
         } else {
-            return response()->json(['ok' => false, 'errorType' => 'PAGE_EXPORT_ERROR']);
+            return response()->json(app(LtiController::class)->errorResponse(null, 'PAGE_EXPORT_ERROR'), 500);
         }
     }
 
-    public static function conditionItemIdAdder($nodes, $conditionList)
+    /**
+     * @param array $nodes
+     * @param array $conditionList
+     * 
+     * @return array
+     */
+    public function conditionItemIdAdder(array $nodes, array $conditionList)
     {
         $nodesIdList = [];
         foreach ($nodes as $node) {
@@ -1177,7 +1306,13 @@ class SakaiController extends Controller
         return $filteredConditions;
     }
 
-    public static function conditionIdParse($nodesCreated, $conditionList)
+    /**
+     * @param array $nodesCreated
+     * @param array $conditionList
+     * 
+     * @return array
+     */
+    public function conditionIdParse(array $nodesCreated, array $conditionList)
     {
         $nodesIdList = [];
         foreach ($nodesCreated as $node) {
@@ -1251,7 +1386,13 @@ class SakaiController extends Controller
         return $filteredArray;
     }
 
-    public static function parseSakaiLessonCopy($contentsList, $idAdder)
+    /**
+     * @param array $contentsList
+     * @param bool $idAdder
+     * 
+     * @return array
+     */
+    public function parseSakaiLessonCopy(array $contentsList, bool $idAdder)
     {
         $parsedSakaiLessonCopy = [];
         if (isset($contentsList) && $contentsList != null) {
@@ -1276,7 +1417,12 @@ class SakaiController extends Controller
         return $parsedSakaiLessonCopy;
     }
 
-    public static function requestChecker($getRequest)
+    /**
+     * @param mixed $getRequest
+     * 
+     * @return bool
+     */
+    public function requestChecker($getRequest)
     {
         if (
             isset($getRequest) && isset($getRequest['ok']) && $getRequest['ok'] == true && isset($getRequest['data']) &&

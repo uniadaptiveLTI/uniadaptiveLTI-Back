@@ -10,6 +10,7 @@ class Version extends Model
     use HasFactory;
 
     protected $fillable = [
+        'created_id',
         'map_id',
         'name',
         'default',
