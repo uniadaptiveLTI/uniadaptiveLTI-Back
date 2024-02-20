@@ -63,4 +63,9 @@ To create an image of the development server:
 
 You can add additional arguments as you see fit.
 
-![EN-Funded by the EU-BLACK Outline](https://github.com/uniadaptiveLTI/uniadaptiveLTI-Back/assets/91719773/0ad90a93-e586-44e3-ad8a-ce6b09a5c0bc)
+![ES-Financiado por la Unión Europea-BLACK Outline](https://github.com/uniadaptiveLTI/uniadaptiveLTI-Back/assets/91719773/f580ddb3-c797-407f-bc16-80ed6deec602)
+![LOGO NEGATIVO](https://github.com/uniadaptiveLTI/uniadaptiveLTI-Back/assets/91719773/4b729c6b-5520-44eb-a710-a71b43b5445c)
+
+
+Financiado por la Unión Europea - NextGenerationEU
+
