@@ -65,9 +65,7 @@ You can add additional arguments as you see fit.
 
 ## Sponsor
 
-![ES-Financiado por la Unión Europea-BLACK Outline](https://github.com/uniadaptiveLTI/uniadaptiveLTI-Back/assets/91719773/f580ddb3-c797-407f-bc16-80ed6deec602)
-![LOGO NEGATIVO](https://github.com/uniadaptiveLTI/uniadaptiveLTI-Back/assets/91719773/4b729c6b-5520-44eb-a710-a71b43b5445c)
+![LOGOPOSITIVO](https://github.com/uniadaptiveLTI/uniadaptiveLTI-Back/assets/91719773/b6220269-7739-4aa8-ab1f-2a8af900b7a5)
+![ES_Financiado_por_la_Unión_Europea_RGB_BLACK_Outline](https://github.com/uniadaptiveLTI/uniadaptiveLTI-Back/assets/91719773/4cf50ae9-bb71-4092-977d-4f6000a8be75)
 
-
-Financiado por la Unión Europea - NextGenerationEU
 
