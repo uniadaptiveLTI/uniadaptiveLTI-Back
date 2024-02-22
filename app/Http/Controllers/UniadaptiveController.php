@@ -13,12 +13,16 @@ class UniadaptiveController extends Controller
      */
     public function response($data = null)
     {
+        $response = '';
         if ($data != null) {
             // dd($data);
-            return ['ok' => true,  'data' => $data];
+            $response = ['ok' => true,  'data' => $data];
+        } else {
+            $response = ['ok' => true];
         }
-        return ['ok' => true];
+        return $response;
     }
+
 
     /**
      * @param object|null $data
@@ -29,13 +33,16 @@ class UniadaptiveController extends Controller
      */
     public function errorResponse(object $data = null, $error = '', $errorCode = 0)
     {
+        $response = '';
         if ($error != '') {
             if ($errorCode != 0) {
-                return ['ok' => false,  'data' => ['error' => $error, 'error_code' => $errorCode]];
+                $response = ['ok' => false,  'data' => ['error' => $error, 'error_code' => $errorCode]];
             } else {
-                return ['ok' => false,  'data' => ['error' => $error]];
+                $response = ['ok' => false,  'data' => ['error' => $error]];
             }
+        } else {
+            $response = ['ok' => false,  'data' => ['error' => strtoupper($data->exception), 'error_code' => $data->errorcode], 'message' => $data->message];
         }
-        return ['ok' => false,  'data' => ['error' => strtoupper($data->exception), 'error_code' => $data->errorcode], 'message' => $data->message];
+        return $response;
     }
 }
