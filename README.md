@@ -62,3 +62,10 @@ To create an image of the development server:
     docker build --no-cache -f Dockerfile -t uniadaptive-back . --build-arg APP_DEBUG=true ...
 
 You can add additional arguments as you see fit.
+
+## Sponsor
+
+![LOGOPOSITIVO](https://github.com/uniadaptiveLTI/uniadaptiveLTI-Back/assets/91719773/b6220269-7739-4aa8-ab1f-2a8af900b7a5)
+![ES_Financiado_por_la_Unión_Europea_RGB_BLACK_Outline](https://github.com/uniadaptiveLTI/uniadaptiveLTI-Back/assets/91719773/4cf50ae9-bb71-4092-977d-4f6000a8be75)
+
+
