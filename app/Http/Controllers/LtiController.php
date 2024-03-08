@@ -12,24 +12,15 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use LonghornOpen\LaravelCelticLTI\LtiTool;
 use App\Repositories\LtiInstanceRepository;
-use App\Repositories\MapInstanceRepository;
-use App\Repositories\VersionInstanceRepository;
-use App\Services\TokenService;
-use Illuminate\Http\JsonResponse;
+
 
 class LtiController extends Controller
 {
-    private LtiInstanceRepository $LtiRepository;
-    private MapInstanceRepository $MapRepository;
-    private VersionInstanceRepository $VersionRepository;
-    private TokenService $tokenService;
+    private LtiInstanceRepository $repository;
 
-    public function __construct(LtiInstanceRepository $LtiRepository, MapInstanceRepository $MapRepository, VersionInstanceRepository $VersionRepository, TokenService $tokenService)
+    public function __construct(LtiInstanceRepository $repository)
     {
-        $this->LtiRepository = $LtiRepository;
-        $this->MapRepository = $MapRepository;
-        $this->VersionRepository = $VersionRepository;
-        $this->tokenService = $tokenService;
+        $this->repository = $repository;
     }
 
 
@@ -71,9 +62,9 @@ class LtiController extends Controller
         $fire = $tool->getMessageParameters();
         $platform = $fire['tool_consumer_info_product_family_code'];
         $token_request = $this->getLmsToken($fire['platform_id'], $platform, true);
-        if ($token_request === null) {
+        if ($token_request == '') {
             return response('The token used not valid or file multiple_lms_config.php doesn`t exist');
-        } elseif ($platform === "moodle") {
+        } elseif ($platform == "moodle") {
             $result = app(MoodleController::class)->checkToken($fire['platform_id'], $token_request);
             if (!$result['ok']) {
                 return response()->json($result, 500);
@@ -96,14 +87,14 @@ class LtiController extends Controller
                         ['context_id', '=', $fire['context_id']],
                         ['expires_at', '>=', intval(Carbon::now()->valueOf())],
                     ])->update([
-                        'profile_url' => app(MoodleController::class)->getImgUser(
-                            $token_request,
-                            $fire['platform_id'],
-                            $fire['user_id']
-                        ),
-                        'context_title' => $fire['context_title'],
-                        'lis_person_name_full' => $fire['lis_person_name_full'],
-                    ]);
+                                'profile_url' => app(MoodleController::class)->getImgUser(
+                                    $token_request,
+                                    $fire['platform_id'],
+                                    $fire['user_id']
+                                ),
+                                'context_title' => $fire['context_title'],
+                                'lis_person_name_full' => $fire['lis_person_name_full'],
+                            ]);
                     break;
                 case 'sakai':
                     $jwtPayload = $jwt->getPayload();
@@ -123,10 +114,10 @@ class LtiController extends Controller
                         ['context_id', '=', $fire['context_id']],
                         ['expires_at', '>=', intval(Carbon::now()->valueOf())],
                     ])->update([
-                        'profile_url' => app(SakaiController::class)->getUrl($fire['platform_id'], $fire['context_id'], app(SakaiController::class)->getId($fire['user_id'])),
-                        'lis_person_name_full' => $fire['lis_person_name_full'],
-                        'session_id' => $session_id,
-                    ]);
+                                'profile_url' => app(SakaiController::class)->getUrl($fire['platform_id'], $fire['context_id'], app(SakaiController::class)->getId($fire['user_id'])),
+                                'lis_person_name_full' => $fire['lis_person_name_full'],
+                                'session_id' => $session_id,
+                            ]);
                 default:
                     break;
             }
@@ -219,6 +210,18 @@ class LtiController extends Controller
             ], 404);
         }
     }
+
+    /**
+     * @param Request $request
+     * 
+     * @return array
+     */
+    public function getTime(Request $request)
+    {
+        $token = $request->token;
+        $time = DB::table('lti_info')->where([['token', '=', $token]])->first();
+        return response()->json(['time' => $time->session_active]);
+    }
     /**
      * Function that returns the user and course data.
      * 
@@ -230,64 +233,60 @@ class LtiController extends Controller
     {
         // header('Access-Control-Allow-Origin: ' . env('FRONT_URL'));
         $token = null;
-        $response = null;
         if (isset($request->token)) {
             $token = $request->token;
 
             if ($this->checkToken($token)) {
-                $sessionData = $this->LtiRepository->getLtiInfoByToken($token);
+                $sessionData = $this->repository->getLtiInfoByToken($token);
 
                 $this->registerLog('getSession', $sessionData);
                 $platform = $sessionData->tool_consumer_info_product_family_code;
                 $token_request = $this->getLmsToken($sessionData->platform_id, $platform, true);
                 $platformName = $this->getLmsName($sessionData->platform_id);
 
-                if ($token_request !== null && ($platformName !== null && is_string($platformName))) {
+                if ($token_request != '' && is_string($platformName)) {
                     $sessionData->platform_name = $platformName;
                 }
 
                 switch ($platform) {
                     case 'moodle':
-                        $response = app(MoodleController::class)->getSession($sessionData, $token_request);
+                        return app(MoodleController::class)->getSession($sessionData, $token_request);
                         break;
                     case 'sakai':
-                        $response = app(SakaiController::class)->getSession($sessionData);
+                        return app(SakaiController::class)->getSession($sessionData);
                         break;
                     default:
-                        $response = response()->json($this->errorResponse(null, 'PLATFORM_NOT_SUPPORTED'), 500);
+                        return response()->json($this->errorResponse(null, 'PLATFORM_NOT_SUPPORTED'), 500);
                         break;
                 }
-            } else {
-                $response = response()->json($this->errorResponse(null, 'INVALID_OR_EXPIRED_TOKEN'), 500);
             }
         } else {
-            $response = response()->json($this->errorResponse(null, 'TOKEN_NOT_FOUND'), 500);
+            return response()->json($this->errorResponse(null, 'INVALID_OR_EXPIRED_TOKEN'), 500);
         }
-
-        return $response;
     }
-
     /**
      * This function obtains data from a map.
+     * 
      * @param Request $request
      * 
-     * @return JsonResponse
+     * @return array
      */
-    public function getMap(Request $request): JsonResponse
+    public function getMap(Request $request)
     {
         // header('Access-Control-Allow-Origin: ' . env('FRONT_URL'));
-        $response = null;
         if ($this->checkToken($request->token)) {
-            $dataMap = $this->MapRepository->getMapByCreatedId($request->map_id);
+            $dataMap = Map::where('created_id', $request->map_id)
+                ->first();
             if ($dataMap == null) {
-                $response = response()->json($this->errorResponse(null, 'INVALID_MAP'), 500);
-            } else {
-                $response = response()->json($this->response($dataMap));
+
+                return response()->json($this->errorResponse(null, 'INVALID_MAP'), 500);
             }
+            // $dataMap = json_decode($dataMap);
+
+            return response()->json($this->response($dataMap));
         } else {
-            $response = response()->json($this->errorResponse(null, 'INVALID_OR_EXPIRED_TOKEN'), 500);
+            return response()->json($this->errorResponse(null, 'INVALID_OR_EXPIRED_TOKEN'), 500);
         }
-        return $response;
     }
     /**
      * This function obtains data from a version of a map.
@@ -296,23 +295,24 @@ class LtiController extends Controller
      * 
      * @return array
      */
-    public function getVersions(Request $request): JsonResponse
+    public function getVersions(Request $request)
     {
-        $response = null;
         if ($this->checkToken($request->token)) {
-            $mapId = $this->MapRepository->getMapIdByCreatedId($request->map_id);
+            $mapId = Map::select('id')
+                ->where('created_id', $request->map_id)
+                ->first();
             // dd($mapId);
-            $dataVersions = $this->VersionRepository->getVersionsByMapId($mapId->id);
+            $dataVersions = Version::selectRaw('created_id as id, map_id, name')
+                ->where('map_id', $mapId->id)
+                ->get();
 
             if ($dataVersions == null) {
-                $response = response()->json($this->errorResponse(null, 'INVALID_VERSION'), 500);
-            } else {
-                $response = response()->json($this->response($dataVersions->toArray()));
+                return response()->json($this->errorResponse(null, 'INVALID_VERSION'), 500);
             }
+            return response()->json($this->response($dataVersions->toArray()));
         } else {
-            $response = response()->json($this->errorResponse(null, 'INVALID_OR_EXPIRED_TOKEN'), 500);
+            return response()->json($this->errorResponse(null, 'INVALID_OR_EXPIRED_TOKEN'), 500);
         }
-        return $response;
     }
 
     /**
@@ -326,7 +326,9 @@ class LtiController extends Controller
     {
         if ($this->checkToken($request->token)) {
 
-            $dataVersion = $this->VersionRepository->getVersionsByMapId($request->version_id);
+            $dataVersion = Version::selectRaw('created_id as id, map_id, name, blocks_data')
+                ->where('created_id', $request->version_id)
+                ->first();
 
             if ($dataVersion == null) {
                 return response()->json($this->errorResponse(null, 'INVALID_VERSION'), 500);
@@ -348,11 +350,10 @@ class LtiController extends Controller
     {
         // header('Access-Control-Allow-Origin: *');
         // dd($request);
-
-        $token = $request->token;
-        if ($this->tokenService->checkExpiredToken($request->token)) {
-            $sessionData = $this->LtiRepository->getLtiInfoByToken($token);
-
+        if ($this->checkToken($request->token)) {
+            $sessionData = DB::table('lti_info')
+                ->where('token', '=', $request->token)
+                ->first();
             // dd($sessionData->tool_consumer_info_product_family_code);
             switch ($sessionData->tool_consumer_info_product_family_code) {
                 case 'moodle':
@@ -434,7 +435,7 @@ class LtiController extends Controller
                 $mapData = $saveData['map'];
 
                 $map = Map::updateOrCreate(
-                    ['created_id' => $mapData['id'], 'course_id' => $course->id, 'user_id' => (string)$saveData['user_id']],
+                    ['created_id' => $mapData['id'], 'course_id' => $course->id, 'user_id' => (string) $saveData['user_id']],
                     ['name' => $mapData['name']]
                 );
 
@@ -498,7 +499,6 @@ class LtiController extends Controller
      * 
      * @return array
      */
-    //FIXME:
     public function exportVersion(Request $request)
     {
         if ($this->checkToken($request->token)) {
@@ -583,9 +583,20 @@ class LtiController extends Controller
      * 
      * @return array
      */
-    public function checkToken(string $token): bool
+    public function checkToken($token)
     {
-        return $this->tokenService->checkToken($token);
+        $result = false;
+        if ($this->repository->checkExpiredToken($token)) {
+            $sessionData = $this->repository->getLtiInfoByToken($token);
+            if ($sessionData !== null) {
+                $sessionData->session_active = intval(Carbon::now()->addMinutes(env('TIME_LIMIT'))->valueOf());
+                $result = $this->repository->updateLtiInfo($sessionData);
+            }
+        } else {
+            $result = false;
+        }
+
+        return $result;
     }
     /**
      * Define the function that gets the data from the database.
@@ -726,19 +737,47 @@ class LtiController extends Controller
      * 
      * @return mixed
      */
-    private function getLmsToken(string $url_lms, string $platform)
+    public function getLmsToken(string $url_lms, string $platform)
     {
-        $response = null;
-        if (config()->has('multiple_lms_config')) {
+        // header('Content-Type: application/json');
+        if (!config()->has('multiple_lms_config')) {
+            return '';
+        } else {
+            // Obtains from the multiple_lms_config.php configuration the lms_data that contains all the LMS grouped by url and token
             $multiple_lms_config = config('multiple_lms_config.lms_data');
-            foreach ($multiple_lms_config as $lms_data) {
-                if ($lms_data['url'] == $url_lms) {
-                    $response = $this->tokenService->getTokenByPlatform($platform, $lms_data);
-                }
+            switch ($platform) {
+                case 'moodle':
+                    foreach ($multiple_lms_config as $lms_data) {
+                        if ($lms_data['url'] == $url_lms) {
+                            return trim($lms_data['token']);
+                        }
+                    }
+                    return '';
+                    break;
+                case 'sakai':
+                    foreach ($multiple_lms_config as $lms_data) {
+                        if ($lms_data['url'] == $url_lms) {
+                            // dd($lms_data);
+
+                            $token = [
+                                'user' => trim($lms_data['user']),
+                                'password' => trim($lms_data['password']),
+                            ];
+
+                            // dd($token);
+                            if (isset($lms_data['cookieName'])) {
+                                $token['cookieName'] = trim($lms_data['cookieName']);
+                            }
+                            return $token;
+                        }
+                    }
+                    return '';
+                    break;
+                default:
+                    return '';
+                    break;
             }
         }
-
-        return $response;
     }
     /**
      * Gets the front-end style configuration
@@ -819,7 +858,7 @@ class LtiController extends Controller
     {
         if ($data != null) {
             // dd($data);
-            return ['ok' => true,  'data' => $data];
+            return ['ok' => true, 'data' => $data];
         }
         return ['ok' => true];
     }
@@ -835,11 +874,11 @@ class LtiController extends Controller
     {
         if ($error != '') {
             if ($errorCode != 0) {
-                return ['ok' => false,  'data' => ['error' => $error, 'error_code' => $errorCode]];
+                return ['ok' => false, 'data' => ['error' => $error, 'error_code' => $errorCode]];
             } else {
-                return ['ok' => false,  'data' => ['error' => $error]];
+                return ['ok' => false, 'data' => ['error' => $error]];
             }
         }
-        return ['ok' => false,  'data' => ['error' => strtoupper($data->exception), 'error_code' => $data->errorcode], 'message' => $data->message];
+        return ['ok' => false, 'data' => ['error' => strtoupper($data->exception), 'error_code' => $data->errorcode], 'message' => $data->message];
     }
 }
