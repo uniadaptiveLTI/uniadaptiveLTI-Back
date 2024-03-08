@@ -6,33 +6,33 @@ use App\Models\LtiInfo;
 
 class LtiInstanceRepository
 {
+
     /**
      * @param string $token
      * 
-     * @return [type]
+     * @return object
      */
-    public function getLtiInfoByToken(string $token)
+    public function getLtiInfoByToken(string $token): object
     {
         $ltiInfo = LtiInfo::where('token', '=', $token)
             ->first();
         return $ltiInfo;
     }
-    public function checkExpiredToken(string $token): bool
-    {
-        $now = time();
-        return LtiInfo::where('token', '=', $token)
-            ->where('expires_at', '>=', $now)
-            ->exists();
-    }
-    public function updateLtiInfo(LtiInfo $ltiInfo)
-    {
 
+    /**
+     * @param LtiInfo $ltiInfo
+     * 
+     * @return bool
+     */
+    public function updateLtiInfo(LtiInfo $ltiInfo): bool
+    {
         return $ltiInfo->save();
     }
-    public function getMoodleSession()
-    {
-    }
-    public function getSakaiSession()
-    {
-    }
+
+    // public function getMoodleSession()
+    // {
+    // }
+    // public function getSakaiSession()
+    // {
+    // }
 }

@@ -32,7 +32,7 @@ class MoodleController extends Controller
                 'wstoken' => $token_request,
                 'wsfunction' => 'local_uniadaptive_check_user',
                 'courseid' => $courseId,
-                'userid' =>  $lastInserted->user_id,
+                'userid' => $lastInserted->user_id,
                 'moodlewsrestformat' => 'json'
             ]
         ];
@@ -136,7 +136,8 @@ class MoodleController extends Controller
         );
         while (is_null($dataInstance->id)) {
             sleep(1);
-        };
+        }
+        ;
         return $dataInstance->id;
     }
     /**
@@ -403,7 +404,7 @@ class MoodleController extends Controller
 
         $data = $this->requestWebServices($url_lms, $query);
         if (isset($data->exception)) {
-            return  response()->json(app(LtiController::class)->errorResponse($data), 500);
+            return response()->json(app(LtiController::class)->errorResponse($data), 500);
         }
         $grupings = array();
         foreach ($data as $gruping) {
@@ -541,14 +542,14 @@ class MoodleController extends Controller
         $nodes = $request->nodes;
         $badges = [];
         usort($nodes, function ($a, $b) {
-            if (isset($a['section']) && isset($b['section'])) {
+            if (isset ($a['section']) && isset ($b['section'])) {
                 if ($a['section'] === $b['section']) {
                     return $a['order'] - $b['order'];
                 }
                 return $a['section'] - $b['section'];
-            } else if (isset($a['section'])) {
+            } else if (isset ($a['section'])) {
                 return -1; // or other negative value
-            } else if (isset($b['section'])) {
+            } else if (isset ($b['section'])) {
                 return 1; // or other positive value
             }
             return 0;
@@ -630,7 +631,7 @@ class MoodleController extends Controller
                         ]);
                 }
             }
-            return response()->json(['ok' => $statusUpdate->status, 'data' => $sections]);
+            return response()->json(['ok' => $statusUpdate->status]);
         } else {
             return response()->json(['ok' => $statusUpdate->status, 'data' => ['error' => 'ERROR_UPDATING_COURSE',]]);
         }
